@@ -8,7 +8,7 @@ previsioni numeriche si scrivono **prima** di ogni run.
 progetto ricostruisce il neutrone incidente da ciò che interagisce nello scintillatore. Niente
 `G4OpticalPhysics`, niente trasporto di fotoni.
 
-## Fase 0 — Infrastruttura ✅ (in chiusura)
+## Fase 0 — Infrastruttura ✅ completata (v0.1.0, 2026-11-16)
 
 - Superbuild CMake (C++17, Ninja, preset `debug` / `release` / `ci`), warning severi,
   `-ffast-math` vietato nelle statistiche (`#error`), sanitizer in CI.
@@ -16,6 +16,7 @@ progetto ricostruisce il neutrone incidente da ciò che interagisce nello scinti
   (`data_paths.hpp`: niente scritture sul disco di sistema, controllo dello spazio).
 - Scheletri compilabili di `sim/` (stampa la versione di Geant4) e `analysis/stats`.
 - Docs, CI GitHub Actions (senza Geant4/ROOT), wrapper con tetto di memoria.
+- Primo commit locale; repository GitHub non ancora creato (solo su richiesta esplicita).
 
 ## Fase 1 — Simulazione minima con verità MC
 
