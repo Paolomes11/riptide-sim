@@ -1,0 +1,44 @@
+---
+Language: Cpp
+Standard: c++17
+BasedOnStyle: LLVM
+
+ColumnLimit: 100
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+
+AccessModifierOffset: -4
+NamespaceIndentation: None
+
+BreakBeforeBraces: Attach
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+
+PointerAlignment: Left
+ReferenceAlignment: Left
+
+SortIncludes: CaseSensitive
+IncludeBlocks: Regroup
+IncludeCategories:
+  - Regex: '^<[^/.]+>$'         # C++ standard library, e.g. <vector>
+    Priority: 3
+  - Regex: '^<.*\.h>$'          # C standard library, e.g. <cstdio> style C headers
+    Priority: 2
+  # this project's own headers (include/riptide/...) sort after third-party ones
+  - Regex: '^[<"]riptide/'
+    Priority: 4
+  - Regex: '^[<"]'              # everything else (third-party)
+    Priority: 1
+
+AlignAfterOpenBracket: Align
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+AlignTrailingComments: true
+
+SpaceBeforeParens: ControlStatements
+SpacesInAngles: false
+
+FixNamespaceComments: true
+...

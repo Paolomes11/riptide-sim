@@ -1,0 +1,35 @@
+# Build trees (one per CMake preset) and tooling caches
+build/
+build-*/
+CMakeUserPresets.json
+compile_commands.json
+Testing/
+.cache/
+
+# Generated outputs: figures and reduced results live outside git
+outputs/
+
+# Simulation and analysis data: never in the repository (see docs/architecture/data_layout.md)
+data/
+*.root
+*.npz
+*.h5
+*.hdf5
+
+# Python (figure scripts only)
+.venv/
+__pycache__/
+*.egg-info/
+.ipynb_checkpoints/
+
+# Geant4 runtime leftovers
+G4History.macro
+*.heprep
+*.wrl
+
+# Editors and OS
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store

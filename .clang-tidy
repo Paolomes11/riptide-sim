@@ -1,0 +1,59 @@
+---
+# Curated check set: modern C++ practices, common bug patterns, performance
+# and readability, plus the Core Guidelines checks that are broadly useful.
+# Deliberately not "*-*"-everything: fuchsia/google/zircon/llvm/cert style
+# checks are out of scope for this template.
+Checks: >
+  clang-diagnostic-*,
+  clang-analyzer-*,
+  bugprone-*,
+  performance-*,
+  modernize-*,
+  readability-*,
+  cppcoreguidelines-*,
+  -modernize-use-trailing-return-type,
+  -readability-magic-numbers,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -bugprone-chained-comparison
+
+# Suppression rationale:
+# - modernize-use-trailing-return-type: pure style preference that conflicts
+#   with the conventional `ReturnType func()` form used throughout the
+#   project (and with the LLVM-based .clang-format); no correctness value.
+# - *magic-numbers: too noisy in most projects (sizes, timestamps, ports are
+#   numeric by nature); revisit per-project once real code exists.
+# - bugprone-chained-comparison: false positive on Catch2's REQUIRE(...)
+#   macro -- its expression-template capture of the comparison expands into
+#   a chained-comparison shape that this check flags on every assertion,
+#   not on user code.
+
+WarningsAsErrors: ''
+HeaderFilterRegex: '(^|/)(include|src)/'
+FormatStyle: file
+
+CheckOptions:
+  - key: readability-identifier-naming.NamespaceCase
+    value: lower_case
+  - key: readability-identifier-naming.ClassCase
+    value: CamelCase
+  - key: readability-identifier-naming.StructCase
+    value: CamelCase
+  - key: readability-identifier-naming.FunctionCase
+    value: camelBack
+  - key: readability-identifier-naming.VariableCase
+    value: lower_case
+  - key: readability-identifier-naming.PrivateMemberSuffix
+    value: '_'
+  - key: readability-identifier-naming.EnumCase
+    value: CamelCase
+  - key: readability-identifier-naming.EnumConstantCase
+    value: CamelCase
+  - key: readability-identifier-naming.GlobalConstantCase
+    value: CamelCase
+  - key: readability-identifier-naming.GlobalConstantPrefix
+    value: k
+  - key: readability-identifier-naming.ConstexprVariableCase
+    value: CamelCase
+  - key: readability-identifier-naming.ConstexprVariablePrefix
+    value: k
+...

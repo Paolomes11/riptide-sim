@@ -1,0 +1,58 @@
+# Architettura
+
+## Componenti
+
+```
+riptide-sim/
+├── common/      header-only: unità, schema degli eventi, radice dei dati, versione
+├── sim/         applicazione Geant4: genera eventi e li scrive su file
+├── analysis/
+│   ├── stats/   motore statistico, C++ puro (niente ROOT, niente Geant4)
+│   ├── io/      (fase 4) lettura ROOT via RDataFrame → struct-of-arrays
+│   └── apps/    (fase 5) riptide_reco, riptide_validate
+├── config/      (fase 1) configurazioni di run JSON versionate
+├── scripts/     wrapper shell; Python solo per figure da risultati ridotti
+├── docs/
+└── cmake/       opzioni del compilatore per target
+```
+
+Dipendenze, solo verso il basso:
+
+```
+common  ←  sim
+common  ←  analysis/stats  ←  analysis/apps
+common  ←  analysis/io     ←  analysis/apps
+```
+
+Simulazione e analisi comunicano **solo** attraverso i file su disco e lo schema in
+`common/include/riptide/common/event_schema.hpp`. Lo schema ha una versione (`kSchemaVersion`):
+ogni cambio di colonne la incrementa e l'analisi rifiuta file con versione diversa.
+
+## Build
+
+- CMake ≥ 3.25 con preset (`CMakePresets.json`), generatore Ninja, cartelle `build/<preset>`.
+- `debug` e `release`: build completa (richiede Geant4 11.4). `ci`: solo `common` e
+  `analysis/stats`, con ASan/UBSan e `-Werror`.
+- Opzioni del compilatore applicate per target tramite `riptide::warnings` e
+  `riptide::options`: il codice di terze parti (Geant4, ROOT, Catch2) non è toccato. Gli header
+  di Geant4 arrivano come include di sistema.
+- Test con Catch2 3, scoperti da `catch_discover_tests`; codice di ritorno 4 = test saltato (es.
+  ambiente senza il disco atteso).
+
+## Efficienza (dal primo giorno)
+
+- Simulazione MT, un file per thread, nessuna unione obbligatoria.
+- Lo schema contiene solo tipi scalari (niente vettori per evento finché non servono): lettura
+  colonnare veloce.
+- Analisi su buffer struct-of-arrays contigui; nessun ciclo sugli eventi dentro le funzioni di
+  griglia; parallelismo solo dopo aver profilato.
+- Niente `-ffast-math` (vedi `decisions.md`, D4).
+
+## Riproducibilità
+
+- Ogni evento porta `event_id` e i due semi del suo RNG.
+- Ogni run scrive `run.json`: configurazione, seme principale, git sha, versioni di Geant4, ROOT e
+  schema, numero di eventi.
+- Ogni analisi scrive `analysis.json` con i propri parametri e semi.
+
+Il layout dei dati su disco è in `data_layout.md`.
