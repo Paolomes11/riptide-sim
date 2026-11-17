@@ -21,7 +21,7 @@ Fase 1 (simulazione minima con verità MC), vedi `roadmap.md`.
 ## Punti aperti
 
 - Dimensioni definitive dello scintillatore (prima della fase 3).
-- SSD esterno non montato su `/mnt/external_ssd`: i run veri richiedono il mount o
-  `RIPTIDE_DATA_DIR` su un altro disco.
+- SSD esterno montato su `/mnt/external_ssd` (2026-11-17), ma non in modo permanente: prima di
+  ogni run `scripts/data_root.sh check` (procedura in `architecture/data_layout.md`).
 - Comportamento di `G4NeutronHP` a 19.5–20 MeV (bordo del dominio).
 - kB di Birks per BC-408: da prendere da letteratura citata (fase 2).
