@@ -4,8 +4,10 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 
+#include <CLHEP/Units/PhysicalConstants.h>
 #include <CLHEP/Units/SystemOfUnits.h>
 
+#include "riptide/common/np_kinematics.hpp"
 #include "riptide/common/units.hpp"
 
 using Catch::Matchers::WithinULP;
@@ -21,4 +23,12 @@ TEST_CASE("project units equal Geant4 internal units", "[units][geant4]") {
     CHECK_THAT(u::ns, WithinULP(CLHEP::ns, 0));
     CHECK_THAT(u::rad, WithinULP(CLHEP::rad, 0));
     CHECK_THAT(u::deg, WithinULP(CLHEP::deg, 1));
+}
+
+// The recoil kinematics in riptide::kinematics must use the masses Geant4
+// gives G4Proton and G4Neutron, otherwise per-event residuals Ep - Ep(En,
+// theta_p) on Geant4 output would carry a constant offset.
+TEST_CASE("nucleon masses equal Geant4's", "[units][geant4][kinematics]") {
+    CHECK_THAT(riptide::kinematics::kProtonMass, WithinULP(CLHEP::proton_mass_c2, 0));
+    CHECK_THAT(riptide::kinematics::kNeutronMass, WithinULP(CLHEP::neutron_mass_c2, 0));
 }
