@@ -1,0 +1,14 @@
+#pragma once
+
+// Generated at every build by cmake/RiptideGitDescribe.cmake from git_info.hpp.in:
+// do not edit the copy in the build tree.
+
+#include <string_view>
+
+namespace riptide {
+
+// `git describe --tags --always --dirty` of the source tree at build time, or
+// "unknown" when the tree is not a git repository.
+inline constexpr std::string_view kGitDescribe = "@RIPTIDE_GIT_DESCRIBE@";
+
+} // namespace riptide

@@ -1,0 +1,2 @@
+# Vendored third-party code is not linted.
+Checks: '-*,misc-definitions-in-headers'

@@ -2,3 +2,10 @@ riptide-sim
 Copyright 2026 Giulio Mesini
 
 This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Third-party components distributed in external/ (unmodified):
+
+- nlohmann/json 3.11.3, Copyright (c) 2013-2023 Niels Lohmann, MIT License
+  (external/nlohmann_json/LICENSE.MIT).
+- Lyra 1.6.1, Copyright 2018-2022 René Ferdinand Rivera Morell, 2021 Max Ferger,
+  2017 Two Blue Cubes Ltd., Boost Software License 1.0 (external/lyra/LICENSE.txt).

@@ -20,18 +20,27 @@ progetto ricostruisce il neutrone incidente da ciò che interagisce nello scinti
 
 ## Fase 1 — Simulazione minima con verità MC
 
-- Mondo + blocco di BC-408 (`G4_PLASTIC_SC_VINYLTOLUENE`), `QGSP_BIC_HP`, run MT.
-- Fascio di neutroni monoenergetico e direzione fissa (poi spettro piatto su [10, 20] MeV).
-- CLI (`--config`, `--data-dir`, `--events`, `--threads`, `--seed`), configurazione JSON versionata
-  in `config/`, `run.json` scritto accanto ai dati (config, seed, git sha, versioni).
-- Ntupla di verità secondo `event_schema.hpp` (lo schema passa da v0 a v1 qui).
+### 1a — Simulazione funzionante ✅ completata (v0.2.0, 2026-11-17)
+
+- Mondo nel vuoto + blocco di BC-408 (`G4_PLASTIC_SC_VINYLTOLUENE`, dimensioni dal config),
+  `QGSP_BIC_HP`, run MT.
+- Fascio di neutroni monoenergetico o piatto su [E_min, E_max], direzione fissa.
+- CLI (`--config`, `--data-dir`, `--events`, `--threads`, `--seed`, `--run-id`), configurazione
+  JSON versionata in `config/`, `run.json` scritto accanto ai dati (config, seme, git, versioni).
+- Semi per evento da (event_id, seme del run): output indipendente dal numero di thread (D11).
+- Ntupla di verità secondo `event_schema.hpp` v1, un file per thread.
+- Test d'integrazione `sim_integration`: run a 1 e a 2 thread identici colonna per colonna.
+
+### 1b — Verifiche fisiche e prestazioni
+
 - Verifiche **non circolari**:
   - spettro E_p del primo scattering n–p piatto su [0, E_n] (a);
   - E_p(θ_p) contro la formula relativistica (a);
   - distribuzione angolare in CM contro ENDF/B-VIII.0 (anisotropia vera);
   - frazione di prime interazioni n–p / n–C contro le sezioni d'urto;
   - comportamento a 19.5–20 MeV (bordo di validità di `G4NeutronHP`).
-- Prestazioni: eventi/s per thread, byte/evento (serve a `estimateRunBytes`).
+- Prestazioni: eventi/s per thread, byte/evento (serve a `estimateRunBytes`, oggi con una stima
+  provvisoria).
 
 ## Fase 2 — Deposito di energia e quenching di Birks
 

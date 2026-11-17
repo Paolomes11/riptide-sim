@@ -1,0 +1,5 @@
+bfgroup/Lyra 1.6.1 (BSL-1.0)
+source: https://github.com/bfgroup/Lyra/archive/refs/tags/1.6.1.tar.gz
+sha256 (tar.gz): a93f247ed89eba11ca36eb24c4f8ba7be636bf24e74aaaa8e1066e0954bec7e3
+file: data/single_include/lyra/lyra.hpp
+sha256 (lyra.hpp): 2b807f199d859fc0700b283d511a4b09ef30121eeae66c642117abd9ee8e086e

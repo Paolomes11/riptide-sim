@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 
 project(riptide_sim
-    VERSION 0.1.0
+    VERSION 0.2.0
     DESCRIPTION "Geant4 simulation and C++ statistical reconstruction of incident neutrons from n-p scattering"
     LANGUAGES CXX)
 
@@ -22,6 +22,10 @@ option(RIPTIDE_ENABLE_NATIVE "Optimize for the build machine (-march=native); bi
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 include(RiptideCompilerOptions)
 
+# Optional: without git the build still works and records "unknown" as the
+# source revision (cmake/RiptideGitDescribe.cmake).
+find_package(Git QUIET)
+
 if(RIPTIDE_BUILD_TESTS)
     enable_testing()
     find_package(Catch2 3 REQUIRED)
@@ -31,7 +35,12 @@ endif()
 # Dependency direction (only downwards):
 #   common  <- sim
 #   common  <- analysis/stats   (pure C++: no ROOT, no Geant4)
+# sim/config and sim/truth have no Geant4 dependency and are built (and tested)
+# in every preset.
+add_subdirectory(external)
 add_subdirectory(common)
+add_subdirectory(sim/config)
+add_subdirectory(sim/truth)
 add_subdirectory(analysis)
 if(RIPTIDE_BUILD_SIM)
     add_subdirectory(sim)

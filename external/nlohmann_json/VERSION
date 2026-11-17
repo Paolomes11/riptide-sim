@@ -1,0 +1,6 @@
+nlohmann/json 3.11.3 (MIT)
+source: https://github.com/nlohmann/json/releases/download/v3.11.3/json.hpp
+sha256 (json.hpp): 9bea4c8066ef4a1c206b2be5a36302f8926f7fdc6087af5d20b417d0cf103ea6
+license: https://raw.githubusercontent.com/nlohmann/json/v3.11.3/LICENSE.MIT
+source: https://github.com/nlohmann/json/releases/download/v3.11.3/json_fwd.hpp
+sha256 (json_fwd.hpp): 5cefbba751baf5243033fd894c70be9b37103d64b3d3a959e4173197d71137b9

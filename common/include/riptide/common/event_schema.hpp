@@ -5,9 +5,12 @@
 // project system (MeV, mm, ns, rad). Prefixes: truth_ = Monte Carlo truth,
 // det_ = detector-level quantities, reco_ = reconstructed quantities.
 //
-// Draft: kSchemaVersion stays 0 until the first simulation phase fixes the
-// columns; any later change of name, type or meaning bumps it, and readers must
-// refuse files with a version they do not know.
+// Any change of a column's name, type or meaning bumps kSchemaVersion, and
+// readers must refuse files with a version they do not know. Only Int32 and
+// Double columns exist because the Geant4 ntuple writer has no 64-bit integer
+// column type.
+//
+// v1: first written schema (meta + truth columns).
 
 #include <array>
 #include <cstdint>
@@ -15,10 +18,10 @@
 
 namespace riptide::schema {
 
-inline constexpr std::int32_t kSchemaVersion = 0;
+inline constexpr std::int32_t kSchemaVersion = 1;
 inline constexpr std::string_view kEventTreeName = "events";
 
-enum class ColumnType : std::uint8_t { Int32, Int64, Double };
+enum class ColumnType : std::uint8_t { Int32, Double };
 
 struct BranchSpec {
     std::string_view name;
@@ -39,11 +42,12 @@ enum class FirstInteraction : std::int32_t {
 
 // Event identification. Multithreaded Geant4 runs write one file per thread in
 // a non-deterministic order, so each event carries its id and the two seeds that
-// reproduce it on its own.
+// reproduce it on its own. The seeds fit in 31 bits (see the simulation's
+// seeding), so signed 32-bit columns hold them exactly.
 inline constexpr std::array<BranchSpec, 3> kMetaBranches{{
-    {"event_id", ColumnType::Int64, "1", "event number within the run"},
-    {"rng_seed_0", ColumnType::Int64, "1", "first per-event random seed"},
-    {"rng_seed_1", ColumnType::Int64, "1", "second per-event random seed"},
+    {"event_id", ColumnType::Int32, "1", "event number within the run"},
+    {"rng_seed_0", ColumnType::Int32, "1", "first per-event random seed"},
+    {"rng_seed_1", ColumnType::Int32, "1", "second per-event random seed"},
 }};
 
 inline constexpr std::array<BranchSpec, 16> kTruthBranches{{

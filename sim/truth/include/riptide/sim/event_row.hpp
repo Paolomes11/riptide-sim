@@ -1,0 +1,36 @@
+#pragma once
+
+// One ntuple row of an event, in the column order of event_schema.hpp (meta
+// columns, then truth columns). Geant4-free, so the mapping from the in-memory
+// record to the schema is unit-tested on its own; the Geant4 writer only
+// iterates over the row.
+
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <string_view>
+#include <variant>
+
+#include "riptide/common/event_schema.hpp"
+#include "riptide/sim/truth_record.hpp"
+
+namespace riptide::sim {
+
+// Value of one column; the alternative matches schema::ColumnType (Int32 first).
+using ColumnValue = std::variant<std::int32_t, double>;
+
+inline constexpr std::size_t kEventColumns =
+    schema::kMetaBranches.size() + schema::kTruthBranches.size();
+
+using EventRow = std::array<ColumnValue, kEventColumns>;
+
+// Schema entry of column i of an EventRow.
+[[nodiscard]] const schema::BranchSpec& columnSpec(std::size_t i);
+
+// Position of a column in an EventRow; throws std::out_of_range for a name not
+// in the schema.
+[[nodiscard]] std::size_t columnIndex(std::string_view name);
+
+[[nodiscard]] EventRow eventRow(const EventMeta& meta, const TruthRecord& record);
+
+} // namespace riptide::sim
