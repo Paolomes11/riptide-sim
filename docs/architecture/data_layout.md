@@ -38,8 +38,31 @@ a mano.
    - che la radice esista e sia scrivibile;
    - che non stia sul dispositivo di `/`;
    - che ci siano almeno `GIB` + 2 GiB liberi.
-2. **Mount**, se il controllo lo chiede. È un'operazione manuale, con l'UUID preso da
-   `lsblk -o NAME,SIZE,FSTYPE,UUID`:
+2. **Mount**, se il controllo lo chiede. Lo fa `scripts/mount_ssd.sh`, lanciato dall'utente
+   perché chiede la password di `sudo`:
+
+   ```bash
+   scripts/mount_ssd.sh
+   ```
+
+   L'UUID non sta nel repository. Lo script lo legge da `RIPTIDE_SSD_UUID` oppure dal file non
+   tracciato `~/.config/riptide-sim/ssd_uuid` (una riga; `$XDG_CONFIG_HOME` se definita), da
+   creare una volta sola con l'UUID preso da `lsblk -o NAME,SIZE,FSTYPE,UUID`. Lo script:
+   - se il mount point è già montato con quell'UUID non fa nulla, quindi si può lanciare a ogni
+     sessione;
+   - si ferma se sul mount point c'è un altro disco, se l'SSD è montato altrove, se il
+     filesystem non è ext4 o se il mount point non montato contiene file (sarebbero dati finiti
+     sul disco di sistema);
+   - monta con `sudo mount UUID=<UUID>`, unico comando privilegiato, e poi lancia
+     `data_root.sh prepare`;
+   - non tocca `/etc/fstab` e non crea la radice dei dati.
+
+   Codici di uscita: 0 a posto, 2 UUID mancante o non valido, 3 SSD non collegato, 7 stato non
+   sicuro, 8 mount fallito, anche quando manca un terminale per la password di `sudo` (per
+   esempio dal prompt `!` di una sessione con l'assistente: va lanciato da un terminale
+   normale); gli altri vengono da `data_root.sh prepare`.
+
+   A mano, i comandi equivalenti sono:
 
    ```bash
    sudo mount UUID=<UUID> /mnt/external_ssd
