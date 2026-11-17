@@ -6,7 +6,7 @@ add_executable(riptide_sim apps/riptide_sim.cpp)
 # Imported Geant4 targets carry their include directories as SYSTEM, so the
 # project warnings do not fire inside Geant4 headers.
 target_link_libraries(riptide_sim PRIVATE
-    riptide::common riptide::options riptide::warnings ${Geant4_LIBRARIES})
+    riptide::common riptide::sim_config riptide::options riptide::warnings ${Geant4_LIBRARIES})
 
 if(RIPTIDE_BUILD_TESTS)
     add_subdirectory(tests)
