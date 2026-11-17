@@ -88,3 +88,43 @@ cancellano: se cambiano, se ne aggiunge una nuova che rimanda alla vecchia.
   analisi con seme registrato.
 - **Motivo:** la stessa simulazione (costosa) serve a più ipotesi di risoluzione.
 - **Conseguenze:** l'analisi deve registrare il seme dello smearing nei suoi metadati.
+
+## D10 — Mondo nel vuoto (2026-11-17)
+
+- **Decisione:** il volume mondo è di `G4_Galactic`; l'unico materiale denso è il blocco di
+  scintillatore.
+- **Motivo:** il neutrone non deve interagire prima del blocco, così la verità della prima
+  interazione è sempre quella nello scintillatore e lo spettro incidente è quello della sorgente.
+- **Alternative:** aria (interazioni rare ma presenti, che sporcano la verità senza servire alla
+  ricostruzione).
+- **Conseguenze:** la geometria reale (fase 3) riapre la questione: supporti e materiali attorno
+  allo scintillatore andranno introdotti in modo esplicito.
+
+## D11 — Semi per evento (2026-11-17)
+
+- **Decisione:** all'inizio di `GeneratePrimaries` il motore del thread viene riseminato con
+  (event_id, seme del run) tramite `MixMaxRng::setSeeds` (stream derivati con
+  `seed_uniquestream`). Il seme del run è al più 2³¹−1, perché `event_id` e i due semi stanno in
+  colonne Int32 dell'ntupla. Prima di riseminare si invalida la cache delle sezioni d'urto
+  adroniche del neutrone con una valutazione fittizia a 0.5·E_n,min.
+- **Motivo:** ogni evento si riproduce da solo e l'output non dipende dal numero di thread. La
+  sola risemina non bastava: le sezioni d'urto elastiche HP integrano il Doppler con un Monte
+  Carlo che consuma numeri casuali, e `G4CrossSectionDataStore` riusa l'ultimo valore se energia,
+  materiale e particella non cambiano. Il numero di estrazioni di un evento dipendeva quindi
+  dall'evento precedente sullo stesso thread: senza invalidazione circa il 3% degli eventi
+  differiva fra run a 1 e a 2 thread.
+- **Alternative:** i semi per thread di Geant4 (riproducibili solo a parità di thread);
+  `G4ParticleHPManager::SetNeglectDoppler` (scartata perché cambia la fisica).
+- **Conseguenze:** ogni cambio di fisica, geometria o versione di Geant4 deve ripassare il test
+  d'integrazione `sim_integration`, che confronta colonna per colonna un run a 1 thread e uno a 2.
+
+## D12 — Versioni delle dipendenze (2026-11-17)
+
+- **Decisione:** Geant4 11.4.1 MT con `QGSP_BIC_HP` (dati G4NDL); nlohmann/json 3.11.3 e Lyra
+  1.6.1 copiati in `external/` (header-only, con sorgente, sha256 e licenza in ciascun `VERSION`);
+  Catch2 3 dal sistema (oggi 3.4.0).
+- **Motivo:** build riproducibile senza rete; le versioni finiscono in `run.json`
+  (`geant4_version`, `git_describe`), quindi ogni run dichiara con cosa è stato prodotto.
+- **Alternative:** `FetchContent` al configure (richiede rete e sposta la verifica degli hash).
+- **Conseguenze:** aggiornare una dipendenza è una decisione esplicita: nuovo `VERSION`, `NOTICE`
+  aggiornato, `sim_integration` e verifiche della fase 1b rilanciati.

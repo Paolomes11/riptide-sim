@@ -30,6 +30,32 @@ cmake --preset release && cmake --build --preset release && ctest --preset relea
 cmake --preset ci && cmake --build --preset ci && ctest --preset ci
 ```
 
+## Uso
+
+```bash
+scripts/data_root.sh check --need 1
+scripts/run_capped.sh -m 5G -- ./build/release/sim/riptide_sim \
+    --config config/mono_14MeV.json --events 1000 --threads 2 --run-id mono14_001
+```
+
+| Opzione | Significato |
+|---|---|
+| `--config <file>` | configurazione del run (JSON, vedi `config/`), obbligatoria |
+| `--events <n>` | numero di eventi, obbligatorio, > 0 |
+| `--run-id <id>` | nome della cartella sotto `<radice>/sim/`, obbligatorio; non deve esistere |
+| `--data-dir <dir>` | radice dei dati (default: `$RIPTIDE_DATA_DIR`, poi `/mnt/external_ssd/riptide-sim`) |
+| `--threads <n>` | thread worker (default 1) |
+| `--seed <s>` | seme del run, 0..2147483647 (default 20260907) |
+| `--allow-system-disk` | permette di scrivere sul disco di sistema (solo test brevi) |
+| `--version` | stampa le versioni ed esce |
+
+Il run scrive `<radice>/sim/<run_id>/events_t<k>.root` (un file per thread, TTree `events`) e,
+alla fine, `run.json` con config, seme e versioni. Lo stesso seme dà gli stessi eventi con
+qualsiasi numero di thread. Formato in `docs/architecture/data_layout.md`.
+
+Il test d'integrazione (`ctest --preset debug -R sim_integration`) scrive due run brevi
+sull'SSD; se l'SSD non è disponibile viene saltato.
+
 ## Dati
 
 I dati non stanno nel repository né sul disco di sistema. Radice: `--data-dir` >
@@ -60,7 +86,8 @@ scripts/run_capped.sh -m 5G -- ./build/release/sim/riptide_sim ...
 
 ## Stato
 
-Fase 0 (infrastruttura) completata; prossima: simulazione minima con verità MC.
+v0.2.0: fase 1a (simulazione minima con verità MC) completata; prossima: fase 1b, verifiche
+fisiche e prestazioni. Dettagli in `docs/status.md`.
 
 ## Licenza
 
