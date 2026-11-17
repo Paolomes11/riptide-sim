@@ -6,6 +6,9 @@
 riptide-sim/
 ├── common/      header-only: unità, schema degli eventi, radice dei dati, versione
 ├── sim/         applicazione Geant4: genera eventi e li scrive su file
+│   ├── config/  configurazione del run e run.json, senza Geant4
+│   ├── truth/   classificazione della verità per evento, senza Geant4
+│   └── validation/  lettura ENDF, attese e statistiche delle verifiche fisiche, senza Geant4
 ├── analysis/
 │   ├── stats/   motore statistico, C++ puro (niente ROOT, niente Geant4)
 │   ├── io/      (fase 4) lettura ROOT via RDataFrame → struct-of-arrays
@@ -19,7 +22,8 @@ riptide-sim/
 Dipendenze, solo verso il basso:
 
 ```
-common  ←  sim
+common  ←  sim/config  ←  sim/truth  ←  sim
+common  ←  sim/validation
 common  ←  analysis/stats  ←  analysis/apps
 common  ←  analysis/io     ←  analysis/apps
 ```
@@ -31,8 +35,9 @@ ogni cambio di colonne la incrementa e l'analisi rifiuta file con versione diver
 ## Build
 
 - CMake ≥ 3.25 con preset (`CMakePresets.json`), generatore Ninja, cartelle `build/<preset>`.
-- `debug` e `release`: build completa (richiede Geant4 11.4). `ci`: solo `common` e
-  `analysis/stats`, con ASan/UBSan e `-Werror`.
+- `debug` e `release`: build completa (richiede Geant4 11.4). `ci`: senza Geant4, cioè `common`,
+  le librerie pure di `sim/` (`config`, `truth`, `validation`) e `analysis/stats`, con ASan/UBSan
+  e `-Werror`.
 - Opzioni del compilatore applicate per target tramite `riptide::warnings` e
   `riptide::options`: il codice di terze parti (Geant4, ROOT, Catch2) non è toccato. Gli header
   di Geant4 arrivano come include di sistema.
