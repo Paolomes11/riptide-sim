@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "riptide/sim/cli_options.hpp"
+#include "riptide/sim/event_seeds.hpp"
 
 namespace {
 
@@ -57,9 +58,10 @@ TEST_CASE("optional options are read", "[cli]") {
     CHECK(o.allow_system_disk);
 }
 
-TEST_CASE("the full 64-bit seed range is accepted", "[cli]") {
-    const auto o = parseCommandLine(with(required(), {"--seed", "18446744073709551615"}));
-    CHECK(o.seed == UINT64_MAX);
+TEST_CASE("the seed is limited to 32 bits", "[cli]") {
+    const auto o = parseCommandLine(with(required(), {"--seed", "4294967295"}));
+    CHECK(o.seed == riptide::sim::kMaxSeed);
+    requireError(with(required(), {"--seed", "4294967296"}), "--seed");
     requireError(with(required(), {"--seed", "18446744073709551616"}), "--seed");
 }
 

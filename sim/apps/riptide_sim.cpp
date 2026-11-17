@@ -7,12 +7,14 @@
 #include <G4RunManagerFactory.hh>
 #include <G4VModularPhysicsList.hh>
 #include <G4Version.hh>
+#include <Randomize.hh>
 
 #include <cstdint>
 #include <exception>
 #include <filesystem>
 #include <iostream>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -67,10 +69,15 @@ void runSimulation(const riptide::sim::RunConfig& config, const riptide::sim::Cl
     }
     const std::unique_ptr<G4RunManager> run_manager(
         G4RunManagerFactory::CreateRunManager(G4RunManagerType::MTOnly, opts.threads));
+    // The per-event seeding relies on MixMax's non-overlapping streams
+    // (event_seeds.hpp); workers clone the master's engine type.
+    if (dynamic_cast<CLHEP::MixMaxRng*>(G4Random::getTheEngine()) == nullptr) {
+        throw std::runtime_error("random engine is not CLHEP::MixMaxRng");
+    }
     // The run manager takes ownership of the three initialisation objects.
     run_manager->SetUserInitialization(new riptide::sim::DetectorConstruction(config));
     run_manager->SetUserInitialization(factory.GetReferencePhysList(config.physics_list));
-    run_manager->SetUserInitialization(new riptide::sim::ActionInitialization(config));
+    run_manager->SetUserInitialization(new riptide::sim::ActionInitialization(config, opts.seed));
     run_manager->Initialize();
     run_manager->BeamOn(static_cast<int>(opts.events));
 }

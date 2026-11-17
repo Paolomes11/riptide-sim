@@ -8,6 +8,7 @@
 #include <system_error>
 
 #include "riptide/common/data_paths.hpp"
+#include "riptide/sim/event_seeds.hpp"
 
 namespace riptide::sim {
 
@@ -50,7 +51,7 @@ lyra::cli makeCli(RawOptions& raw) {
            lyra::opt(raw.data_dir, "dir")["--data-dir"]("data root (default: $RIPTIDE_DATA_DIR, "
                                                         "then /mnt/external_ssd/riptide-sim)") |
            lyra::opt(raw.threads, "n")["--threads"]("worker threads (default 1)") |
-           lyra::opt(raw.seed, "s")["--seed"]("master seed (default 20260907)") |
+           lyra::opt(raw.seed, "s")["--seed"]("run seed, 0..4294967295 (default 20260907)") |
            lyra::opt(raw.allow_system_disk)["--allow-system-disk"](
                "allow writing on the system disk (short tests only)");
 }
@@ -101,6 +102,10 @@ CliOptions parseCommandLine(const std::vector<std::string>& args) {
     }
     if (!raw.seed.empty()) {
         opts.seed = parseNumber<std::uint64_t>(raw.seed, "--seed");
+        if (opts.seed > kMaxSeed) {
+            throw CliError("--seed: must be in [0, " + std::to_string(kMaxSeed) +
+                           "] (the random engine uses 32 bits per seed)");
+        }
     }
     if (!raw.data_dir.empty()) {
         opts.data_dir = raw.data_dir;

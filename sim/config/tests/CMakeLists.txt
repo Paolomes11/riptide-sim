@@ -1,5 +1,6 @@
 add_executable(sim_config_tests
     cli_options_test.cpp
+    event_seeds_test.cpp
     run_config_test.cpp)
 target_link_libraries(sim_config_tests PRIVATE
     riptide::sim_config riptide::options riptide::warnings Catch2::Catch2WithMain)
