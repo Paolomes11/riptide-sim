@@ -31,8 +31,10 @@ endif()
 # Dependency direction (only downwards):
 #   common  <- sim
 #   common  <- analysis/stats   (pure C++: no ROOT, no Geant4)
+# sim/config has no Geant4 dependency and is built (and tested) in every preset.
 add_subdirectory(external)
 add_subdirectory(common)
+add_subdirectory(sim/config)
 add_subdirectory(analysis)
 if(RIPTIDE_BUILD_SIM)
     add_subdirectory(sim)
