@@ -128,3 +128,37 @@ cancellano: se cambiano, se ne aggiunge una nuova che rimanda alla vecchia.
 - **Alternative:** `FetchContent` al configure (richiede rete e sposta la verifica degli hash).
 - **Conseguenze:** aggiornare una dipendenza è una decisione esplicita: nuovo `VERSION`, `NOTICE`
   aggiornato, `sim_integration` e verifiche della fase 1b rilanciati.
+
+## D13 — Valutazioni di riferimento per la fase 1b (2026-11-17)
+
+- **Decisione:** le verifiche fisiche della fase 1b confrontano gli eventi Geant4 con due
+  valutazioni: **JEFF-3.3** come verifica dell'implementazione e **ENDF/B-VIII.0** come confronto
+  indipendente. Servono i file di H-1, C-12 e C-13: da MF3 le sezioni d'urto, e da MF4/MT2 di H-1
+  i coefficienti di Legendre della distribuzione angolare elastica nel CM. I file stanno in
+  `<radice>/reference/{endfb80,jeff33}/` con URL e sha256 in `docs/architecture/data_layout.md`,
+  e non entrano nel repository.
+- **Motivo:**
+  - G4NDL 4.7.1 è G4NDL 4.6 con modifiche ad argon e scattering termico, e G4NDL 4.6 è ricavato
+    da JEFF-3.3 (README dei dati G4NDL). Un accordo con JEFF-3.3 dice quindi che Geant4 legge e
+    campiona correttamente i suoi dati, non che i dati siano giusti. ENDF/B-VIII.0 è una
+    valutazione indipendente, e lo scarto fra le due dà la scala dell'incertezza sui dati
+    nucleari.
+  - Per il carbonio G4NDL ha `6_nat_Carbon` e `6_13_Carbon`, ma non `6_12`. Quando manca il file
+    dell'isotopo, `G4ParticleHPNames::GetName` prova prima il file `Z_nat`, quindi a C-12 Geant4
+    applica i dati del carbonio naturale, segnalandolo come abbondanza naturale. Il confronto per
+    il carbonio si fa perciò sulla miscela del materiale (n_C12 σ_C12 + n_C13 σ_C13), non
+    isotopo per isotopo.
+  - ENDF/B-VIII.0 viene da NNDC (BNL). IAEA-NDS e OECD-NEA rispondono 403 agli accessi
+    automatici, quindi JEFF-3.3 è scaricato a mano dal browser.
+- **Formato verificato** (manuale ENDF-102, §4.1–4.2):
+  - in MF4 vale f(μ, E) = Σ_l (2l+1)/2 a_l(E) P_l(μ), con a_0 = 1 implicito, quindi
+    ⟨P_l(μ)⟩ = a_l;
+  - per H-1 in ENDF/B-VIII.0 si ha LTT = 1 (solo Legendre), LCT = 2 (CM), 153 energie,
+    interpolazione lineare-lineare e NL = 6;
+  - μ è il coseno CM del neutrone e vale E_p = E_p,max(1 − μ)/2 per masse qualsiasi
+    (`np_kinematics.hpp`).
+- **Alternative:** solo JEFF-3.3 (verifica circolare dei dati); solo ENDF/B-VIII.0 (non separa
+  un errore di implementazione da una differenza fra valutazioni); risultati sperimentali (meno
+  omogenei, rimandati alla validazione del rivelatore).
+- **Conseguenze:** un cambio di versione di G4NDL richiede di ricontrollare la provenienza; se
+  smette di derivare da JEFF-3.3, va cambiato il riferimento "di implementazione".

@@ -100,9 +100,12 @@ $RIPTIDE_DATA_DIR/
 ├── sim/<run_id>/
 │   ├── events_t<k>.root      # un file per thread, TTree "events"
 │   └── run.json              # provenienza del run e marcatore di completamento
-└── analysis/<run_id>/<analysis_id>/
-    ├── results.root | results.csv
-    └── analysis.json         # parametri, semi dello smearing, versione dello schema letto
+├── analysis/<run_id>/<analysis_id>/
+│   ├── results.root | results.csv
+│   └── analysis.json         # parametri, semi dello smearing, versione dello schema letto
+└── reference/                # valutazioni nucleari di riferimento (D13), sola lettura
+    ├── endfb80/              # file ENDF-6 estratti; download/ con gli originali
+    └── jeff33/
 ```
 
 Nel repository, ignorata da git: `outputs/figures/<analysis_id>/` (figure da risultati ridotti).
@@ -111,6 +114,24 @@ Gli identificativi `run_id` e `analysis_id` contengono solo `[A-Za-z0-9._-]`, no
 `.` o `-` e sono lunghi al più 128 caratteri (`isValidId`): niente attraversamento di cartelle.
 I `run_id` `ctest_it_1t` e `ctest_it_2t` sono riservati al test d'integrazione
 (`sim/tests/run_integration.sh`), che cancella e ricrea le loro cartelle a ogni esecuzione.
+
+## Valutazioni di riferimento
+
+File in formato ENDF-6 usati dalle verifiche della fase 1b (D13). Si scaricano una volta, si
+rendono di sola lettura, e il programma di verifica ne riporta lo sha256 in `checks.json`.
+
+ENDF/B-VIII.0, da NNDC:
+
+| File | Origine | sha256 |
+|---|---|---|
+| `download/ENDF-B-VIII.0_neutrons.zip` | https://www.nndc.bnl.gov/endf-b8.0/zips/ENDF-B-VIII.0_neutrons.zip (310158456 byte) | `a1cced11710eb36690c5ad7b64d414465c5849f5428904049c864e9beca28894` |
+| `download/endf-manual-viii.0.pdf` | https://www.nndc.bnl.gov/endf-b8.0/endf-manual-viii.0.pdf | `77a0fee413c3b1d5d74a161ed9fe7f77bbcbc58a654304851b7b2b400183d022` |
+| `n-001_H_001.endf` | dallo zip (MAT 125) | `e7b76c20c1d61f2cb2621de716d324047fa1f9583bef568f643f8d98094260fb` |
+| `n-006_C_012.endf` | dallo zip (MAT 625) | `daa7901e0067f9ac6d9b2392514ba00e71e37d00c8a8ecbbde0620237815f981` |
+| `n-006_C_013.endf` | dallo zip (MAT 628) | `abaa8cc34398e6ada0a8c451efd5eef1019a37c7a0a708a4280af71ab77621de` |
+
+JEFF-3.3: scaricato a mano (IAEA-NDS e OECD-NEA rifiutano gli accessi automatici); file e hash
+da registrare qui all'arrivo.
 
 ## File degli eventi
 
