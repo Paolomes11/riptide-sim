@@ -84,15 +84,33 @@ struct Tab1 {
     std::vector<double> y;
 };
 
-// Checks the invariants of a Tab1 (sizes, NBT strictly increasing and ending at
-// the last point, x non-decreasing, at most two equal x in a row); throws
-// EndfError with `where` in the message otherwise.
+// Checks the invariants of an interpolation grid shared by TAB1 and TAB2
+// records: one law per range, NBT strictly increasing and ending at the last
+// point, x non-decreasing, at most two equal x in a row. Throws EndfError
+// with `where` in the message otherwise.
+void validateGrid(const std::vector<int>& boundaries, const std::vector<InterpolationLaw>& laws,
+                  const std::vector<double>& x, std::string_view where);
+
+// validateGrid plus one y per x.
 void validate(const Tab1& table, std::string_view where);
 
-// Value of the tabulated function at x. At a discontinuity (x repeated, two
-// y values) the value above it is returned, since an interval of zero width
-// is skipped. Throws EndfError outside [x.front(), x.back()]: extrapolating
-// evaluated data is never meaningful for these checks.
+// Position of `value` in a validated grid: interpolate between points `lower`
+// and `upper` with `law`. At the last point lower == upper. At a
+// discontinuity (x repeated) the interval above it is chosen, since an
+// interval of zero width is skipped. Throws EndfError outside
+// [x.front(), x.back()]: extrapolating evaluated data is never meaningful
+// for these checks.
+struct Bracket {
+    std::size_t lower = 0;
+    std::size_t upper = 0;
+    InterpolationLaw law = InterpolationLaw::LinLin;
+};
+[[nodiscard]] Bracket bracket(const std::vector<int>& boundaries,
+                              const std::vector<InterpolationLaw>& laws,
+                              const std::vector<double>& x, double value);
+
+// Value of the tabulated function at x, located with bracket(): the value
+// above a discontinuity, an error outside the tabulated range.
 [[nodiscard]] double evaluate(const Tab1& table, double x);
 
 } // namespace riptide::sim::endf

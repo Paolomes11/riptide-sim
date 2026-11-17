@@ -128,57 +128,72 @@ double interpolate(InterpolationLaw law, double x1, double y1, double x2, double
     throw EndfError("unknown interpolation law");
 }
 
-void validate(const Tab1& table, std::string_view where) {
+void validateGrid(const std::vector<int>& boundaries, const std::vector<InterpolationLaw>& laws,
+                  const std::vector<double>& x, std::string_view where) {
     const auto bad = [where](std::string_view what) {
         throw EndfError(std::string{where} + ": " + std::string{what});
     };
-    const std::size_t points = table.x.size();
-    if (points < 2 || table.y.size() != points) {
-        bad("a table needs at least two (x, y) pairs");
+    const std::size_t points = x.size();
+    if (points < 2) {
+        bad("a table needs at least two points");
     }
-    if (table.boundaries.empty() || table.boundaries.size() != table.laws.size()) {
+    if (boundaries.empty() || boundaries.size() != laws.size()) {
         bad("a table needs one interpolation law per range");
     }
-    if (!std::is_sorted(table.boundaries.begin(), table.boundaries.end()) ||
-        std::adjacent_find(table.boundaries.begin(), table.boundaries.end()) !=
-            table.boundaries.end() ||
-        table.boundaries.front() < 2 ||
-        static_cast<std::size_t>(table.boundaries.back()) != points) {
+    if (!std::is_sorted(boundaries.begin(), boundaries.end()) ||
+        std::adjacent_find(boundaries.begin(), boundaries.end()) != boundaries.end() ||
+        boundaries.front() < 2 || static_cast<std::size_t>(boundaries.back()) != points) {
         bad("range boundaries must increase and end at the last point");
     }
     for (std::size_t i = 1; i < points; ++i) {
-        if (table.x[i] < table.x[i - 1]) {
+        if (x[i] < x[i - 1]) {
             bad("x values must not decrease");
         }
-        if (i >= 2 && !(table.x[i] > table.x[i - 2])) {
+        if (i >= 2 && !(x[i] > x[i - 2])) {
             bad("an x value may appear at most twice (a discontinuity)");
         }
     }
 }
 
-double evaluate(const Tab1& table, double x) {
+void validate(const Tab1& table, std::string_view where) {
+    validateGrid(table.boundaries, table.laws, table.x, where);
+    if (table.y.size() != table.x.size()) {
+        throw EndfError(std::string{where} + ": a table needs one y per x");
+    }
+}
+
+Bracket bracket(const std::vector<int>& boundaries, const std::vector<InterpolationLaw>& laws,
+                const std::vector<double>& x, double value) {
     // Written as a negated range test so that NaN is refused too.
     // NOLINTNEXTLINE(readability-simplify-boolean-expr)
-    if (!(x >= table.x.front() && x <= table.x.back())) {
-        throw EndfError("x = " + std::to_string(x) + " outside the tabulated range [" +
-                        std::to_string(table.x.front()) + ", " + std::to_string(table.x.back()) +
-                        "]");
+    if (!(value >= x.front() && value <= x.back())) {
+        throw EndfError("x = " + std::to_string(value) + " outside the tabulated range [" +
+                        std::to_string(x.front()) + ", " + std::to_string(x.back()) + "]");
     }
-    // First point strictly above x: the interval below it starts at the last
-    // point <= x, which skips the zero-width interval of a discontinuity.
-    const auto above = std::upper_bound(table.x.begin(), table.x.end(), x);
-    if (above == table.x.end()) {
-        return table.y.back(); // x is the last point
+    // First point strictly above the value: the interval below it starts at
+    // the last point <= value, which skips the zero-width interval of a
+    // discontinuity.
+    const auto above = std::upper_bound(x.begin(), x.end(), value);
+    if (above == x.end()) {
+        const std::size_t last = x.size() - 1;
+        return {last, last, laws.back()};
     }
-    const auto upper = static_cast<std::size_t>(std::distance(table.x.begin(), above));
-    const std::size_t lower = upper - 1;
-    // The interval (lower, upper) belongs to the first range whose 1-based
+    const auto upper = static_cast<std::size_t>(std::distance(x.begin(), above));
+    // The interval (upper - 1, upper) belongs to the first range whose 1-based
     // boundary reaches the upper point.
-    const auto range = std::lower_bound(table.boundaries.begin(), table.boundaries.end(),
-                                        static_cast<int>(upper + 1));
-    const auto law =
-        table.laws.at(static_cast<std::size_t>(std::distance(table.boundaries.begin(), range)));
-    return interpolate(law, table.x[lower], table.y[lower], table.x[upper], table.y[upper], x);
+    const auto range =
+        std::lower_bound(boundaries.begin(), boundaries.end(), static_cast<int>(upper + 1));
+    const auto law = laws.at(static_cast<std::size_t>(std::distance(boundaries.begin(), range)));
+    return {upper - 1, upper, law};
+}
+
+double evaluate(const Tab1& table, double x) {
+    const Bracket where = bracket(table.boundaries, table.laws, table.x, x);
+    if (where.lower == where.upper) {
+        return table.y[where.lower];
+    }
+    return interpolate(where.law, table.x[where.lower], table.y[where.lower], table.x[where.upper],
+                       table.y[where.upper], x);
 }
 
 } // namespace riptide::sim::endf
