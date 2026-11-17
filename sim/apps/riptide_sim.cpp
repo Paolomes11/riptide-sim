@@ -8,23 +8,29 @@
 #include <G4VModularPhysicsList.hh>
 #include <G4Version.hh>
 #include <Randomize.hh>
+#include <nlohmann/json.hpp>
 
+#include <chrono>
 #include <cstdint>
+#include <ctime>
 #include <exception>
 #include <filesystem>
 #include <iostream>
 #include <memory>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <vector>
 
 #include "riptide/common/data_paths.hpp"
 #include "riptide/common/event_schema.hpp"
+#include "riptide/common/git_info.hpp"
 #include "riptide/common/version.hpp"
 #include "riptide/sim/action_initialization.hpp"
 #include "riptide/sim/cli_options.hpp"
 #include "riptide/sim/detector_construction.hpp"
 #include "riptide/sim/run_config.hpp"
+#include "riptide/sim/run_record.hpp"
 
 namespace {
 
@@ -37,10 +43,18 @@ constexpr int kExitOk = 0;
 constexpr int kExitUsage = 2;
 constexpr int kExitRuntime = 1;
 
+// G4VERSION_NUMBER packs the version as major*100 + minor*10 + patch (1141 for 11.4.1).
+std::string geant4Version() {
+    std::ostringstream out;
+    out << G4VERSION_NUMBER / 100 << '.' << (G4VERSION_NUMBER / 10) % 10 << '.'
+        << G4VERSION_NUMBER % 10;
+    return out.str();
+}
+
 void printVersion() {
-    std::cout << "riptide_sim " << riptide::kProjectVersion << '\n'
-              << "Geant4 " << G4VERSION_NUMBER / 100 << '.' << (G4VERSION_NUMBER / 10) % 10 << '.'
-              << G4VERSION_NUMBER % 10 << ' ' << G4Version << ' ' << G4Date << '\n'
+    std::cout << "riptide_sim " << riptide::kProjectVersion << " (" << riptide::kGitDescribe
+              << ")\n"
+              << "Geant4 " << geant4Version() << ' ' << G4Version << ' ' << G4Date << '\n'
               << "event schema " << riptide::schema::kSchemaVersion << '\n'
               << "config version " << riptide::sim::kConfigVersion << '\n';
 }
@@ -111,7 +125,24 @@ int main(int argc, char** argv) {
                   << " threads, seed " << opts.seed << ")\n";
         // The root was checked by prepareRunDir, so this never writes to the system disk.
         std::filesystem::create_directories(run_dir);
+
+        riptide::sim::RunProvenance run;
+        run.run_id = opts.run_id;
+        run.seed = opts.seed;
+        run.events = opts.events;
+        run.threads = opts.threads;
+        run.geant4_version = geant4Version();
+        run.started_utc = riptide::sim::formatUtc(
+            std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()));
+        // steady_clock, not system_clock: the elapsed time must not jump with clock changes.
+        const auto start = std::chrono::steady_clock::now();
         runSimulation(config, opts, run_dir);
+        run.elapsed_s =
+            std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+
+        // Written last: its presence marks the run as complete.
+        riptide::sim::writeRunRecord(run_dir, riptide::sim::runRecordJson(config, run));
+        std::cout << "riptide_sim: wrote " << (run_dir / riptide::sim::kRunRecordFileName) << '\n';
         return kExitOk;
     } catch (const std::exception& e) {
         std::cerr << "riptide_sim: " << e.what() << '\n';

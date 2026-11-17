@@ -22,6 +22,10 @@ option(RIPTIDE_ENABLE_NATIVE "Optimize for the build machine (-march=native); bi
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 include(RiptideCompilerOptions)
 
+# Optional: without git the build still works and records "unknown" as the
+# source revision (cmake/RiptideGitDescribe.cmake).
+find_package(Git QUIET)
+
 if(RIPTIDE_BUILD_TESTS)
     enable_testing()
     find_package(Catch2 3 REQUIRED)

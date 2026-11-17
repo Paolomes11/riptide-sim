@@ -76,7 +76,7 @@ Codici di uscita:
 $RIPTIDE_DATA_DIR/
 ├── sim/<run_id>/
 │   ├── events_t<k>.root      # un file per thread, TTree "events"
-│   └── run.json              # config, seme, git sha, versioni, n. eventi
+│   └── run.json              # provenienza del run e marcatore di completamento
 └── analysis/<run_id>/<analysis_id>/
     ├── results.root | results.csv
     └── analysis.json         # parametri, semi dello smearing, versione dello schema letto
@@ -94,11 +94,43 @@ Il merging delle ntuple di Geant4 è spento: ogni thread worker scrive il propri
 N−1, quindi un run a N thread produce `events_t0.root` … `events_t<N−1>.root`. Il master non
 crea l'analysis manager e non scrive nessun file. Gli eventi sono distribuiti fra i file in modo
 non deterministico, perciò un evento si identifica dal suo `event_id` e mai dalla posizione nel
-file. Per leggere un run vanno letti tutti i file `events_t*.root` della cartella.
+file. Per leggere un run vanno letti i file elencati in `event_files` di `run.json`.
 
-La ntupla di Geant4 non ha attributi, quindi non può portare la versione dello schema. Questa
-verrà scritta in `run.json` (prossimo passo), e un lettore rifiuta i run con una versione che non
-conosce.
+La ntupla di Geant4 non ha attributi, quindi non può portare la versione dello schema: questa sta
+in `run.json`.
+
+## run.json
+
+`run.json` raccoglie la provenienza del run (`sim/config/.../run_record.hpp`) ed è anche il suo
+**marcatore di completamento**. `riptide_sim` lo scrive per ultimo, solo dopo che `BeamOn` è
+terminato: prima scrive `run.json.tmp` e poi lo rinomina, così un lettore non vede mai un file
+scritto a metà. Se `run.json` esiste già, il run non lo sovrascrive.
+
+Il lettore:
+- rifiuta una cartella di run senza `run.json`, perché è un run interrotto;
+- rifiuta un `schema_version` o un `run_record_version` che non conosce.
+
+Chiavi (versione 1 del formato):
+
+| chiave | tipo | contenuto |
+|---|---|---|
+| `run_record_version` | int | versione del formato di `run.json` |
+| `run_id` | string | nome della cartella del run |
+| `project_version` | string | versione del progetto (CMake) |
+| `git_describe` | string | `git describe --tags --always --dirty` dei sorgenti alla build; `-dirty` indica modifiche non committate, `unknown` che git non è disponibile |
+| `geant4_version` | string | `major.minor.patch` di Geant4 |
+| `schema_version` | int | versione dello schema dei file degli eventi |
+| `config_version` | int | versione del formato del config |
+| `seed` | uint | seme del run, da cui derivano i semi per evento |
+| `events` | uint | eventi richiesti e simulati |
+| `threads` | int | thread worker |
+| `started_utc` | string | inizio del run, ISO 8601 in UTC (`2026-09-07T12:34:56Z`) |
+| `elapsed_s` | double | tempo reale da `Initialize` alla fine di `BeamOn` [s] |
+| `event_files` | array di string | `events_t0.root` … `events_t<N−1>.root` |
+| `config` | object | config effettivo; rileggibile con `parseRunConfig` |
+
+`git_describe` viene rigenerato a ogni build (`cmake/RiptideGitDescribe.cmake`) e descrive i
+sorgenti al momento della build, non al momento del run.
 
 ## Schema degli eventi (v1)
 

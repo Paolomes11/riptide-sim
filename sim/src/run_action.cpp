@@ -2,14 +2,9 @@
 
 #include <G4ios.hh>
 
+#include "riptide/sim/run_record.hpp"
+
 namespace riptide::sim {
-
-namespace {
-
-// Base name of the per-thread ntuple files; Geant4 appends "_t<thread id>".
-constexpr const char* kEventFileName = "events.root";
-
-} // namespace
 
 void RunAction::BeginOfRunAction(const G4Run* /*run*/) {
     tally_ = TruthTally{};
