@@ -8,8 +8,10 @@
 
 namespace riptide::sim {
 
-PrimaryGeneratorAction::PrimaryGeneratorAction(const SourceConfig& source, std::uint64_t run_seed)
-    : source_(source), run_seed_(run_seed), gun_(std::make_unique<G4ParticleGun>(1)) {
+PrimaryGeneratorAction::PrimaryGeneratorAction(const SourceConfig& source, std::uint64_t run_seed,
+                                               TruthRecorder& recorder)
+    : source_(source), run_seed_(run_seed), recorder_(&recorder),
+      gun_(std::make_unique<G4ParticleGun>(1)) {
     gun_->SetParticleDefinition(G4Neutron::Definition());
     const auto& d = source_.direction;
     const auto& p = source_.position;
@@ -35,6 +37,7 @@ void PrimaryGeneratorAction::GeneratePrimaries(G4Event* event) {
         gun_->SetParticleEnergy(source_.En_min +
                                 (source_.En_max - source_.En_min) * G4UniformRand());
     }
+    recorder_->beginEvent(gun_->GetParticleEnergy(), source_.direction);
     gun_->GeneratePrimaryVertex(event);
 }
 
