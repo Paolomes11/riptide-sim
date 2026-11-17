@@ -11,12 +11,17 @@ namespace riptide::units {
 
 // NOLINTBEGIN(readability-identifier-naming): physics unit symbols keep their usual case
 inline constexpr double MeV = 1.0;
+inline constexpr double eV = 1.0e-6 * MeV;
 inline constexpr double keV = 1.0e-3 * MeV;
 inline constexpr double GeV = 1.0e3 * MeV;
 
 inline constexpr double mm = 1.0;
 inline constexpr double cm = 10.0 * mm;
 inline constexpr double m = 1000.0 * mm;
+inline constexpr double mm2 = mm * mm;
+inline constexpr double m2 = m * m;
+// Evaluated nuclear data give cross sections in barn.
+inline constexpr double barn = 1.0e-28 * m2;
 
 inline constexpr double ns = 1.0;
 
