@@ -171,3 +171,7 @@ cancellano: se cambiano, se ne aggiunge una nuova che rimanda alla vecchia.
   omogenei, rimandati alla validazione del rivelatore).
 - **Conseguenze:** un cambio di versione di G4NDL richiede di ricontrollare la provenienza; se
   smette di derivare da JEFF-3.3, va cambiato il riferimento "di implementazione".
+  Per H-1 la fase 1b verifica quindi l'implementazione (JEFF-3.3) e mostra di quanto si spostano
+  i numeri fra due revisioni della stessa analisi (ENDF/B-VIII.0). Un confronto davvero
+  indipendente per n-p (altra valutazione o analisi in onde parziali dei dati sperimentali) è
+  rimandato a una fase successiva, e i risultati della 1b non vanno presentati come tale.
