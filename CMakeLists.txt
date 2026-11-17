@@ -31,6 +31,7 @@ endif()
 # Dependency direction (only downwards):
 #   common  <- sim
 #   common  <- analysis/stats   (pure C++: no ROOT, no Geant4)
+add_subdirectory(external)
 add_subdirectory(common)
 add_subdirectory(analysis)
 if(RIPTIDE_BUILD_SIM)
