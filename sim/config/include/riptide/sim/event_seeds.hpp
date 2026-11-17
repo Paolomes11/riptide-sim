@@ -4,7 +4,10 @@
 //
 // Every event is seeded from (event_id, run seed) alone, at the start of its
 // primary generation, so an event is reproducible on its own and the output does
-// not depend on the number of threads or on which thread ran the event.
+// not depend on the number of threads or on which thread ran the event. The
+// reseed alone is not enough: state that Geant4 keeps across events on a thread
+// can change how many numbers an event draws. The primary generator clears the
+// one such state found, the neutron cross-section caches, before reseeding.
 //
 // The pair is handed to CLHEP::MixMaxRng::setSeeds, which keeps the low 32 bits
 // of each seed and derives the event stream from the IDs with MixMax's skip-ahead

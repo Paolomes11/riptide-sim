@@ -1,12 +1,55 @@
 #include "riptide/sim/primary_generator_action.hpp"
 
+#include <G4CrossSectionDataStore.hh>
+#include <G4DynamicParticle.hh>
 #include <G4Event.hh>
+#include <G4HadronicProcess.hh>
+#include <G4LogicalVolume.hh>
+#include <G4Navigator.hh>
 #include <G4Neutron.hh>
 #include <G4ParticleGun.hh>
+#include <G4ProcessManager.hh>
+#include <G4ProcessVector.hh>
 #include <G4ThreeVector.hh>
+#include <G4TransportationManager.hh>
+#include <G4VPhysicalVolume.hh>
 #include <Randomize.hh>
 
 namespace riptide::sim {
+
+namespace {
+
+// The dummy evaluation below uses an energy no primary can have: every gun
+// energy is >= En_min > 0.
+constexpr double kCacheResetEnergyFraction = 0.5;
+
+// G4CrossSectionDataStore::GetCrossSection reuses the last value when the
+// (energy, material, particle) key is unchanged. The HP neutron data compute
+// that value by a Monte Carlo Doppler integration that draws random numbers,
+// so a cache hit skips draws. The key left by the previous event on the same
+// thread would then decide how many numbers the first steps consume, and the
+// event would depend on the thread's history, not only on its seeds. A dummy
+// evaluation at an energy outside the source range moves every key away, so
+// each event starts with a miss. It runs before the reseed: its own draws do
+// not belong to the event.
+void resetNeutronCrossSectionCaches(double dummy_energy) {
+    const auto* world = G4TransportationManager::GetTransportationManager()
+                            ->GetNavigatorForTracking()
+                            ->GetWorldVolume();
+    const auto* material = world->GetLogicalVolume()->GetMaterial();
+    const G4DynamicParticle neutron(G4Neutron::Definition(), G4ThreeVector(0.0, 0.0, 1.0),
+                                    dummy_energy);
+    const auto* manager = G4Neutron::Definition()->GetProcessManager();
+    const auto* processes = manager->GetProcessList();
+    for (G4int i = 0; i < manager->GetProcessListLength(); ++i) {
+        auto* hadronic = dynamic_cast<G4HadronicProcess*>((*processes)[i]);
+        if (hadronic != nullptr) {
+            hadronic->GetCrossSectionDataStore()->ComputeCrossSection(&neutron, material);
+        }
+    }
+}
+
+} // namespace
 
 PrimaryGeneratorAction::PrimaryGeneratorAction(const SourceConfig& source, std::uint64_t run_seed,
                                                TruthRecorder& recorder)
@@ -25,6 +68,7 @@ PrimaryGeneratorAction::PrimaryGeneratorAction(const SourceConfig& source, std::
 PrimaryGeneratorAction::~PrimaryGeneratorAction() = default;
 
 void PrimaryGeneratorAction::GeneratePrimaries(G4Event* event) {
+    resetNeutronCrossSectionCaches(kCacheResetEnergyFraction * source_.En_min);
     // G4WorkerRunManager::GenerateEvent reseeds the engine with its own seeds
     // and calls this method next, with no draw in between; reseeding here, before
     // the first draw of the event, replaces those seeds with ours.

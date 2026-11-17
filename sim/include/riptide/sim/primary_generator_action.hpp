@@ -15,8 +15,9 @@ class G4ParticleGun;
 namespace riptide::sim {
 
 // One neutron per event from a fixed point along a fixed direction, with an
-// energy either fixed or uniform in [En_min, En_max]. Each event first reseeds
-// the thread's engine from (event_id, run seed), see event_seeds.hpp, and then
+// energy either fixed or uniform in [En_min, En_max]. Each event first clears
+// the neutron cross-section caches left by the previous event, then reseeds the
+// thread's engine from (event_id, run seed), see event_seeds.hpp, and then
 // opens the event's truth record: Geant4 calls GeneratePrimaries before
 // BeginOfEventAction, so this is the earliest point of the event.
 class PrimaryGeneratorAction final : public G4VUserPrimaryGeneratorAction {
