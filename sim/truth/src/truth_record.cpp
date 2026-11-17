@@ -29,7 +29,8 @@ double thetaP(const Vec3& omega_n, const Vec3& p_dir) {
     return std::acos(std::clamp(dot / norms, -1.0, 1.0));
 }
 
-void TruthRecorder::beginEvent(double En, const Vec3& omega_n) {
+void TruthRecorder::beginEvent(const EventMeta& meta, double En, const Vec3& omega_n) {
+    meta_ = meta;
     record_ = TruthRecord{};
     record_.En = En;
     record_.omega_n = omega_n;

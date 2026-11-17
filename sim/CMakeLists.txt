@@ -7,6 +7,7 @@ add_executable(riptide_sim
     src/action_initialization.cpp
     src/detector_construction.cpp
     src/event_action.cpp
+    src/ntuple_writer.cpp
     src/primary_generator_action.cpp
     src/run_action.cpp
     src/stepping_action.cpp)

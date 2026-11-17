@@ -4,8 +4,16 @@
 
 namespace riptide::sim {
 
+namespace {
+
+// Base name of the per-thread ntuple files; Geant4 appends "_t<thread id>".
+constexpr const char* kEventFileName = "events.root";
+
+} // namespace
+
 void RunAction::BeginOfRunAction(const G4Run* /*run*/) {
     tally_ = TruthTally{};
+    writer_.open(run_dir_ / kEventFileName);
 }
 
 void RunAction::EndOfRunAction(const G4Run* /*run*/) {
@@ -19,6 +27,7 @@ void RunAction::EndOfRunAction(const G4Run* /*run*/) {
            << tally_.count(FirstInteraction::NCInelastic) << ", other "
            << tally_.count(FirstInteraction::Other) << ", H elastic without recoil proton "
            << tally_.npWithoutProton() << G4endl;
+    writer_.close();
 }
 
 } // namespace riptide::sim

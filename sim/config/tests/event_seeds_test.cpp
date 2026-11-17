@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <cstdint>
+#include <limits>
 #include <set>
 #include <utility>
 
@@ -16,7 +17,7 @@ using riptide::sim::kMaxSeededEvents;
 constexpr std::uint64_t kMask32 = 0xFFFFFFFFULL;
 
 // What MixMaxRng::setSeeds actually uses of a seed.
-std::uint64_t low32(std::int64_t seed) {
+std::uint64_t low32(std::int32_t seed) {
     return static_cast<std::uint64_t>(seed) & kMask32;
 }
 
@@ -48,7 +49,10 @@ TEST_CASE("distinct events or runs give distinct engine seeds", "[seeds]") {
     }
 }
 
-TEST_CASE("the CLI limits keep seeds within 32 bits", "[seeds]") {
+TEST_CASE("the CLI limits keep seeds within signed 32 bits", "[seeds]") {
+    STATIC_REQUIRE(kMaxSeed ==
+                   static_cast<std::uint64_t>(std::numeric_limits<std::int32_t>::max()));
+    STATIC_REQUIRE(kMaxSeededEvents == std::int64_t{std::numeric_limits<std::int32_t>::max()});
     STATIC_REQUIRE(riptide::sim::kMaxEvents - 1 <= static_cast<std::uint64_t>(kMaxSeededEvents));
     STATIC_REQUIRE(riptide::sim::kDefaultSeed <= kMaxSeed);
 }

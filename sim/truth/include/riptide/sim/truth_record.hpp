@@ -38,6 +38,13 @@ struct HadronicStep {
     std::optional<RecoilProton> proton;
 };
 
+// Event identification, mirroring the meta columns of event_schema.hpp.
+struct EventMeta {
+    std::int32_t event_id = 0;
+    std::int32_t rng_seed_0 = 0;
+    std::int32_t rng_seed_1 = 0;
+};
+
 // Mirrors the truth_* columns of event_schema.hpp, plus one diagnostic counter.
 struct TruthRecord {
     double En = 0.0;
@@ -68,14 +75,18 @@ struct TruthRecord {
 class TruthRecorder {
 public:
     // Starts a new event, discarding the previous one.
-    void beginEvent(double En, const Vec3& omega_n);
+    void beginEvent(const EventMeta& meta, double En, const Vec3& omega_n);
     void onHadronicStep(const HadronicStep& step);
 
+    [[nodiscard]] const EventMeta& meta() const {
+        return meta_;
+    }
     [[nodiscard]] const TruthRecord& record() const {
         return record_;
     }
 
 private:
+    EventMeta meta_;
     TruthRecord record_;
 };
 

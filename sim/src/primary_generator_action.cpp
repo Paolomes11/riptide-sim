@@ -37,7 +37,8 @@ void PrimaryGeneratorAction::GeneratePrimaries(G4Event* event) {
         gun_->SetParticleEnergy(source_.En_min +
                                 (source_.En_max - source_.En_min) * G4UniformRand());
     }
-    recorder_->beginEvent(gun_->GetParticleEnergy(), source_.direction);
+    const EventMeta meta{event->GetEventID(), current_seeds_.seed_0, current_seeds_.seed_1};
+    recorder_->beginEvent(meta, gun_->GetParticleEnergy(), source_.direction);
     gun_->GeneratePrimaryVertex(event);
 }
 

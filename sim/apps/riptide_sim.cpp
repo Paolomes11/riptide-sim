@@ -61,7 +61,8 @@ std::filesystem::path prepareRunDir(const riptide::sim::CliOptions& opts) {
 
 // Classic MT run manager, requested explicitly: "Default" would let the
 // G4RUN_MANAGER_TYPE environment variable switch to another backend.
-void runSimulation(const riptide::sim::RunConfig& config, const riptide::sim::CliOptions& opts) {
+void runSimulation(const riptide::sim::RunConfig& config, const riptide::sim::CliOptions& opts,
+                   const std::filesystem::path& run_dir) {
     G4PhysListFactory factory;
     if (!factory.IsReferencePhysList(config.physics_list)) {
         throw riptide::sim::ConfigError("physics_list: unknown reference physics list '" +
@@ -77,7 +78,8 @@ void runSimulation(const riptide::sim::RunConfig& config, const riptide::sim::Cl
     // The run manager takes ownership of the three initialisation objects.
     run_manager->SetUserInitialization(new riptide::sim::DetectorConstruction(config));
     run_manager->SetUserInitialization(factory.GetReferencePhysList(config.physics_list));
-    run_manager->SetUserInitialization(new riptide::sim::ActionInitialization(config, opts.seed));
+    run_manager->SetUserInitialization(
+        new riptide::sim::ActionInitialization(config, opts.seed, run_dir));
     run_manager->Initialize();
     run_manager->BeamOn(static_cast<int>(opts.events));
 }
@@ -107,8 +109,9 @@ int main(int argc, char** argv) {
         std::cout << "riptide_sim: run directory " << run_dir << " (physics list "
                   << config.physics_list << ", " << opts.events << " events, " << opts.threads
                   << " threads, seed " << opts.seed << ")\n";
-        // Output files are not written yet: they come with the truth ntuple.
-        runSimulation(config, opts);
+        // The root was checked by prepareRunDir, so this never writes to the system disk.
+        std::filesystem::create_directories(run_dir);
+        runSimulation(config, opts, run_dir);
         return kExitOk;
     } catch (const std::exception& e) {
         std::cerr << "riptide_sim: " << e.what() << '\n';

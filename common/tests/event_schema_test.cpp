@@ -57,3 +57,16 @@ TEST_CASE("first-interaction codes are stable", "[schema]") {
     STATIC_REQUIRE(static_cast<int>(FirstInteraction::NCInelastic) == 3);
     STATIC_REQUIRE(static_cast<int>(FirstInteraction::Other) == 4);
 }
+
+TEST_CASE("schema v1 uses only the column types Geant4 can write", "[schema]") {
+    using namespace riptide::schema;
+    STATIC_REQUIRE(kSchemaVersion == 1);
+    for (const auto& b : kMetaBranches) {
+        INFO(std::string{b.name});
+        CHECK(b.type == ColumnType::Int32);
+    }
+    for (const auto& b : kTruthBranches) {
+        INFO(std::string{b.name});
+        CHECK((b.type == ColumnType::Int32 || b.type == ColumnType::Double));
+    }
+}

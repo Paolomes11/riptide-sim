@@ -3,6 +3,7 @@
 #include <G4VUserActionInitialization.hh>
 
 #include <cstdint>
+#include <filesystem>
 
 #include "riptide/sim/run_config.hpp"
 
@@ -12,13 +13,14 @@ namespace riptide::sim {
 // (BuildForMaster). Each worker gets its own copies: no state is shared.
 class ActionInitialization final : public G4VUserActionInitialization {
 public:
-    ActionInitialization(RunConfig config, std::uint64_t run_seed);
+    ActionInitialization(RunConfig config, std::uint64_t run_seed, std::filesystem::path run_dir);
     void BuildForMaster() const override;
     void Build() const override;
 
 private:
     RunConfig config_;
     std::uint64_t run_seed_;
+    std::filesystem::path run_dir_;
 };
 
 } // namespace riptide::sim

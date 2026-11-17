@@ -4,6 +4,7 @@ namespace riptide::sim {
 
 void EventAction::EndOfEventAction(const G4Event* /*event*/) {
     tally_->add(recorder_->record());
+    writer_->fill(eventRow(recorder_->meta(), recorder_->record()));
 }
 
 } // namespace riptide::sim

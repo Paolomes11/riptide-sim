@@ -1,4 +1,5 @@
 add_executable(sim_truth_tests
+    event_row_test.cpp
     truth_record_test.cpp)
 target_link_libraries(sim_truth_tests PRIVATE
     riptide::sim_truth riptide::options riptide::warnings Catch2::Catch2WithMain)

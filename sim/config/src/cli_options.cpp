@@ -104,7 +104,7 @@ CliOptions parseCommandLine(const std::vector<std::string>& args) {
         opts.seed = parseNumber<std::uint64_t>(raw.seed, "--seed");
         if (opts.seed > kMaxSeed) {
             throw CliError("--seed: must be in [0, " + std::to_string(kMaxSeed) +
-                           "] (the random engine uses 32 bits per seed)");
+                           "] (seeds are stored as signed 32-bit integers)");
         }
     }
     if (!raw.data_dir.empty()) {
