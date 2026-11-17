@@ -36,8 +36,11 @@ progetto ricostruisce il neutrone incidente da ciò che interagisce nello scinti
 - Verifiche **non circolari**:
   - spettro E_p del primo scattering n–p piatto su [0, E_n] (a);
   - E_p(θ_p) contro la formula relativistica (a);
-  - distribuzione angolare in CM contro ENDF/B-VIII.0 (anisotropia vera);
+  - distribuzione angolare in CM contro JEFF-3.3 (implementazione di Geant4) ed ENDF/B-VIII.0;
+    per H-1 le due librerie sono la stessa analisi LANL, quindi il confronto n–p indipendente
+    resta da fare (D13);
   - frazione di prime interazioni n–p / n–C contro le sezioni d'urto;
+  - profondità del primo vertice contro exp(−Σ_tot z);
   - comportamento a 19.5–20 MeV (bordo di validità di `G4NeutronHP`).
 - Prestazioni: eventi/s per thread, byte/evento (serve a `estimateRunBytes`, oggi con una stima
   provvisoria).

@@ -24,10 +24,36 @@
   delle colonne di verità e uguaglianza colonna per colonna fra 1 e 2 thread; senza SSD viene
   saltato.
 
-## Prossimo passo
+## In corso: fase 1b (branch `feat/sim-checks`, aggiornato al 2026-11-17)
 
-Fase 1b (verifiche fisiche non circolari e prestazioni), vedi `roadmap.md`. Per ogni verifica la
-previsione si scrive prima del run; i run girano sull'SSD con `scripts/run_capped.sh`.
+Verifiche fisiche non circolari e prestazioni, vedi `roadmap.md`. Fatti i passi 0–3 di 9:
+
+- `scripts/mount_ssd.sh`: monta l'SSD per UUID (UUID fuori dal repo), senza toccare `/etc/fstab`.
+- **D13:** valutazioni di riferimento JEFF-3.3 (da cui deriva G4NDL: verifica
+  dell'implementazione) ed ENDF/B-VIII.0, sull'SSD con URL e sha256 in
+  `architecture/data_layout.md`. Per H-1 le due librerie sono la stessa analisi LANL: il
+  confronto n–p indipendente è rimandato. Per il carbonio, JEFF-3.3 C-0 ed ENDF/B-VIII.0
+  C-12 + C-13.
+- `common/np_kinematics.hpp`: E_p(E_n, θ_p) relativistica, mappa E_p ↔ cos θ*, polinomi di
+  Legendre.
+- `sim/validation` (senza Geant4, anche in `ci`):
+  - lettore ENDF-6 (sezioni d'urto MF3, coefficienti di Legendre MF4, leggi d'interpolazione
+    1–5);
+  - statistiche delle verifiche (χ² con probabilità di sopravvivenza, frazioni multinomiali,
+    momenti di Legendre);
+  - distribuzioni attese (spettro E_p da Legendre, profondità del primo vertice, frazioni della
+    prima interazione);
+  - test sui file reali dell'SSD, saltati se il disco manca.
+- **Test:** `debug` 92/92, `ci` 89/89, zero warning, clang-format pulito.
+
+Prossimi passi:
+
+4. lettore delle ntuple riusabile `riptide::sim_reader`, estratto dal test d'integrazione;
+5. app `riptide_sim_check`;
+6. previsioni scritte prima dei run (`docs/validation/1b_predictions.md`);
+7. run, solo col via esplicito, sotto `scripts/run_capped.sh`;
+8. byte/evento misurato;
+9. risultati e chiusura con v0.3.0.
 
 ## Punti aperti
 
@@ -37,4 +63,7 @@ previsione si scrive prima del run; i run girano sull'SSD con `scripts/run_cappe
 - SSD esterno montato su `/mnt/external_ssd`, ma non in modo permanente: prima di ogni run
   `scripts/data_root.sh check` (procedura in `architecture/data_layout.md`).
 - Comportamento di `G4NeutronHP` a 19.5–20 MeV (bordo del dominio).
+- Frazioni della prima interazione: le categorie assumono che l'inelastico HP del neutrone non
+  comprenda la cattura (che ha un processo proprio). Da verificare nei sorgenti di Geant4 prima di
+  scrivere le previsioni (passo 6 della 1b).
 - kB di Birks per BC-408: da prendere da letteratura citata (fase 2).

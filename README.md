@@ -88,8 +88,8 @@ scripts/run_capped.sh -m 5G -- ./build/release/sim/riptide_sim ...
 
 ## Stato
 
-v0.2.0: fase 1a (simulazione minima con verità MC) completata; prossima: fase 1b, verifiche
-fisiche e prestazioni. Dettagli in `docs/status.md`.
+v0.2.0: fase 1a (simulazione minima con verità MC) completata; fase 1b (verifiche fisiche e
+prestazioni) in corso su `feat/sim-checks`, passi 0–3 di 9. Dettagli in `docs/status.md`.
 
 ## Licenza
 
