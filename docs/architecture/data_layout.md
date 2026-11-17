@@ -130,8 +130,20 @@ ENDF/B-VIII.0, da NNDC:
 | `n-006_C_012.endf` | dallo zip (MAT 625) | `daa7901e0067f9ac6d9b2392514ba00e71e37d00c8a8ecbbde0620237815f981` |
 | `n-006_C_013.endf` | dallo zip (MAT 628) | `abaa8cc34398e6ada0a8c451efd5eef1019a37c7a0a708a4280af71ab77621de` |
 
-JEFF-3.3: scaricato a mano (IAEA-NDS e OECD-NEA rifiutano gli accessi automatici); file e hash
-da registrare qui all'arrivo.
+JEFF-3.3, da IAEA-NDS (https://www-nds.iaea.org/public/download-endf/JEFF-3.3/n/), scaricato a
+mano dal browser perché il sito rifiuta gli accessi automatici. JEFF-3.3 non ha un file per C-12,
+ma solo quello del carbonio naturale (C-0), che è anche quello usato da G4NDL (D13).
+
+| File | Origine | sha256 |
+|---|---|---|
+| `download/n_0125_1-H-1.zip` | IAEA-NDS (12665 byte) | `3ce3c497c56676d14affc680d787db276e3804ba820033a25312382925ce3b9c` |
+| `download/n_0600_6-C-0.zip` | IAEA-NDS (171589 byte) | `e2f727f80492b6e59dc618ab5edcdde3483afb2e93fc5fbf6683259ce315ff1c` |
+| `download/n_0628_6-C-13.zip` | IAEA-NDS (469364 byte) | `cb20c0afadee4bc7667f015d8e807e8e6b45c5039099663bdee121158d3e6e93` |
+| `n_0125_1-H-1.dat` | dallo zip (MAT 125) | `d7dc8efb7bb1284013e7ae233d3d9c7fd1c61dad6fd97bcd29542fdb531ceca8` |
+| `n_0600_6-C-0.dat` | dallo zip (MAT 600) | `30ca87a83148abe20653c892bc78ffe762b0cf6757e4ad597197140cfb0c5b0c` |
+| `n_0628_6-C-13.dat` | dallo zip (MAT 628) | `c51b1895594c2ee354c2c0c353bf90b7e229fac1154464c88971f200a642d244` |
+
+In ogni file l'intestazione MF1 riporta "JEFF-3.3" e ZA/MAT corrispondono al nome.
 
 ## File degli eventi
 

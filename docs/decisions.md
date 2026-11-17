@@ -132,24 +132,33 @@ cancellano: se cambiano, se ne aggiunge una nuova che rimanda alla vecchia.
 ## D13 — Valutazioni di riferimento per la fase 1b (2026-11-17)
 
 - **Decisione:** le verifiche fisiche della fase 1b confrontano gli eventi Geant4 con due
-  valutazioni: **JEFF-3.3** come verifica dell'implementazione e **ENDF/B-VIII.0** come confronto
-  indipendente. Servono i file di H-1, C-12 e C-13: da MF3 le sezioni d'urto, e da MF4/MT2 di H-1
-  i coefficienti di Legendre della distribuzione angolare elastica nel CM. I file stanno in
+  valutazioni: **JEFF-3.3** come verifica dell'implementazione e **ENDF/B-VIII.0** come secondo
+  confronto, indipendente per il carbonio ma non per H-1 (vedi Motivo). Servono i file di H-1,
+  C-12 e C-13: da MF3 le sezioni d'urto, e da MF4/MT2 di H-1 i coefficienti di Legendre della
+  distribuzione angolare elastica nel CM. I file stanno in
   `<radice>/reference/{endfb80,jeff33}/` con URL e sha256 in `docs/architecture/data_layout.md`,
-  e non entrano nel repository.
+  e non entrano nel repository. JEFF-3.3 non ha un file C-12, ma solo C-nat (C-0).
 - **Motivo:**
   - G4NDL 4.7.1 è G4NDL 4.6 con modifiche ad argon e scattering termico, e G4NDL 4.6 è ricavato
     da JEFF-3.3 (README dei dati G4NDL). Un accordo con JEFF-3.3 dice quindi che Geant4 legge e
-    campiona correttamente i suoi dati, non che i dati siano giusti. ENDF/B-VIII.0 è una
-    valutazione indipendente, e lo scarto fra le due dà la scala dell'incertezza sui dati
-    nucleari.
+    campiona correttamente i suoi dati, non che i dati siano giusti.
+  - **ENDF/B-VIII.0 non è indipendente per H-1.** In entrambe le librerie H-1 è la valutazione
+    LANL di G.M. Hale dall'analisi R-matrix del sistema N-N, con lo stesso testo descrittivo:
+    in JEFF-3.3 è la versione EVAL-OCT05, in ENDF/B-VIII.0 la EVAL-JUL16. Lo scarto fra le due
+    misura quindi la revisione di una stessa analisi, e non stima l'incertezza sui dati di H-1:
+    gli errori comuni all'analisi non vi compaiono. Valori a confronto: σ_el differisce dello 0.27%
+    a 10 MeV e < 0.2% a 15–20 MeV; a_1 vale −1.06e-2 (ENDF/B-VIII.0) contro −1.15e-2
+    (JEFF-3.3) a 10 MeV, e circa −1.6e-2 per entrambe a 20 MeV.
+  - Per il carbonio le valutazioni sono distinte: in JEFF-3.3 C-nat è di LANL/ORNL (Chadwick,
+    Young, Fu, EVAL-JUN96) e C-13 viene da TENDL-2015; in ENDF/B-VIII.0 C-12 e C-13 sono
+    valutazioni LANL del 2015 (Hale e altri).
   - Per il carbonio G4NDL ha `6_nat_Carbon` e `6_13_Carbon`, ma non `6_12`. Quando manca il file
     dell'isotopo, `G4ParticleHPNames::GetName` prova prima il file `Z_nat`, quindi a C-12 Geant4
     applica i dati del carbonio naturale, segnalandolo come abbondanza naturale. Il confronto per
     il carbonio si fa perciò sulla miscela del materiale (n_C12 σ_C12 + n_C13 σ_C13), non
     isotopo per isotopo.
   - ENDF/B-VIII.0 viene da NNDC (BNL). IAEA-NDS e OECD-NEA rispondono 403 agli accessi
-    automatici, quindi JEFF-3.3 è scaricato a mano dal browser.
+    automatici, quindi JEFF-3.3 è scaricato a mano dal browser da IAEA-NDS.
 - **Formato verificato** (manuale ENDF-102, §4.1–4.2):
   - in MF4 vale f(μ, E) = Σ_l (2l+1)/2 a_l(E) P_l(μ), con a_0 = 1 implicito, quindi
     ⟨P_l(μ)⟩ = a_l;
