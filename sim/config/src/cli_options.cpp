@@ -85,8 +85,8 @@ CliOptions parseCommandLine(const std::vector<std::string>& args) {
     }
     opts.config = raw.config;
     opts.events = parseNumber<std::uint64_t>(raw.events, "--events");
-    if (opts.events == 0) {
-        throw CliError("--events: must be > 0");
+    if (opts.events == 0 || opts.events > kMaxEvents) {
+        throw CliError("--events: must be in [1, " + std::to_string(kMaxEvents) + "]");
     }
     if (!data::isValidId(raw.run_id)) {
         throw CliError("--run-id: only [A-Za-z0-9._-], not starting with '.' or '-', at most " +

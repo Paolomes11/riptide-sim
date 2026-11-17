@@ -62,6 +62,13 @@ struct RunConfig {
     std::string physics_list;
 };
 
+// Half-size of the cubic vacuum world: it must contain both the scintillator
+// and the gun position, with room to spare so the gun never sits on the world
+// boundary (a primary starting on the boundary is killed at the first step).
+inline constexpr double kWorldScale = 1.5;
+inline constexpr double kWorldMargin = 10.0 * units::mm;
+[[nodiscard]] double worldHalfSize(const RunConfig& config);
+
 // Throws ConfigError with the offending key on any missing, unknown or invalid
 // field: a typo in a key must never silently fall back to a default.
 [[nodiscard]] RunConfig parseRunConfig(const nlohmann::json& doc);

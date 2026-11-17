@@ -2,6 +2,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <algorithm>
 #include <cmath>
 #include <fstream>
 #include <initializer_list>
@@ -166,6 +167,14 @@ RunConfig parseRunConfig(const json& doc) {
     }
     config.physics_list = physics.get<std::string>();
     return config;
+}
+
+double worldHalfSize(const RunConfig& config) {
+    const auto& s = config.geometry.scint_size;
+    const auto& p = config.source.position;
+    const double extent =
+        std::max({0.5 * s.x, 0.5 * s.y, 0.5 * s.z, std::abs(p.x), std::abs(p.y), std::abs(p.z)});
+    return kWorldScale * extent + kWorldMargin;
 }
 
 RunConfig loadRunConfig(const std::filesystem::path& path) {

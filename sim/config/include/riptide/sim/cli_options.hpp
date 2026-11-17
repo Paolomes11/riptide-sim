@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <limits>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -18,6 +19,8 @@ inline constexpr std::uint64_t kDefaultSeed = 20260907;
 // Upper bound on --threads: a guard against typos (e.g. 160 instead of 16), not
 // a statement about the machine; the application also checks the core count.
 inline constexpr int kMaxThreads = 256;
+// G4RunManager::BeamOn takes the number of events as a G4int (int).
+inline constexpr std::uint64_t kMaxEvents = std::numeric_limits<int>::max();
 
 class CliError : public std::runtime_error {
 public:

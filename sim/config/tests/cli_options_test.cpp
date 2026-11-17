@@ -82,6 +82,7 @@ TEST_CASE("malformed values are rejected", "[cli]") {
     requireError(with(required(), {"--seed", "abc"}), "--seed");
     requireError({"--config", "c.json", "--events", "0", "--run-id", "a"}, "--events");
     requireError({"--config", "c.json", "--events", "1e3", "--run-id", "a"}, "--events");
+    requireError({"--config", "c.json", "--events", "2147483648", "--run-id", "a"}, "--events");
     requireError({"--config", "c.json", "--events", "1", "--run-id", "../evil"}, "--run-id");
 }
 

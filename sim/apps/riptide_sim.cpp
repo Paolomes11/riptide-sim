@@ -2,19 +2,26 @@
 // configuration, then checks the data root before anything is simulated, so a
 // missing SSD or a full disk stops the run at startup rather than mid-run.
 
+#include <G4PhysListFactory.hh>
+#include <G4RunManager.hh>
+#include <G4RunManagerFactory.hh>
+#include <G4VModularPhysicsList.hh>
 #include <G4Version.hh>
 
 #include <cstdint>
 #include <exception>
 #include <filesystem>
 #include <iostream>
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "riptide/common/data_paths.hpp"
 #include "riptide/common/event_schema.hpp"
 #include "riptide/common/version.hpp"
+#include "riptide/sim/action_initialization.hpp"
 #include "riptide/sim/cli_options.hpp"
+#include "riptide/sim/detector_construction.hpp"
 #include "riptide/sim/run_config.hpp"
 
 namespace {
@@ -50,6 +57,24 @@ std::filesystem::path prepareRunDir(const riptide::sim::CliOptions& opts) {
     return run_dir;
 }
 
+// Classic MT run manager, requested explicitly: "Default" would let the
+// G4RUN_MANAGER_TYPE environment variable switch to another backend.
+void runSimulation(const riptide::sim::RunConfig& config, const riptide::sim::CliOptions& opts) {
+    G4PhysListFactory factory;
+    if (!factory.IsReferencePhysList(config.physics_list)) {
+        throw riptide::sim::ConfigError("physics_list: unknown reference physics list '" +
+                                        config.physics_list + "'");
+    }
+    const std::unique_ptr<G4RunManager> run_manager(
+        G4RunManagerFactory::CreateRunManager(G4RunManagerType::MTOnly, opts.threads));
+    // The run manager takes ownership of the three initialisation objects.
+    run_manager->SetUserInitialization(new riptide::sim::DetectorConstruction(config));
+    run_manager->SetUserInitialization(factory.GetReferencePhysList(config.physics_list));
+    run_manager->SetUserInitialization(new riptide::sim::ActionInitialization(config));
+    run_manager->Initialize();
+    run_manager->BeamOn(static_cast<int>(opts.events));
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -72,13 +97,12 @@ int main(int argc, char** argv) {
     try {
         const auto config = riptide::sim::loadRunConfig(opts.config);
         const auto run_dir = prepareRunDir(opts);
-        // The Geant4 run is added in the next step; until then the application
-        // stops after the checks without creating anything.
-        std::cout << "riptide_sim: configuration and data root OK, run directory " << run_dir
-                  << " (physics list " << config.physics_list << ", " << opts.events << " events, "
-                  << opts.threads << " threads, seed " << opts.seed << ")\n"
-                  << "riptide_sim: the Geant4 run is not implemented yet\n";
-        return kExitRuntime;
+        std::cout << "riptide_sim: run directory " << run_dir << " (physics list "
+                  << config.physics_list << ", " << opts.events << " events, " << opts.threads
+                  << " threads, seed " << opts.seed << ")\n";
+        // Output files are not written yet: they come with the truth ntuple.
+        runSimulation(config, opts);
+        return kExitOk;
     } catch (const std::exception& e) {
         std::cerr << "riptide_sim: " << e.what() << '\n';
         return kExitRuntime;

@@ -193,3 +193,10 @@ TEST_CASE("unreadable or malformed files raise ConfigError", "[config]") {
                          Catch::Matchers::MessageMatches(ContainsSubstring("invalid JSON")));
     std::filesystem::remove(path);
 }
+
+TEST_CASE("world contains the scintillator and the gun", "[config]") {
+    const auto c = parseRunConfig(validMono()); // box 100 x 80 x 60, gun at z = -100
+    const double half = riptide::sim::worldHalfSize(c);
+    CHECK(half > 100.0);
+    CHECK_THAT(half, WithinULP(riptide::sim::kWorldScale * 100.0 + riptide::sim::kWorldMargin, 0));
+}
