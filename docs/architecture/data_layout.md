@@ -86,6 +86,8 @@ Nel repository, ignorata da git: `outputs/figures/<analysis_id>/` (figure da ris
 
 Gli identificativi `run_id` e `analysis_id` contengono solo `[A-Za-z0-9._-]`, non iniziano con
 `.` o `-` e sono lunghi al più 128 caratteri (`isValidId`): niente attraversamento di cartelle.
+I `run_id` `ctest_it_1t` e `ctest_it_2t` sono riservati al test d'integrazione
+(`sim/tests/run_integration.sh`), che cancella e ricrea le loro cartelle a ogni esecuzione.
 
 ## File degli eventi
 
