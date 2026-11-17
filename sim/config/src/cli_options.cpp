@@ -4,6 +4,7 @@
 
 #include <charconv>
 #include <sstream>
+#include <string>
 #include <string_view>
 #include <system_error>
 
@@ -51,7 +52,9 @@ lyra::cli makeCli(RawOptions& raw) {
            lyra::opt(raw.data_dir, "dir")["--data-dir"]("data root (default: $RIPTIDE_DATA_DIR, "
                                                         "then /mnt/external_ssd/riptide-sim)") |
            lyra::opt(raw.threads, "n")["--threads"]("worker threads (default 1)") |
-           lyra::opt(raw.seed, "s")["--seed"]("run seed, 0..4294967295 (default 20260907)") |
+           // Built from the constants so the help cannot drift from the check below.
+           lyra::opt(raw.seed, "s")["--seed"]("run seed, 0.." + std::to_string(kMaxSeed) +
+                                              " (default " + std::to_string(kDefaultSeed) + ")") |
            lyra::opt(raw.allow_system_disk)["--allow-system-disk"](
                "allow writing on the system disk (short tests only)");
 }

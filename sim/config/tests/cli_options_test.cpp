@@ -70,6 +70,8 @@ TEST_CASE("--help and --version need no other option", "[cli]") {
     CHECK(parseCommandLine({"--help"}).show_help);
     CHECK(parseCommandLine({"--version"}).show_version);
     CHECK_THAT(riptide::sim::helpText(), ContainsSubstring("--config"));
+    CHECK_THAT(riptide::sim::helpText(),
+               ContainsSubstring("0.." + std::to_string(riptide::sim::kMaxSeed)));
 }
 
 TEST_CASE("missing required options are reported", "[cli]") {
