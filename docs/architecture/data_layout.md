@@ -170,30 +170,43 @@ n_H2/n_H1 (circa 1.15·10⁻⁴) come sistematica nota.
 I CSV, a precisione piena (`max_digits10`):
 
 - `spectrum_u.csv`, `depth_z.csv`: `low,high,observed,expected_<lib>…`, una riga per bin
-  originale (u = E_p/E_p,max; profondità del primo vertice lungo il fascio, in mm);
+  originale (u = (1 − μ)/2, con μ ricavato da E_p con la cinematica HP di D14; profondità del primo vertice lungo il fascio, in mm);
 - `fractions.csv`: `code,category,observed,expected_<lib>…` per i 5 codici di
   `FirstInteraction`;
 - `legendre.csv`: `l,value,error,expected_<lib>,pull_<lib>…` per l ≥ 1 (solo intestazione se la
   verifica è saltata);
-- `residuals_Ep.csv`: `mu,Ep_residual_MeV`, una riga per evento n–p.
+- `residuals_Ep.csv`: `mu,Ep_residual_MeV,Ep_physical_offset_MeV`, una riga per evento n–p.
+  Le colonne sono:
+  - `mu`, il coseno CM da θ_p;
+  - `Ep_residual_MeV`, l'E_p simulata meno la cinematica HP (arrotondamento);
+  - `Ep_physical_offset_MeV`, l'E_p simulata meno la cinematica fisica n–p (convenzione HP, D14).
 
-`checks.json` (versione `checks_version` = 1) si scrive per ultimo, con tmp + rename. Chiavi:
+`checks.json` (versione `checks_version` = 2) si scrive per ultimo, con tmp + rename. Chiavi:
 
 | Chiave | Contenuto |
 |---|---|
 | `checks_version`, `run_id`, `check_id` | identificazione |
 | `versions` | `riptide`, `git`, `geant4`, `schema`, `run_record` (del run letto) |
 | `reference_files` | per file: `library`, `nuclide`, `path`, `sha256` |
+| `hp_elastic_H1` | `file`, `sha256`, `rep_flag`, `awr`, `frame_flag`, `target_mass_MeV` dell'intestazione G4NDL di H-1 (D14) |
 | `medium` | `material`, `density_g_cm3`, `n_H1_per_mm3`, `n_H2_per_mm3`, `n_C12_per_mm3`, `n_C13_per_mm3`, `H2_over_H1` |
 | `beam` | `L_mm` (corda del fascio nel blocco), `En_min_MeV`, `En_max_MeV`, `bins_u`, `bins_z` |
-| `results` | `events`, `np_events`, `spectrum_u`, `depth_z`, `fractions`, `legendre`, `Ep_residuals`, `counters` |
+| `results` | `events`, `np_events`, `spectrum_u`, `depth_z`, `fractions`, `legendre`, `Ep_residuals`, `Ep_physical_offset`, `counters` |
 
 In `results`, ogni verifica riporta per libreria `skipped` (`null` oppure il motivo). Se la
 verifica è stata fatta, riporta anche χ², `ndf`, `p_value` e i pull; per gli istogrammi pure i
 bin fusi (attesa < 5) da cui viene il χ². `counters.must_be_zero` raccoglie i contatori che
-solo un bug può rendere diversi da zero, con il loro `total`. `counters.expected_rare`
-raccoglie la fisica nota, che viene riportata e non tagliata: n–d senza protone, u > 1 e
-θ_p > π/2 dovuti al moto termico.
+solo un bug può rendere diversi da zero, con il loro `total`. Fra questi ci sono anche
+u > 1 + 10⁻⁹ e θ_p > π/2, impossibili con il bersaglio a riposo (D14). `counters.expected_rare`
+raccoglie la fisica nota, che viene riportata e non tagliata: oggi solo n–d senza protone.
+`Ep_residuals` riporta `samples`, `mean`, `rms` e `max_abs` in MeV. `Ep_physical_offset` ha le
+stesse chiavi e in più `relative_mean`, `relative_min` e `relative_max` dello scarto relativo.
+
+Dalla versione 2 (2026-11-18):
+- c'è la chiave `hp_elastic_H1`;
+- in `results` c'è `Ep_physical_offset`;
+- i contatori u > 1 e θ_p > π/2 sono passati in `must_be_zero`;
+- `residuals_Ep.csv` ha la terza colonna.
 
 ## File degli eventi
 

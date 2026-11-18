@@ -24,7 +24,7 @@
   delle colonne di verità e uguaglianza colonna per colonna fra 1 e 2 thread; senza SSD viene
   saltato.
 
-## In corso: fase 1b (branch `feat/sim-checks`, aggiornato al 2026-11-18)
+## In corso: fase 1b (branch `feat/sim-checks`, aggiornato al 2026-11-18, `checks_version` 2)
 
 Verifiche fisiche non circolari e prestazioni, vedi `roadmap.md`. Fatti i passi 0–5 di 9:
 
@@ -56,7 +56,14 @@ Verifiche fisiche non circolari e prestazioni, vedi `roadmap.md`. Fatti i passi 
   - contatori di coerenza a zero.
 
   Questi numeri servono solo come controllo del funzionamento, non sono un risultato.
-- **Test:** `debug` 134/134, `ci` 124/124, zero warning, clang-format pulito.
+- **Residuo di E_p spiegato (D14).** Il modello HP di Geant4 usa per H-1 la massa dell'atomo
+  (AWR = 0.999167 in G4NDL 4.7.1) e crea poi il rinculo con la massa del protone. Le verifiche
+  modellano esattamente questa convenzione (`sim/validation/hp_recoil.hpp`), con la massa letta
+  da G4NDL, e `checks.json` è passato alla versione 2. Nello smoke test:
+  - il residuo di E_p è al più 1.2·10⁻¹⁴ MeV, cioè arrotondamento;
+  - lo scarto dalla cinematica fisica è (5.37–5.49)·10⁻⁴ in relativo, con media 5.43·10⁻⁴;
+  - i contatori u > 1 e θ_p > π/2 ora devono essere zero, e lo sono.
+- **Test:** `debug` 141/141, `ci` 131/131, zero warning, clang-format pulito.
 
 Prossimi passi:
 
@@ -84,10 +91,8 @@ Prossimi passi:
   - resta da verificare numericamente, prima di scrivere le previsioni (passo 6 della 1b), che
     la sezione d'urto inelastica HP del carbonio (`Inelastic/CrossSection/6_nat_Carbon`) escluda
     la cattura, confrontandola con JEFF-3.3 C-0.
-- Residui di E_p nello smoke test (248 eventi n–p a 14 MeV), cioè E_p simulata meno
-  E_p(E_n, θ_p): media +3.7 keV, rms 4.3 keV, massimo 7.4 keV, tutti positivi. Il residuo
-  relativo è costante, ΔE_p/E_p = (5.37–5.49)·10⁻⁴ su tutti gli eventi: è un fattore di scala
-  deterministico, non rumore né moto termico. Il valore è vicino a m_e/m_p ≈ 5.45·10⁻⁴.
-  Un'ipotesi da verificare è che la massa del bersaglio sia quella atomica dell'idrogeno e non
-  quella del protone. Va capito e previsto al passo 6, prima dei run.
+- **Fase 2:** la verità di Geant4 ha un E_p più alto della cinematica fisica di circa 5.4·10⁻⁴
+  in relativo, circa 7.6 keV a E_p = 14 MeV. Ne seguirebbe un bias relativo dello stesso ordine
+  su E_n ricostruito. Va deciso prima dell'analisi se correggerlo, se modellarlo o se riportarlo
+  come sistematica (D14).
 - kB di Birks per BC-408: da prendere da letteratura citata (fase 2).

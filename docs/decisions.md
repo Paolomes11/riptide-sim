@@ -175,3 +175,39 @@ cancellano: se cambiano, se ne aggiunge una nuova che rimanda alla vecchia.
   i numeri fra due revisioni della stessa analisi (ENDF/B-VIII.0). Un confronto davvero
   indipendente per n-p (altra valutazione o analisi in onde parziali dei dati sperimentali) è
   rimandato a una fase successiva, e i risultati della 1b non vanno presentati come tale.
+
+## D14 — Massa del bersaglio HP per H-1 nelle verifiche (2026-11-18)
+
+- **Fatti** (verificati sui sorgenti di Geant4 11.4.1 e su G4NDL 4.7.1):
+  - `G4ParticleHPElasticFS` costruisce il bersaglio con massa AWR · m_n, dove AWR è letto dalla
+    prima riga del file dello stato finale. Per H-1 (`Elastic/FS/1_1_Hydrogen.z`) la riga è
+    `1 0.999167 2` (rappresentazione, AWR, angoli nel CM), quindi M_T = 938.7827 MeV. È la
+    massa dell'atomo di idrogeno, elettrone compreso, e non quella del protone.
+  - Il rinculo è creato come `G4Proton` con l'impulso della cinematica a massa M_T, quindi la sua
+    energia cinetica è √(p² + m_p²) − m_p. Ne segue un E_p più alto della cinematica fisica
+    n–p di (5.37–5.49)·10⁻⁴ in relativo (≈ m_e/m_p) su tutto l'intervallo angolare.
+  - A 10–20 MeV il bersaglio è a riposo: il moto termico (SVT) si applica solo sotto circa
+    400 kT. Quindi u > 1 e θ_p > π/2 sono cinematicamente impossibili.
+  - Questo modello riproduce i residui dello smoke test entro 1.2·10⁻¹⁴ MeV.
+- **Decisione:** le verifiche della fase 1b modellano esattamente questa convenzione
+  (`sim/validation/hp_recoil.hpp`). u = (1 − μ)/2 viene da E_p con la massa HP, μ da θ_p con la
+  stessa massa, e il residuo di E_p è calcolato contro la cinematica HP, quindi è un oracolo a
+  livello di arrotondamento. M_T è letto dall'intestazione di G4NDL a ogni verifica, non scritto
+  a mano, e `checks.json` registra file, sha256 e AWR. Lo scarto dalla cinematica fisica è
+  riportato a parte (`Ep_physical_offset`). u > 1 e θ_p > π/2 passano fra i contatori che
+  devono essere zero.
+- **Motivo:** con la normalizzazione a m_p, u arriva a 1.00054. Gli eventi oltre 1 sarebbero
+  esclusi dall'ultimo bin, e alla statistica di produzione questo darebbe un difetto di circa
+  l'1% contro un errore statistico di circa 0.3%: un falso fallimento del χ². Il residuo di E_p,
+  inoltre, misurerebbe la convenzione e non un errore.
+- **Alternative:** tolleranza sul residuo e su u (nasconde l'effetto invece di spiegarlo);
+  correggere Geant4 (fuori perimetro, e la simulazione resta quella di riferimento).
+- **Conseguenze:**
+  - `common/np_kinematics.hpp` resta la cinematica fisica, usata dall'analisi.
+  - **Aperto, per la fase 2:** la verità di Geant4 ha E_p più alto di circa 5.4·10⁻⁴ in
+    relativo, circa 7.6 keV a E_p = 14 MeV. Un E_n ricostruito con la cinematica fisica avrebbe
+    un bias relativo dello stesso ordine. È piccolo rispetto a σ_Ep, ma visibile nei test di bias
+    ad alta statistica. Va deciso prima dell'analisi se correggerlo, se modellarlo o se
+    riportarlo come sistematica nota.
+  - Un cambio di G4NDL che modifichi l'AWR di H-1 si vede in `checks.json` e nello smoke test,
+    che controlla AWR = 0.999167.
