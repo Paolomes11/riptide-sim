@@ -2,6 +2,8 @@
 # directory holding geant4-config); no install path is hard-coded here.
 find_package(Geant4 11.4 REQUIRED)
 
+add_subdirectory(reader)
+
 add_executable(riptide_sim
     apps/riptide_sim.cpp
     src/action_initialization.cpp

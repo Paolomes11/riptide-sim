@@ -10,8 +10,8 @@ catch_discover_tests(sim_tests PROPERTIES SKIP_RETURN_CODE 4)
 add_executable(sim_integration_reader
     integration_reader.cpp)
 target_link_libraries(sim_integration_reader PRIVATE
-    riptide::common riptide::sim_config riptide::sim_truth riptide::options riptide::warnings
-    Catch2::Catch2WithMain ${Geant4_LIBRARIES})
+    riptide::common riptide::sim_config riptide::sim_truth riptide::sim_reader riptide::options
+    riptide::warnings Catch2::Catch2WithMain)
 add_test(NAME sim_integration
     COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/run_integration.sh"
         $<TARGET_FILE:riptide_sim> $<TARGET_FILE:sim_integration_reader> "${PROJECT_SOURCE_DIR}")

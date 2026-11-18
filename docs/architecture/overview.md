@@ -8,6 +8,7 @@ riptide-sim/
 ├── sim/         applicazione Geant4: genera eventi e li scrive su file
 │   ├── config/  configurazione del run e run.json, senza Geant4
 │   ├── truth/   classificazione della verità per evento, senza Geant4
+│   ├── reader/  lettura di run.json e delle ntuple di un run (con Geant4), anche in streaming
 │   └── validation/  lettura ENDF, attese e statistiche delle verifiche fisiche, senza Geant4
 ├── analysis/
 │   ├── stats/   motore statistico, C++ puro (niente ROOT, niente Geant4)
@@ -23,6 +24,7 @@ Dipendenze, solo verso il basso:
 
 ```
 common  ←  sim/config  ←  sim/truth  ←  sim
+                           sim/truth  ←  sim/reader  (Geant4)  ←  test d'integrazione, app di verifica
 common  ←  sim/validation
 common  ←  analysis/stats  ←  analysis/apps
 common  ←  analysis/io     ←  analysis/apps
