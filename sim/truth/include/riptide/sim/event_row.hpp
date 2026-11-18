@@ -33,4 +33,11 @@ using EventRow = std::array<ColumnValue, kEventColumns>;
 
 [[nodiscard]] EventRow eventRow(const EventMeta& meta, const TruthRecord& record);
 
+// Inverse of eventRow for the truth part, so a reader rebuilds the record by
+// column name instead of by position. n_np_without_proton is not in the
+// schema and stays 0. Throws std::bad_variant_access for a value of the wrong
+// type and std::out_of_range for a first-interaction code outside the schema
+// or a valid_np flag other than 0 and 1: such a row cannot come from eventRow.
+[[nodiscard]] TruthRecord truthRecord(const EventRow& row);
+
 } // namespace riptide::sim

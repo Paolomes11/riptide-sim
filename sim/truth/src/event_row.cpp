@@ -1,7 +1,9 @@
 #include "riptide/sim/event_row.hpp"
 
+#include <cstdint>
 #include <stdexcept>
 #include <string>
+#include <variant>
 
 namespace riptide::sim {
 
@@ -43,6 +45,59 @@ EventRow eventRow(const EventMeta& meta, const TruthRecord& record) {
         record.theta_p,
         static_cast<std::int32_t>(record.valid_np ? 1 : 0),
     };
+}
+
+namespace {
+
+double doubleColumn(const EventRow& row, std::string_view name) {
+    return std::get<double>(row.at(columnIndex(name)));
+}
+
+std::int32_t intColumn(const EventRow& row, std::string_view name) {
+    return std::get<std::int32_t>(row.at(columnIndex(name)));
+}
+
+schema::FirstInteraction firstInteractionFromCode(std::int32_t code) {
+    // Listed explicitly rather than range-checked, so a code added to the enum
+    // without being handled here is not silently accepted.
+    switch (code) {
+    case static_cast<std::int32_t>(schema::FirstInteraction::Unknown):
+        return schema::FirstInteraction::Unknown;
+    case static_cast<std::int32_t>(schema::FirstInteraction::NpElastic):
+        return schema::FirstInteraction::NpElastic;
+    case static_cast<std::int32_t>(schema::FirstInteraction::NCElastic):
+        return schema::FirstInteraction::NCElastic;
+    case static_cast<std::int32_t>(schema::FirstInteraction::NCInelastic):
+        return schema::FirstInteraction::NCInelastic;
+    case static_cast<std::int32_t>(schema::FirstInteraction::Other):
+        return schema::FirstInteraction::Other;
+    default:
+        throw std::out_of_range("truth_first_interaction: unknown code " + std::to_string(code));
+    }
+}
+
+} // namespace
+
+TruthRecord truthRecord(const EventRow& row) {
+    TruthRecord r;
+    r.En = doubleColumn(row, "truth_En");
+    r.omega_n = {doubleColumn(row, "truth_omega_n_x"), doubleColumn(row, "truth_omega_n_y"),
+                 doubleColumn(row, "truth_omega_n_z")};
+    r.r0 = {doubleColumn(row, "truth_r0_x"), doubleColumn(row, "truth_r0_y"),
+            doubleColumn(row, "truth_r0_z")};
+    r.t0 = doubleColumn(row, "truth_t0");
+    r.first_interaction = firstInteractionFromCode(intColumn(row, "truth_first_interaction"));
+    r.n_np_scatters = intColumn(row, "truth_n_np_scatters");
+    r.Ep = doubleColumn(row, "truth_Ep");
+    r.p_dir = {doubleColumn(row, "truth_p_dir_x"), doubleColumn(row, "truth_p_dir_y"),
+               doubleColumn(row, "truth_p_dir_z")};
+    r.theta_p = doubleColumn(row, "truth_theta_p");
+    const std::int32_t valid = intColumn(row, "truth_valid_np");
+    if (valid != 0 && valid != 1) {
+        throw std::out_of_range("truth_valid_np: expected 0 or 1, got " + std::to_string(valid));
+    }
+    r.valid_np = valid == 1;
+    return r;
 }
 
 } // namespace riptide::sim

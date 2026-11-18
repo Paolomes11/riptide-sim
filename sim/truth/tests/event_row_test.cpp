@@ -23,6 +23,7 @@ using riptide::sim::eventRow;
 using riptide::sim::EventRow;
 using riptide::sim::kEventColumns;
 using riptide::sim::TruthRecord;
+using riptide::sim::truthRecord;
 namespace u = riptide::units;
 
 TruthRecord knownRecord() {
@@ -100,4 +101,51 @@ TEST_CASE("event row: valid_np false is written as 0", "[row]") {
     TruthRecord r = knownRecord();
     r.valid_np = false;
     CHECK(asInt(eventRow(EventMeta{}, r), "truth_valid_np") == 0);
+}
+
+TEST_CASE("truth record: reading a row back gives the written record", "[row]") {
+    const TruthRecord in = knownRecord();
+    const TruthRecord out = truthRecord(eventRow(EventMeta{7, 1, 2}, in));
+    constexpr double kExact = 0.0;
+    CHECK_THAT(out.En, WithinAbs(in.En, kExact));
+    CHECK_THAT(out.omega_n.z, WithinAbs(in.omega_n.z, kExact));
+    CHECK_THAT(out.r0.x, WithinAbs(in.r0.x, kExact));
+    CHECK_THAT(out.r0.y, WithinAbs(in.r0.y, kExact));
+    CHECK_THAT(out.r0.z, WithinAbs(in.r0.z, kExact));
+    CHECK_THAT(out.t0, WithinAbs(in.t0, kExact));
+    CHECK(out.first_interaction == in.first_interaction);
+    CHECK(out.n_np_scatters == in.n_np_scatters);
+    CHECK_THAT(out.Ep, WithinAbs(in.Ep, kExact));
+    CHECK_THAT(out.p_dir.x, WithinAbs(in.p_dir.x, kExact));
+    CHECK_THAT(out.p_dir.z, WithinAbs(in.p_dir.z, kExact));
+    CHECK_THAT(out.theta_p, WithinAbs(in.theta_p, kExact));
+    CHECK(out.valid_np);
+    // Not a schema column, so it cannot survive the round trip.
+    CHECK(out.n_np_without_proton == 0);
+}
+
+TEST_CASE("truth record: every first-interaction code is read back", "[row]") {
+    for (const FirstInteraction f :
+         {FirstInteraction::Unknown, FirstInteraction::NpElastic, FirstInteraction::NCElastic,
+          FirstInteraction::NCInelastic, FirstInteraction::Other}) {
+        TruthRecord r;
+        r.first_interaction = f;
+        CHECK(truthRecord(eventRow(EventMeta{}, r)).first_interaction == f);
+    }
+}
+
+TEST_CASE("truth record: malformed rows are rejected", "[row]") {
+    EventRow row = eventRow(EventMeta{}, knownRecord());
+    SECTION("unknown first-interaction code") {
+        row.at(columnIndex("truth_first_interaction")) = std::int32_t{5};
+        CHECK_THROWS_AS(truthRecord(row), std::out_of_range);
+    }
+    SECTION("valid_np neither 0 nor 1") {
+        row.at(columnIndex("truth_valid_np")) = std::int32_t{2};
+        CHECK_THROWS_AS(truthRecord(row), std::out_of_range);
+    }
+    SECTION("value of the wrong type") {
+        row.at(columnIndex("truth_En")) = std::int32_t{14};
+        CHECK_THROWS_AS(truthRecord(row), std::bad_variant_access);
+    }
 }
