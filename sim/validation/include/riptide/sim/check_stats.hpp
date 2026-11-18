@@ -40,6 +40,24 @@ struct HistogramComparison {
 // negative or non-finite chi2.
 [[nodiscard]] double chi2SurvivalProbability(double chi2, int ndf);
 
+struct MergedBins {
+    std::vector<double> observed;
+    std::vector<double> expected;
+    std::vector<double> edges; // observed.size() + 1 bin edges
+};
+
+// Merges adjacent bins, left to right, until each merged bin has an expected
+// count of at least `min_expected`; a short remainder at the upper end is
+// folded into the last complete bin. Deterministic and order-preserving, so
+// the same histogram always yields the same chi^2 bins, and the totals are
+// conserved exactly. It is applied before compareHistogram, whose p-value is
+// meaningless below kMinExpectedCount. Throws std::invalid_argument on size
+// mismatch (edges must have one entry more than the bins), no bins, a
+// non-positive min_expected, or a total expected count below min_expected.
+[[nodiscard]] MergedBins mergeSparseBins(const std::vector<double>& observed,
+                                         const std::vector<double>& expected,
+                                         const std::vector<double>& edges, double min_expected);
+
 struct FractionComparison {
     std::uint64_t total = 0;
     double chi2 = 0.0;

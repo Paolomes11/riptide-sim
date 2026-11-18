@@ -214,3 +214,47 @@ TEST_CASE("Legendre moments recover the coefficients of a sample", "[checks][leg
         CHECK_THROWS_AS(checks::legendreMoments({0.1, kNaN}, 2), std::invalid_argument);
     }
 }
+
+namespace {
+
+// Merging only adds small integers, which double represents exactly.
+constexpr double kMergeTolerance = 1e-12;
+
+void requireEdges(const std::vector<double>& actual, const std::vector<double>& wanted) {
+    REQUIRE(actual.size() == wanted.size());
+    for (std::size_t i = 0; i < wanted.size(); ++i) {
+        CHECK_THAT(actual[i], WithinAbs(wanted[i], kMergeTolerance));
+    }
+}
+
+} // namespace
+
+TEST_CASE("sparse bins are merged left to right", "[checks][merge]") {
+    const std::vector<double> edges{0.0, 1.0, 2.0, 3.0, 4.0, 5.0};
+
+    SECTION("nothing to merge") {
+        const auto merged = checks::mergeSparseBins({5, 6, 7, 8, 9}, {6, 6, 6, 6, 6}, edges, 5.0);
+        CHECK(merged.expected.size() == 5);
+        requireEdges(merged.edges, edges);
+    }
+    SECTION("sparse tails, totals conserved") {
+        const std::vector<double> observed{1, 3, 20, 4, 0};
+        const std::vector<double> expected{2, 4, 18, 3, 1};
+        const auto merged = checks::mergeSparseBins(observed, expected, edges, 5.0);
+        // [0,2) reaches 6; [2,3) is 18; [3,5) holds 4 < 5 and joins the last group.
+        REQUIRE(merged.expected.size() == 2);
+        CHECK_THAT(merged.expected[0], WithinAbs(6.0, kMergeTolerance));
+        CHECK_THAT(merged.expected[1], WithinAbs(22.0, kMergeTolerance));
+        CHECK_THAT(merged.observed[0], WithinAbs(4.0, kMergeTolerance));
+        CHECK_THAT(merged.observed[1], WithinAbs(24.0, kMergeTolerance));
+        requireEdges(merged.edges, {0.0, 2.0, 5.0});
+    }
+    SECTION("everything below threshold, or malformed input") {
+        CHECK_THROWS_AS(
+            checks::mergeSparseBins({1, 1, 1, 1, 1}, {0.5, 0.5, 0.5, 0.5, 0.5}, edges, 5.0),
+            std::invalid_argument);
+        CHECK_THROWS_AS(checks::mergeSparseBins({1, 1}, {6, 6}, edges, 5.0), std::invalid_argument);
+        CHECK_THROWS_AS(checks::mergeSparseBins({}, {}, {0.0}, 5.0), std::invalid_argument);
+        CHECK_THROWS_AS(checks::mergeSparseBins({1}, {6}, {0.0, 1.0}, 0.0), std::invalid_argument);
+    }
+}

@@ -127,6 +127,44 @@ double chi2SurvivalProbability(double chi2, int ndf) {
     return upperGammaFraction(a, x);
 }
 
+MergedBins mergeSparseBins(const std::vector<double>& observed, const std::vector<double>& expected,
+                           const std::vector<double>& edges, double min_expected) {
+    if (observed.size() != expected.size() || edges.size() != observed.size() + 1) {
+        invalid("mergeSparseBins: observed, expected and edges sizes do not match");
+    }
+    if (observed.empty()) {
+        invalid("mergeSparseBins: no bins");
+    }
+    if (!(min_expected > 0.0)) {
+        invalid("mergeSparseBins: min_expected must be positive");
+    }
+    MergedBins merged;
+    merged.edges.push_back(edges.front());
+    double group_observed = 0.0;
+    double group_expected = 0.0;
+    for (std::size_t i = 0; i < observed.size(); ++i) {
+        group_observed += observed[i];
+        group_expected += expected[i];
+        if (group_expected >= min_expected) {
+            merged.observed.push_back(group_observed);
+            merged.expected.push_back(group_expected);
+            merged.edges.push_back(edges[i + 1]);
+            group_observed = 0.0;
+            group_expected = 0.0;
+        }
+    }
+    if (merged.observed.empty()) {
+        invalid("mergeSparseBins: total expected count below min_expected");
+    }
+    // Leftover upper bins that never reached the threshold join the last group.
+    if (group_observed > 0.0 || group_expected > 0.0) {
+        merged.observed.back() += group_observed;
+        merged.expected.back() += group_expected;
+    }
+    merged.edges.back() = edges.back();
+    return merged;
+}
+
 FractionComparison compareFractions(const std::vector<std::uint64_t>& counts,
                                     const std::vector<double>& probabilities) {
     if (counts.size() != probabilities.size()) {
