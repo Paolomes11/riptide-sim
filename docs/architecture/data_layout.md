@@ -118,7 +118,10 @@ Gli identificativi `run_id`, `analysis_id` e `check_id` contengono solo `[A-Za-z
 I `run_id` `ctest_it_1t` e `ctest_it_2t` sono riservati al test d'integrazione
 (`sim/tests/run_integration.sh`), che cancella e ricrea le loro cartelle a ogni esecuzione.
 Il `check_id` `ctest_smoke` è riservato allo smoke test di `riptide_sim_check`
-(`sim/tests/run_check_smoke.sh`), che ricrea solo `validation/ctest_it_1t/ctest_smoke`.
+(`sim/tests/run_check_smoke.sh`), che ricrea solo `validation/ctest_it_1t/ctest_smoke`. Lo
+smoke test controlla `checks_version` = 3, i file JEFF-3.3 letti (H-1, C-0, C-13, D15) e lo
+sha256 del primo, l'AWR di H-1 (0.999167, D14), il residuo di E_p all'arrotondamento, lo scarto
+dalla cinematica fisica in [5.3, 5.5]·10⁻⁴ e i contatori di coerenza a zero.
 
 ## Valutazioni di riferimento
 

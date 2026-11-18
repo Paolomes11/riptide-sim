@@ -227,6 +227,12 @@ cancellano: se cambiano, se ne aggiunge una nuova che rimanda alla vecchia.
   - L'inelastico di `6_13_Carbon` è la somma dei canali parziali di JEFF-3.3 C-13 entro 2.7·10⁻⁴,
     ma non è MT3 − MT102: ne differisce fino a 1.84·10⁻², perché in JEFF-3.3 C-13 MT4 non è la
     somma di MT51–91.
+  - Nelle tabelle di G4NDL un'energia ripetuta segna una discontinuità, come in ENDF: in C-13
+    l'elastico e la cattura ripetono 6.9501 MeV, la cattura anche 30 MeV. Il lettore
+    (`sim/validation/hp_data.hpp`) le accetta e vi prende il valore sopra; tre energie uguali o
+    una decrescente sono un errore.
+  - L'oracolo legge G4NDL da `G4NEUTRONHPDATA` e JEFF-3.3 da `<root>/reference/jeff33`, e viene
+    saltato se manca l'uno o l'altro.
 - **Decisione:** l'attesa `jeff33` è composta come la compone il modello HP: H-1, C-0 con
   densità n_C12 e C-13 con densità n_C13. Verifica quindi l'implementazione, non la fisica di C-0.
   `endfb80` resta H-1 + C-12 + C-13. `checks_version` passa a 3.

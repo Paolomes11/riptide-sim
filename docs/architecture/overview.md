@@ -9,8 +9,9 @@ riptide-sim/
 │   ├── config/  configurazione del run e run.json, senza Geant4
 │   ├── truth/   classificazione della verità per evento, senza Geant4
 │   ├── reader/  lettura di run.json e delle ntuple di un run (con Geant4), anche in streaming
-│   ├── validation/  lettura ENDF, attese, statistiche e report delle verifiche fisiche,
-│   │                riga di comando di riptide_sim_check; senza Geant4
+│   ├── validation/  lettura ENDF e G4NDL, cinematica del rinculo HP, attese, statistiche e
+│   │                report delle verifiche fisiche, riga di comando di riptide_sim_check;
+│   │                senza Geant4
 │   └── apps/    riptide_sim (simulazione), riptide_sim_check (verifiche fisiche di un run)
 ├── analysis/
 │   ├── stats/   motore statistico, C++ puro (niente ROOT, niente Geant4)
@@ -39,6 +40,10 @@ Note:
   lettore ROOT; non crea un run manager.
 - La conversione riga dell'ntupla → `TruthRecord` (`truthRecord`) sta in `sim/truth`, accanto
   alla conversione inversa `eventRow`.
+- L'oracolo G4NDL ↔ JEFF-3.3 (`sim/tests/hp_data_reference_test.cpp`, D15) sta in `sim_tests`,
+  che linka Geant4 e `sim/validation`: trova G4NDL con `G4FindDataDir` e lo legge con
+  `G4ParticleHPManager::GetDataStream`, come il modello HP, e lo analizza con il lettore puro
+  `sim/validation/hp_data.hpp`.
 - `CliError` e il parsing dei numeri sono in `sim/config/cli_parse.hpp`, condivisi dalle due
   righe di comando.
 

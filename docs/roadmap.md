@@ -41,7 +41,10 @@ progetto ricostruisce il neutrone incidente da ciò che interagisce nello scinti
     resta da fare (D13);
   - frazione di prime interazioni n–p / n–C contro le sezioni d'urto;
   - profondità del primo vertice contro exp(−Σ_tot z);
-  - comportamento a 19.5–20 MeV (bordo di validità di `G4NeutronHP`).
+  - comportamento a 19.5–20 MeV (bordo di validità di `G4NeutronHP`);
+  - convenzioni del modello HP verificate sui dati che Geant4 usa davvero: massa del bersaglio di
+    H-1 (D14), cattura esclusa dall'inelastico del carbonio e composizione isotopica del
+    carbonio (D15, oracolo G4NDL ↔ JEFF-3.3).
 - Prestazioni: eventi/s per thread, byte/evento (serve a `estimateRunBytes`, oggi con una stima
   provvisoria).
 
