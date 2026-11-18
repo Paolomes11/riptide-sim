@@ -24,7 +24,7 @@
   delle colonne di verità e uguaglianza colonna per colonna fra 1 e 2 thread; senza SSD viene
   saltato.
 
-## In corso: fase 1b (branch `feat/sim-checks`, aggiornato al 2026-11-17)
+## In corso: fase 1b (branch `feat/sim-checks`, aggiornato al 2026-11-18)
 
 Verifiche fisiche non circolari e prestazioni, vedi `roadmap.md`. Fatti i passi 0–3 di 9:
 
@@ -63,7 +63,15 @@ Prossimi passi:
 - SSD esterno montato su `/mnt/external_ssd`, ma non in modo permanente: prima di ogni run
   `scripts/data_root.sh check` (procedura in `architecture/data_layout.md`).
 - Comportamento di `G4NeutronHP` a 19.5–20 MeV (bordo del dominio).
-- Frazioni della prima interazione: le categorie assumono che l'inelastico HP del neutrone non
-  comprenda la cattura (che ha un processo proprio). Da verificare nei sorgenti di Geant4 prima di
-  scrivere le previsioni (passo 6 della 1b).
+- Frazioni della prima interazione, cattura (verificato in parte il 2026-11-18 sui sorgenti di
+  Geant4 11.4.1 e su G4NDL 4.7.1):
+  - in `G4HadronPhysicsQGSP_BIC_HP::Neutron()` l'inelastico (`neutronInelastic`, modello HP fino
+    a 20 MeV) e la cattura (`nCaptureHP`, dataset `G4NeutronHPCaptureData`) sono processi
+    distinti;
+  - `G4NDL4.7.1/Inelastic/CrossSection` non ha un file `1_1_Hydrogen`, che invece c'è in
+    `Capture/CrossSection`: per H-1 sotto 20 MeV le prime interazioni possibili sono solo
+    l'elastico e la cattura;
+  - resta da verificare numericamente, prima di scrivere le previsioni (passo 6 della 1b), che
+    la sezione d'urto inelastica HP del carbonio (`Inelastic/CrossSection/6_nat_Carbon`) escluda
+    la cattura, confrontandola con JEFF-3.3 C-0.
 - kB di Birks per BC-408: da prendere da letteratura citata (fase 2).
