@@ -85,7 +85,9 @@ Prossimi passi:
     la sezione d'urto inelastica HP del carbonio (`Inelastic/CrossSection/6_nat_Carbon`) escluda
     la cattura, confrontandola con JEFF-3.3 C-0.
 - Residui di E_p nello smoke test (248 eventi n–p a 14 MeV), cioè E_p simulata meno
-  E_p(E_n, θ_p): media +3.7 keV, rms 4.3 keV, massimo 7.4 keV, quasi tutti positivi. È una
-  deviazione sistematica, non uno sparpagliamento; va capita e prevista al passo 6, prima dei
-  run.
+  E_p(E_n, θ_p): media +3.7 keV, rms 4.3 keV, massimo 7.4 keV, tutti positivi. Il residuo
+  relativo è costante, ΔE_p/E_p = (5.37–5.49)·10⁻⁴ su tutti gli eventi: è un fattore di scala
+  deterministico, non rumore né moto termico. Il valore è vicino a m_e/m_p ≈ 5.45·10⁻⁴.
+  Un'ipotesi da verificare è che la massa del bersaglio sia quella atomica dell'idrogeno e non
+  quella del protone. Va capito e previsto al passo 6, prima dei run.
 - kB di Birks per BC-408: da prendere da letteratura citata (fase 2).
