@@ -4,12 +4,13 @@
 # and tested in every preset; the Geant4 app that reads the ntuples links it.
 add_library(riptide_sim_validation STATIC
     src/endf_format.cpp src/endf_reader.cpp src/check_stats.cpp
-    src/expected_distributions.cpp src/sha256.cpp src/beam_geometry.cpp)
+    src/expected_distributions.cpp src/sha256.cpp src/beam_geometry.cpp
+    src/check_accumulator.cpp)
 add_library(riptide::sim_validation ALIAS riptide_sim_validation)
 target_include_directories(riptide_sim_validation PUBLIC
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>")
 target_link_libraries(riptide_sim_validation
-    PUBLIC riptide::common riptide::sim_config
+    PUBLIC riptide::common riptide::sim_config riptide::sim_truth
     PRIVATE riptide::options riptide::warnings)
 
 if(RIPTIDE_BUILD_TESTS)
