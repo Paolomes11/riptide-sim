@@ -27,7 +27,7 @@ inline constexpr const char* kLegendreFileName = "legendre.csv";
 inline constexpr const char* kResidualsFileName = "residuals_Ep.csv";
 
 // Version of the checks.json layout; bumped on any change of its keys.
-inline constexpr int kChecksVersion = 1;
+inline constexpr int kChecksVersion = 2;
 
 class ReportError : public std::runtime_error {
 public:
@@ -50,10 +50,12 @@ void writeHistogramCsv(std::ostream& out, const HistogramResult& histogram);
 void writeFractionsCsv(std::ostream& out, const FractionResult& fractions);
 // l,value,error,expected_<library>,pull_<library>...; only the header when skipped.
 void writeLegendreCsv(std::ostream& out, const LegendreResult& legendre);
-// mu,Ep_residual_MeV, one row per n-p event in the order the events were read.
-// Throws std::invalid_argument if the two columns differ in length.
+// mu,Ep_residual_MeV,Ep_physical_offset_MeV, one row per n-p event in the
+// order the events were read. Throws std::invalid_argument if the columns
+// differ in length.
 void writeResidualsCsv(std::ostream& out, const std::vector<double>& mu,
-                       const std::vector<double>& Ep_residuals);
+                       const std::vector<double>& Ep_residuals,
+                       const std::vector<double>& Ep_physical_offsets);
 
 // Writes `doc` to `path` through a temporary file and a rename, so a reader
 // sees either no file or the complete one: the presence of checks.json marks a

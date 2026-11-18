@@ -65,6 +65,12 @@ inline constexpr double kVertexTolerance = 1.0e-6;
 inline constexpr double kEnergyRelTolerance = 1.0e-12;
 inline constexpr double kDirectionTolerance = 1.0e-12;
 
+// Tolerance on u = (1 - cos_cm) / 2 above 1. With the HP target mass u <= 1
+// holds exactly and rounding of the square roots stays near 1e-15; a wrong
+// target mass (the bare proton instead of the H atom) overshoots by ~5e-4.
+// 1e-9 lies far from both, so the counter flags only a modelling error.
+inline constexpr double kUnitTolerance = 1.0e-9;
+
 // Beam, box and binning of one run.
 struct CheckSetup {
     Vec3 position;     // gun position [mm]
@@ -73,37 +79,41 @@ struct CheckSetup {
     double En_min = 0; // [MeV]
     double En_max = 0; // [MeV]
     BeamChord chord;   // beam path through the box; chord.length() is L
+    // Rest energy [MeV] of the H-1 target in the HP elastic model (see
+    // hp_recoil.hpp): AWR of the G4NDL file times the neutron mass.
+    double hp_target_mass = 0;
     std::size_t bins_u = kDefaultBins;
     std::size_t bins_z = kDefaultBins;
 };
 
-// Throws std::invalid_argument if the beam misses the scintillator or a bin
-// count is zero, so a run that cannot be checked is never reported as passing.
-[[nodiscard]] CheckSetup makeCheckSetup(const RunConfig& config, std::size_t bins_u,
-                                        std::size_t bins_z);
+// Throws std::invalid_argument if the beam misses the scintillator, a bin
+// count is zero or the target mass is not positive, so a run that cannot be
+// checked is never reported as passing.
+[[nodiscard]] CheckSetup makeCheckSetup(const RunConfig& config, double hp_target_mass,
+                                        std::size_t bins_u, std::size_t bins_z);
 
 // Event counters. The first group can only be nonzero through a bug in the
-// simulation or in the truth bookkeeping. The second group counts known
-// physics that the checks treat separately and that is reported, not cut:
-//  - n-d elastic scattering is classified NpElastic (the truth tests Z = 1)
-//    but has no recoil proton, so it shows up as a first NpElastic without
-//    valid_np at a rate of order n_H2 / n_H1;
-//  - the thermal motion of the target lets Ep exceed Ep_max (u > 1) and
-//    theta_p exceed pi/2 at the kinematic edges.
+// simulation or in the truth bookkeeping. Above the thermal threshold the HP
+// target is at rest, so u > 1 and theta_p > pi/2 are kinematically
+// impossible and belong there too. The second group counts known physics
+// that the checks treat separately and that is reported, not cut: n-d
+// elastic scattering is classified NpElastic (the truth tests Z = 1) but has
+// no recoil proton, so it shows up as a first NpElastic without valid_np at
+// a rate of order n_H2 / n_H1.
 struct ConsistencyCounters {
     std::uint64_t En_outside_source = 0;
     std::uint64_t omega_not_beam = 0;
     std::uint64_t valid_np_without_scatter = 0; // valid_np with n_np_scatters < 1
     std::uint64_t vertex_outside_box = 0;       // r0 of an interacting event
     std::uint64_t invalid_proton_energy = 0;    // valid_np with Ep <= 0 or not finite
+    std::uint64_t u_overflow = 0;               // u > 1 + kUnitTolerance
+    std::uint64_t theta_p_beyond_half_pi = 0;
 
     std::uint64_t np_first_without_proton = 0;
-    std::uint64_t u_overflow = 0;
-    std::uint64_t theta_p_beyond_half_pi = 0;
 
     [[nodiscard]] std::uint64_t mustBeZeroTotal() const {
         return En_outside_source + omega_not_beam + valid_np_without_scatter + vertex_outside_box +
-               invalid_proton_energy;
+               invalid_proton_energy + u_overflow + theta_p_beyond_half_pi;
     }
 };
 
@@ -159,6 +169,15 @@ struct ResidualSummary {
     double max_abs = 0.0; // [MeV]
 };
 
+// Ep of the simulation against the physical (bare-proton) kinematics: the
+// size of the HP target-mass convention, reported for the record.
+struct OffsetSummary {
+    ResidualSummary absolute;
+    double relative_mean = 0.0; // mean of offset / physical Ep
+    double relative_min = 0.0;
+    double relative_max = 0.0;
+};
+
 struct CheckResults {
     std::uint64_t events = 0;
     std::uint64_t np_events = 0; // first interaction NpElastic with a recoil proton
@@ -166,7 +185,8 @@ struct CheckResults {
     HistogramResult depth_z;
     FractionResult fractions;
     LegendreResult legendre;
-    ResidualSummary Ep_residuals;
+    ResidualSummary Ep_residuals;     // against the HP kinematics: rounding only
+    OffsetSummary Ep_physical_offset; // against np_kinematics
     ConsistencyCounters counters;
 };
 
@@ -183,13 +203,16 @@ public:
     [[nodiscard]] const std::vector<ReferenceModel>& models() const {
         return models_;
     }
-    // Per n-p event, in the order added: mu = 1 - 2 protonEnergy(En, theta_p)
-    // / Ep_max, and Ep - protonEnergy(En, theta_p) [MeV].
+    // Per n-p event, in the order added: mu = hpCosCmFromAngle(En, theta_p),
+    // Ep - hpProtonEnergy(En, theta_p) and Ep - protonEnergy(En, theta_p) [MeV].
     [[nodiscard]] const std::vector<double>& cosines() const {
         return mu_;
     }
     [[nodiscard]] const std::vector<double>& EpResiduals() const {
         return Ep_residuals_;
+    }
+    [[nodiscard]] const std::vector<double>& EpPhysicalOffsets() const {
+        return Ep_physical_offsets_;
     }
 
     // Runs the statistics on what was accumulated. A check without enough
@@ -216,6 +239,8 @@ private:
 
     std::vector<double> mu_;
     std::vector<double> Ep_residuals_;
+    std::vector<double> Ep_physical_offsets_;
+    std::vector<double> Ep_physical_relative_;
     std::vector<std::vector<double>> coefficient_sums_; // per library, a_l summed over n-p events
     ConsistencyCounters counters_;
 };

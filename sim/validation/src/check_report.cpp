@@ -129,11 +129,14 @@ nlohmann::json countersJson(const ConsistencyCounters& c) {
               {"valid_np_without_scatter", c.valid_np_without_scatter},
               {"vertex_outside_box", c.vertex_outside_box},
               {"invalid_proton_energy", c.invalid_proton_energy},
-              {"total", c.mustBeZeroTotal()}}},
-            {"expected_rare",
-             {{"np_first_without_proton", c.np_first_without_proton},
               {"u_overflow", c.u_overflow},
-              {"theta_p_beyond_half_pi", c.theta_p_beyond_half_pi}}}};
+              {"theta_p_beyond_half_pi", c.theta_p_beyond_half_pi},
+              {"total", c.mustBeZeroTotal()}}},
+            {"expected_rare", {{"np_first_without_proton", c.np_first_without_proton}}}};
+}
+
+nlohmann::json residualJson(const ResidualSummary& r) {
+    return {{"samples", r.samples}, {"mean", r.mean}, {"rms", r.rms}, {"max_abs", r.max_abs}};
 }
 
 template <typename Check> void writeLibraryHeader(std::ostream& out, const std::vector<Check>& v) {
@@ -159,10 +162,12 @@ nlohmann::json resultsJson(const CheckResults& results) {
     doc["depth_z"] = histogramJson(results.depth_z);
     doc["fractions"] = fractionsJson(results.fractions);
     doc["legendre"] = legendreJson(results.legendre);
-    doc["Ep_residuals"] = {{"samples", results.Ep_residuals.samples},
-                           {"mean", results.Ep_residuals.mean},
-                           {"rms", results.Ep_residuals.rms},
-                           {"max_abs", results.Ep_residuals.max_abs}};
+    doc["Ep_residuals"] = residualJson(results.Ep_residuals);
+    const OffsetSummary& offset = results.Ep_physical_offset;
+    doc["Ep_physical_offset"] = residualJson(offset.absolute);
+    doc["Ep_physical_offset"]["relative_mean"] = offset.relative_mean;
+    doc["Ep_physical_offset"]["relative_min"] = offset.relative_min;
+    doc["Ep_physical_offset"]["relative_max"] = offset.relative_max;
     doc["counters"] = countersJson(results.counters);
     return doc;
 }
@@ -217,14 +222,15 @@ void writeLegendreCsv(std::ostream& out, const LegendreResult& legendre) {
 }
 
 void writeResidualsCsv(std::ostream& out, const std::vector<double>& mu,
-                       const std::vector<double>& Ep_residuals) {
-    if (mu.size() != Ep_residuals.size()) {
-        throw std::invalid_argument("writeResidualsCsv: mu and Ep residuals differ in length");
+                       const std::vector<double>& Ep_residuals,
+                       const std::vector<double>& Ep_physical_offsets) {
+    if (mu.size() != Ep_residuals.size() || mu.size() != Ep_physical_offsets.size()) {
+        throw std::invalid_argument("writeResidualsCsv: the columns differ in length");
     }
     setFullPrecision(out);
-    out << "mu,Ep_residual_MeV\n";
+    out << "mu,Ep_residual_MeV,Ep_physical_offset_MeV\n";
     for (std::size_t i = 0; i < mu.size(); ++i) {
-        out << mu.at(i) << ',' << Ep_residuals.at(i) << '\n';
+        out << mu.at(i) << ',' << Ep_residuals.at(i) << ',' << Ep_physical_offsets.at(i) << '\n';
     }
 }
 

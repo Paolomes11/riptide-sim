@@ -61,8 +61,10 @@ CheckResults sampleResults() {
     r.legendre.moments = LegendreMoments{10, {0.1, 0.2}, {0.05, 0.06}};
     r.legendre.per_library = {LegendreCheck{"jeff33", {0.0, 0.2}, {2.0, 0.0}}};
     r.Ep_residuals = {2, 3.75e-4, 7.3e-4, 1.0e-3};
+    r.Ep_physical_offset = {{2, 3.0e-3, 3.5e-3, 4.0e-3}, 5.4e-4, 5.3e-4, 5.5e-4};
     r.counters.omega_not_beam = 2;
     r.counters.u_overflow = 1;
+    r.counters.np_first_without_proton = 3;
     return r;
 }
 
@@ -129,9 +131,14 @@ TEST_CASE("resultsJson reports compared and skipped checks", "[check_report]") {
     CHECK(leg["skipped"].is_null());
 
     CHECK(doc["Ep_residuals"]["samples"] == 2);
+    CHECK(doc["Ep_physical_offset"]["samples"] == 2);
+    CHECK_THAT(doc["Ep_physical_offset"]["relative_mean"].get<double>(), WithinULP(5.4e-4, 0));
+    CHECK_THAT(doc["Ep_physical_offset"]["relative_max"].get<double>(), WithinULP(5.5e-4, 0));
     CHECK(doc["counters"]["must_be_zero"]["omega_not_beam"] == 2);
-    CHECK(doc["counters"]["must_be_zero"]["total"] == 2);
-    CHECK(doc["counters"]["expected_rare"]["u_overflow"] == 1);
+    CHECK(doc["counters"]["must_be_zero"]["u_overflow"] == 1);
+    CHECK(doc["counters"]["must_be_zero"]["total"] == 3);
+    CHECK(doc["counters"]["expected_rare"]["np_first_without_proton"] == 3);
+    CHECK(doc["counters"]["expected_rare"].size() == 1);
 }
 
 TEST_CASE("resultsJson of a skipped Legendre check has no moments", "[check_report]") {
@@ -181,14 +188,19 @@ TEST_CASE("Legendre CSV starts at l = 1, header only when skipped", "[check_repo
 TEST_CASE("residuals CSV keeps every double exactly", "[check_report]") {
     const double third = 1.0 / 3.0;
     std::ostringstream out;
-    writeResidualsCsv(out, {kMuA, third}, {kResidualA, kResidualB});
+    writeResidualsCsv(out, {kMuA, third}, {kResidualA, kResidualB}, {kResidualB, third});
     const auto rows = lines(out.str());
     REQUIRE(rows.size() == 3);
-    CHECK(rows[0] == "mu,Ep_residual_MeV");
+    CHECK(rows[0] == "mu,Ep_residual_MeV,Ep_physical_offset_MeV");
     const std::string mu_text = rows[2].substr(0, rows[2].find(','));
     CHECK_THAT(std::stod(mu_text), WithinULP(third, 0));
 
-    CHECK_THROWS_AS(writeResidualsCsv(out, {kMuA, kMuB}, {kResidualA}), std::invalid_argument);
+    CHECK_THAT(std::stod(rows[2].substr(rows[2].rfind(',') + 1)), WithinULP(third, 0));
+
+    CHECK_THROWS_AS(writeResidualsCsv(out, {kMuA, kMuB}, {kResidualA}, {kResidualA, kResidualB}),
+                    std::invalid_argument);
+    CHECK_THROWS_AS(writeResidualsCsv(out, {kMuA, kMuB}, {kResidualA, kResidualB}, {kResidualA}),
+                    std::invalid_argument);
 }
 
 TEST_CASE("writeJsonAtomically writes once and refuses to overwrite", "[check_report]") {

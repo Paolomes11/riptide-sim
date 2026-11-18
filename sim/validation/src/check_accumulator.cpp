@@ -8,6 +8,7 @@
 
 #include "riptide/common/np_kinematics.hpp"
 #include "riptide/common/units.hpp"
+#include "riptide/sim/hp_recoil.hpp"
 
 namespace riptide::sim::checks {
 
@@ -142,6 +143,24 @@ ResidualSummary summarize(const std::vector<double>& residuals) {
     return summary;
 }
 
+OffsetSummary summarizeOffset(const std::vector<double>& offsets,
+                              const std::vector<double>& relative) {
+    OffsetSummary summary;
+    summary.absolute = summarize(offsets);
+    if (relative.empty()) {
+        return summary;
+    }
+    double sum = 0.0;
+    for (const double r : relative) {
+        sum += r;
+    }
+    summary.relative_mean = sum / static_cast<double>(relative.size());
+    const auto [low, high] = std::minmax_element(relative.begin(), relative.end());
+    summary.relative_min = *low;
+    summary.relative_max = *high;
+    return summary;
+}
+
 } // namespace
 
 Nuclide makeNuclide(Target target, std::string label, double number_density,
@@ -169,9 +188,13 @@ std::vector<MediumComponent> ReferenceModel::mediumAt(double En) const {
     return medium;
 }
 
-CheckSetup makeCheckSetup(const RunConfig& config, std::size_t bins_u, std::size_t bins_z) {
+CheckSetup makeCheckSetup(const RunConfig& config, double hp_target_mass, std::size_t bins_u,
+                          std::size_t bins_z) {
     if (bins_u == 0 || bins_z == 0) {
         throw std::invalid_argument("makeCheckSetup: bin counts must be positive");
+    }
+    if (!std::isfinite(hp_target_mass) || !(hp_target_mass > 0.0)) {
+        throw std::invalid_argument("makeCheckSetup: the HP target mass must be positive");
     }
     const Vec3 half{0.5 * config.geometry.scint_size.x, 0.5 * config.geometry.scint_size.y,
                     0.5 * config.geometry.scint_size.z};
@@ -185,6 +208,7 @@ CheckSetup makeCheckSetup(const RunConfig& config, std::size_t bins_u, std::size
                       config.source.En_min,
                       config.source.En_max,
                       *chord,
+                      hp_target_mass,
                       bins_u,
                       bins_z};
 }
@@ -203,6 +227,9 @@ CheckAccumulator::CheckAccumulator(CheckSetup setup, std::vector<ReferenceModel>
     }
     if (setup_.bins_u == 0 || setup_.bins_z == 0) {
         throw std::invalid_argument("CheckAccumulator: bin counts must be positive");
+    }
+    if (!std::isfinite(setup_.hp_target_mass) || !(setup_.hp_target_mass > 0.0)) {
+        throw std::invalid_argument("CheckAccumulator: the HP target mass must be positive");
     }
     u_edges_ = uniformEdges(0.0, 1.0, setup_.bins_u);
     z_edges_ = uniformEdges(0.0, setup_.chord.length(), setup_.bins_z);
@@ -278,14 +305,18 @@ void CheckAccumulator::addNpEvent(const TruthRecord& record) {
         ++counters_.invalid_proton_energy;
         return;
     }
+    // With the target at rest the proton cannot go backwards.
     constexpr double kHalfPi = 0.5 * units::pi;
     if (record.theta_p > kHalfPi) {
         ++counters_.theta_p_beyond_half_pi;
     }
-    const double Ep_max = kinematics::maxProtonEnergy(record.En);
-    const double u = record.Ep / Ep_max;
-    const bool in_range = u <= 1.0;
+    const double M_T = setup_.hp_target_mass;
+    // u is the CM variable of the evaluated angular data, recovered exactly
+    // from Ep through the HP kinematics; it is in (0, 1] up to rounding.
+    const double u_raw = 0.5 * (1.0 - hpCosCm(record.Ep, record.En, M_T));
+    const bool in_range = u_raw <= 1.0 + kUnitTolerance;
     if (in_range) {
+        const double u = std::min(u_raw, 1.0);
         u_observed_.at(binIndex(u, 1.0, setup_.bins_u)) += 1.0;
     } else {
         ++counters_.u_overflow;
@@ -300,11 +331,16 @@ void CheckAccumulator::addNpEvent(const TruthRecord& record) {
         }
     }
     // mu from the angle, not from Ep: the difference between the two is what
-    // the Ep residual measures. protonEnergy <= Ep_max holds exactly, so the
-    // clamp only removes rounding at theta_p = 0.
-    const double Ep_kinematic = kinematics::protonEnergy(record.En, record.theta_p);
-    mu_.push_back(std::clamp(1.0 - 2.0 * Ep_kinematic / Ep_max, -1.0, 1.0));
-    Ep_residuals_.push_back(record.Ep - Ep_kinematic);
+    // the Ep residual measures. The clamp only removes rounding at theta_p = 0.
+    mu_.push_back(std::clamp(hpCosCmFromAngle(record.En, record.theta_p, M_T), -1.0, 1.0));
+    Ep_residuals_.push_back(record.Ep - hpProtonEnergy(record.En, record.theta_p, M_T));
+    // The departure from the physical n-p kinematics, kept for the record:
+    // it is the HP target-mass convention, not an error of the simulation.
+    const double Ep_physical = kinematics::protonEnergy(record.En, record.theta_p);
+    Ep_physical_offsets_.push_back(record.Ep - Ep_physical);
+    if (Ep_physical > 0.0) {
+        Ep_physical_relative_.push_back(record.Ep / Ep_physical - 1.0);
+    }
 }
 
 CheckResults CheckAccumulator::finish() const {
@@ -315,6 +351,7 @@ CheckResults CheckAccumulator::finish() const {
     results.spectrum_u = compareBinned(u_edges_, u_observed_, models_, u_expected_);
     results.depth_z = compareBinned(z_edges_, z_observed_, models_, z_expected_);
     results.Ep_residuals = summarize(Ep_residuals_);
+    results.Ep_physical_offset = summarizeOffset(Ep_physical_offsets_, Ep_physical_relative_);
 
     results.fractions.observed = category_counts_;
     std::uint64_t accepted = 0;

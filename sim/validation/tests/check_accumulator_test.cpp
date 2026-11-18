@@ -11,6 +11,7 @@
 #include "riptide/common/np_kinematics.hpp"
 #include "riptide/common/units.hpp"
 #include "riptide/sim/check_accumulator.hpp"
+#include "riptide/sim/hp_recoil.hpp"
 
 namespace checks = riptide::sim::checks;
 namespace endf = riptide::sim::endf;
@@ -69,9 +70,15 @@ riptide::sim::RunConfig cubeConfig() {
     return config;
 }
 
-checks::CheckSetup cubeSetup() {
-    return checks::makeCheckSetup(cubeConfig(), checks::kDefaultBins, checks::kDefaultBins);
+// With the bare proton as the HP target the HP kinematics is the physical
+// one, so the synthetic events below can be built from np_kinematics.
+checks::CheckSetup cubeSetup(double target_mass = kin::kProtonMass) {
+    return checks::makeCheckSetup(cubeConfig(), target_mass, checks::kDefaultBins,
+                                  checks::kDefaultBins);
 }
+
+// Target mass of H-1 in the G4NDL 4.7.1 elastic file, in neutron masses.
+constexpr double kAwrH1 = 0.999167;
 
 // Lab angle of a recoil proton of energy Ep, inverting recoilEnergy:
 // cos^2(theta) = Ep (E + m_p)^2 / (p^2 (2 m_p + Ep)), E the neutron total energy.
@@ -175,8 +182,12 @@ TEST_CASE("check setup from the run configuration", "[check_accumulator]") {
 
     auto missing = cubeConfig();
     missing.source.position = {80.0, 0.0, -100.0};
-    CHECK_THROWS_AS(checks::makeCheckSetup(missing, 10, 10), std::invalid_argument);
-    CHECK_THROWS_AS(checks::makeCheckSetup(cubeConfig(), 0, 10), std::invalid_argument);
+    const double m = kin::kProtonMass;
+    CHECK_THROWS_AS(checks::makeCheckSetup(missing, m, 10, 10), std::invalid_argument);
+    CHECK_THROWS_AS(checks::makeCheckSetup(cubeConfig(), m, 0, 10), std::invalid_argument);
+    CHECK_THROWS_AS(checks::makeCheckSetup(cubeConfig(), 0.0, 10, 10), std::invalid_argument);
+    CHECK_THROWS_AS(checks::makeCheckSetup(cubeConfig(), std::nan(""), 10, 10),
+                    std::invalid_argument);
 }
 
 TEST_CASE("accumulator needs distinct reference models", "[check_accumulator]") {
@@ -309,10 +320,10 @@ TEST_CASE("consistency counters", "[check_accumulator]") {
     CHECK(c.valid_np_without_scatter == 1);
     CHECK(c.vertex_outside_box == 1);
     CHECK(c.invalid_proton_energy == 1);
-    CHECK(c.mustBeZeroTotal() == 5);
-    CHECK(c.np_first_without_proton == 1);
     CHECK(c.u_overflow == 1);
     CHECK(c.theta_p_beyond_half_pi == 1);
+    CHECK(c.mustBeZeroTotal() == 7);
+    CHECK(c.np_first_without_proton == 1);
 
     // The event outside the source range is left out of every comparison.
     CHECK(results.events == 8);
@@ -328,6 +339,36 @@ TEST_CASE("consistency counters", "[check_accumulator]") {
     }
     CHECK_THAT(histogrammed, WithinAbs(4.0, kTolerance));
     CHECK(results.np_events == 5);
+}
+
+TEST_CASE("events with the HP target mass are modelled to rounding", "[check_accumulator]") {
+    const double target_mass = kAwrH1 * kin::kNeutronMass;
+    checks::CheckAccumulator hp(cubeSetup(target_mass), {model("lib", kCoefficients)});
+    checks::CheckAccumulator bare(cubeSetup(), {model("lib", kCoefficients)});
+    // Lab angles from head-on (u = 1, the edge where a wrong mass overflows)
+    // to just short of pi/2.
+    constexpr int kAngles = 50;
+    for (int i = 0; i < kAngles; ++i) {
+        const double theta = 0.5 * units::pi * static_cast<double>(i) / kAngles;
+        auto r = npRecord(kEn, 0.5 * kin::maxProtonEnergy(kEn), 30.0);
+        r.theta_p = theta;
+        r.Ep = checks::hpProtonEnergy(kEn, theta, target_mass);
+        hp.add(r);
+        bare.add(r);
+    }
+    const auto results = hp.finish();
+    CHECK(results.counters.mustBeZeroTotal() == 0);
+    CHECK(results.np_events == kAngles);
+    CHECK(results.Ep_residuals.max_abs < 1e-9 * kin::maxProtonEnergy(kEn));
+    // The excess over the physical kinematics is the HP convention, ~m_e/m_p.
+    const auto& offset = results.Ep_physical_offset;
+    CHECK(offset.absolute.samples == kAngles);
+    CHECK(offset.relative_min > 5.36e-4);
+    CHECK(offset.relative_max < 5.49e-4);
+    CHECK(offset.relative_mean > offset.relative_min);
+    CHECK(offset.relative_mean < offset.relative_max);
+    // Analysed with the bare proton the head-on event lies beyond u = 1.
+    CHECK(bare.finish().counters.u_overflow == 1);
 }
 
 TEST_CASE("checks with too few events are skipped, not failed", "[check_accumulator]") {

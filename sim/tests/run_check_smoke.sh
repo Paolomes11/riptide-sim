@@ -65,11 +65,24 @@ path, ref_path, ref_sha = sys.argv[1:4]
 with open(path, encoding="utf-8") as f:
     doc = json.load(f)
 for key in ("checks_version", "run_id", "check_id", "versions", "reference_files",
-            "medium", "beam", "results"):
+            "hp_elastic_H1", "medium", "beam", "results"):
     assert key in doc, f"checks.json has no key {key}"
 results = doc["results"]
-for key in ("spectrum_u", "depth_z", "fractions", "legendre", "Ep_residuals", "counters"):
+for key in ("spectrum_u", "depth_z", "fractions", "legendre", "Ep_residuals",
+            "Ep_physical_offset", "counters"):
     assert key in results, f"results has no key {key}"
+# The HP target mass of H-1 as G4NDL 4.7.1 gives it, in neutron masses.
+hp = doc["hp_elastic_H1"]
+assert abs(hp["awr"] - 0.999167) < 1e-12, f"unexpected H-1 AWR {hp['awr']}"
+# Oracle: with that mass the simulated Ep is reproduced to rounding. The
+# bound is relative to the largest proton energy of the source, a slight
+# overestimate of Ep_max(En_max) that does not matter at this tolerance.
+En_max = doc["beam"]["En_max_MeV"]
+residual = results["Ep_residuals"]["max_abs"]
+assert residual < 1e-9 * En_max, f"Ep residual {residual} MeV is not rounding"
+# The departure from the bare-proton kinematics is the HP convention, ~m_e/m_p.
+offset = results["Ep_physical_offset"]["relative_mean"]
+assert 5.3e-4 <= offset <= 5.5e-4, f"relative Ep offset {offset} outside [5.3e-4, 5.5e-4]"
 total = results["counters"]["must_be_zero"]["total"]
 assert total == 0, f"{total} consistency violations: {results['counters']['must_be_zero']}"
 assert results["events"] > 0, "no events read"

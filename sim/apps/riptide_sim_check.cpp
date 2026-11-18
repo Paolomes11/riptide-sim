@@ -5,12 +5,15 @@
 // no verdict: the pass thresholds are fixed separately, before the runs.
 //
 // Geant4 is used only to build the scintillator material, so the atom
-// densities are those of the simulated medium; no run manager is created.
+// densities are those of the simulated medium, and to read the H-1 target
+// mass of the HP elastic model from G4NDL; no run manager is created.
 
 #include <G4Element.hh>
+#include <G4EnvironmentUtils.hh>
 #include <G4Isotope.hh>
 #include <G4Material.hh>
 #include <G4NistManager.hh>
+#include <G4ParticleHPManager.hh>
 #include <G4SystemOfUnits.hh>
 #include <G4Version.hh>
 #include <nlohmann/json.hpp>
@@ -30,6 +33,7 @@
 #include "riptide/common/data_paths.hpp"
 #include "riptide/common/event_schema.hpp"
 #include "riptide/common/git_info.hpp"
+#include "riptide/common/np_kinematics.hpp"
 #include "riptide/common/version.hpp"
 #include "riptide/sim/check_accumulator.hpp"
 #include "riptide/sim/check_cli_options.hpp"
@@ -37,6 +41,7 @@
 #include "riptide/sim/detector_materials.hpp"
 #include "riptide/sim/endf_reader.hpp"
 #include "riptide/sim/event_row.hpp"
+#include "riptide/sim/hp_recoil.hpp"
 #include "riptide/sim/run_config.hpp"
 #include "riptide/sim/run_reader.hpp"
 #include "riptide/sim/sha256.hpp"
@@ -52,9 +57,9 @@ constexpr int kExitUsage = 2;
 constexpr int kExitRuntime = 1;
 
 // Generous upper bound on the output per simulated event: the only table that
-// grows with the run is residuals_Ep.csv, one row of two full-precision
-// doubles (about 50 bytes) per n-p event.
-constexpr std::uint64_t kOutputBytesPerEvent = 64;
+// grows with the run is residuals_Ep.csv, one row of three full-precision
+// doubles (about 75 bytes) per n-p event.
+constexpr std::uint64_t kOutputBytesPerEvent = 96;
 
 // Evaluated files under <root>/reference/<library>/, as listed with their
 // sha256 in docs/architecture/data_layout.md.
@@ -66,6 +71,12 @@ constexpr const char* kJeffCarbonNatural = "n_0600_6-C-0.dat";
 constexpr const char* kEndfbHydrogen1 = "n-001_H_001.endf";
 constexpr const char* kEndfbCarbon12 = "n-006_C_012.endf";
 constexpr const char* kEndfbCarbon13 = "n-006_C_013.endf";
+
+// G4NDL elastic final state of H-1, relative to G4NEUTRONHPDATA, without the
+// ".z" that G4ParticleHPManager::GetDataStream appends, as the HP model does.
+constexpr const char* kHpDataEnv = "G4NEUTRONHPDATA";
+constexpr const char* kHpElasticH1 = "/Elastic/FS/1_1_Hydrogen";
+constexpr const char* kHpCompressedSuffix = ".z";
 
 constexpr int kHydrogenZ = 1;
 constexpr int kCarbonZ = 6;
@@ -181,6 +192,39 @@ private:
     std::vector<ReferenceFile> files_;
 };
 
+// Header of the H-1 elastic final-state file, read as the HP model reads it.
+struct HpElasticH1 {
+    fs::path file;
+    checks::HpElasticHeader header;
+    double target_mass = 0.0; // [MeV]
+};
+
+HpElasticH1 readHpElasticH1() {
+    const char* dir = G4FindDataDir(kHpDataEnv);
+    if (dir == nullptr) {
+        throw std::runtime_error(std::string(kHpDataEnv) + " is not set: no G4NDL to read");
+    }
+    const std::string base = std::string(dir) + kHpElasticH1;
+    HpElasticH1 hp;
+    hp.file = base + kHpCompressedSuffix;
+    // GetDataStream falls back to an uncompressed file and leaves the stream
+    // empty if neither exists; require the file the checks record.
+    if (!fs::is_regular_file(hp.file)) {
+        throw std::runtime_error("HP elastic file not found: " + hp.file.string());
+    }
+    std::istringstream in;
+    G4ParticleHPManager::GetInstance()->GetDataStream(base, in);
+    hp.header = checks::parseHpElasticHeader(in);
+    hp.target_mass = hp.header.awr * riptide::kinematics::kNeutronMass;
+    return hp;
+}
+
+nlohmann::json hpJson(const HpElasticH1& hp) {
+    return {{"file", hp.file.string()},           {"sha256", checks::sha256File(hp.file)},
+            {"rep_flag", hp.header.rep_flag},     {"awr", hp.header.awr},
+            {"frame_flag", hp.header.frame_flag}, {"target_mass_MeV", hp.target_mass}};
+}
+
 // JEFF-3.3 evaluates natural carbon as one material (C-0), so it carries the
 // whole carbon density; ENDF/B-VIII.0 has C-12 and C-13. Deuterium has no
 // evaluation here: its share n_H2/n_H1 is reported as a known systematic.
@@ -250,9 +294,11 @@ int runChecks(const checks::CheckCliOptions& opts) {
     const riptide::sim::RunConfig config = riptide::sim::parseRunConfig(record.at("config"));
 
     const MediumDensities densities = scintillatorDensities();
+    const HpElasticH1 hp = readHpElasticH1();
     ReferenceSet refs(root);
-    checks::CheckAccumulator acc(checks::makeCheckSetup(config, opts.bins_u, opts.bins_z),
-                                 referenceModels(refs, densities));
+    checks::CheckAccumulator acc(
+        checks::makeCheckSetup(config, hp.target_mass, opts.bins_u, opts.bins_z),
+        referenceModels(refs, densities));
     std::cout << "riptide_sim_check: reading " << run_dir << " (" << events << " events)\n";
 
     const std::size_t rows =
@@ -275,7 +321,7 @@ int runChecks(const checks::CheckCliOptions& opts) {
     writeCsv(out_dir / checks::kLegendreFileName,
              [&](std::ostream& o) { checks::writeLegendreCsv(o, results.legendre); });
     writeCsv(out_dir / checks::kResidualsFileName, [&](std::ostream& o) {
-        checks::writeResidualsCsv(o, acc.cosines(), acc.EpResiduals());
+        checks::writeResidualsCsv(o, acc.cosines(), acc.EpResiduals(), acc.EpPhysicalOffsets());
     });
 
     nlohmann::json doc;
@@ -288,6 +334,7 @@ int runChecks(const checks::CheckCliOptions& opts) {
                        {"schema", riptide::schema::kSchemaVersion},
                        {"run_record", record.at("run_record_version")}};
     doc["reference_files"] = refs.json();
+    doc["hp_elastic_H1"] = hpJson(hp);
     doc["medium"] = densitiesJson(densities);
     doc["beam"] = {{"L_mm", acc.setup().chord.length()},
                    {"En_min_MeV", acc.setup().En_min},
