@@ -16,7 +16,7 @@ readonly run_id=ctest_it_1t
 # Check id reserved for this test; its directory is recreated every time.
 readonly check_id=ctest_smoke
 readonly reference_files=(
-    jeff33/n_0125_1-H-1.dat jeff33/n_0600_6-C-0.dat
+    jeff33/n_0125_1-H-1.dat jeff33/n_0600_6-C-0.dat jeff33/n_0628_6-C-13.dat
     endfb80/n-001_H_001.endf endfb80/n-006_C_012.endf endfb80/n-006_C_013.endf)
 
 if [[ $# -ne 2 ]]; then
@@ -67,6 +67,7 @@ with open(path, encoding="utf-8") as f:
 for key in ("checks_version", "run_id", "check_id", "versions", "reference_files",
             "hp_elastic_H1", "medium", "beam", "results"):
     assert key in doc, f"checks.json has no key {key}"
+assert doc["checks_version"] == 3, f"unexpected checks_version {doc['checks_version']}"
 results = doc["results"]
 for key in ("spectrum_u", "depth_z", "fractions", "legendre", "Ep_residuals",
             "Ep_physical_offset", "counters"):
@@ -86,6 +87,9 @@ assert 5.3e-4 <= offset <= 5.5e-4, f"relative Ep offset {offset} outside [5.3e-4
 total = results["counters"]["must_be_zero"]["total"]
 assert total == 0, f"{total} consistency violations: {results['counters']['must_be_zero']}"
 assert results["events"] > 0, "no events read"
+# JEFF-3.3 is composed as the HP model composes carbon: C-0 for C-12, plus C-13.
+jeff = [r["nuclide"] for r in doc["reference_files"] if r["library"] == "jeff33"]
+assert jeff == ["H-1", "C-0", "C-13"], f"unexpected JEFF-3.3 files {jeff}"
 recorded = {r["path"]: r["sha256"] for r in doc["reference_files"]}
 assert recorded.get(ref_path) == ref_sha, f"sha256 of {ref_path}: {recorded.get(ref_path)} != {ref_sha}"
 print(f"checks.json ok: {results['events']} events, {results['np_events']} n-p")

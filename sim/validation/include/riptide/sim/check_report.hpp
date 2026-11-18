@@ -27,7 +27,7 @@ inline constexpr const char* kLegendreFileName = "legendre.csv";
 inline constexpr const char* kResidualsFileName = "residuals_Ep.csv";
 
 // Version of the checks.json layout; bumped on any change of its keys.
-inline constexpr int kChecksVersion = 2;
+inline constexpr int kChecksVersion = 3;
 
 class ReportError : public std::runtime_error {
 public:

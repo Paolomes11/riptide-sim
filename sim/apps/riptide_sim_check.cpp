@@ -68,6 +68,7 @@ constexpr const char* kJeffLibrary = "jeff33";
 constexpr const char* kEndfbLibrary = "endfb80";
 constexpr const char* kJeffHydrogen1 = "n_0125_1-H-1.dat";
 constexpr const char* kJeffCarbonNatural = "n_0600_6-C-0.dat";
+constexpr const char* kJeffCarbon13 = "n_0628_6-C-13.dat";
 constexpr const char* kEndfbHydrogen1 = "n-001_H_001.endf";
 constexpr const char* kEndfbCarbon12 = "n-006_C_012.endf";
 constexpr const char* kEndfbCarbon13 = "n-006_C_013.endf";
@@ -225,20 +226,29 @@ nlohmann::json hpJson(const HpElasticH1& hp) {
             {"frame_flag", hp.header.frame_flag}, {"target_mass_MeV", hp.target_mass}};
 }
 
-// JEFF-3.3 evaluates natural carbon as one material (C-0), so it carries the
-// whole carbon density; ENDF/B-VIII.0 has C-12 and C-13. Deuterium has no
-// evaluation here: its share n_H2/n_H1 is reported as a known systematic.
+// The JEFF-3.3 expectation is composed as the HP model composes carbon, so
+// that it checks the implementation: G4NDL has no C-12 file and the model
+// falls back to the natural-carbon one (derived from JEFF C-0) for the C-12
+// share, while C-13 keeps its own file. C-13 therefore enters twice, once
+// inside C-0 and once on its own, an artefact of the model that the
+// expectation must reproduce. The G4NDL C-13 inelastic is the sum of the
+// JEFF partial channels, not MT3 - MT102; using MT1 of C-13 leaves a known
+// residual of about 3e-4 relative on the carbon nonelastic near 14 MeV.
+// ENDF/B-VIII.0 has C-12 and C-13 as physics. Deuterium has no evaluation
+// here: its share n_H2/n_H1 is reported as a known systematic.
 std::vector<checks::ReferenceModel> referenceModels(ReferenceSet& refs, const MediumDensities& d) {
     using checks::makeNuclide;
     using checks::Target;
 
     const endf::EndfMaterial jeff_h1 = refs.read(kJeffLibrary, "H-1", kJeffHydrogen1);
     const endf::EndfMaterial jeff_c0 = refs.read(kJeffLibrary, "C-0", kJeffCarbonNatural);
+    const endf::EndfMaterial jeff_c13 = refs.read(kJeffLibrary, "C-13", kJeffCarbon13);
     checks::ReferenceModel jeff;
     jeff.library = kJeffLibrary;
     jeff.np_angular = endf::legendreAngular(jeff_h1);
     jeff.nuclides = {makeNuclide(Target::Hydrogen, "H-1", d.n_H1, jeff_h1),
-                     makeNuclide(Target::Carbon, "C-0", d.n_C12 + d.n_C13, jeff_c0)};
+                     makeNuclide(Target::Carbon, "C-12 (C-0)", d.n_C12, jeff_c0),
+                     makeNuclide(Target::Carbon, "C-13", d.n_C13, jeff_c13)};
 
     const endf::EndfMaterial endfb_h1 = refs.read(kEndfbLibrary, "H-1", kEndfbHydrogen1);
     const endf::EndfMaterial endfb_c12 = refs.read(kEndfbLibrary, "C-12", kEndfbCarbon12);
