@@ -35,7 +35,12 @@ HpCrossSection parseHpCrossSection(std::istream& in) {
             throw HpDataError("HP cross section: invalid value at point " + std::to_string(i));
         }
         const double En = energy_eV * units::eV;
-        if (!table.En.empty() && !(En > table.En.back())) {
+        // A repeated energy marks a discontinuity, as in ENDF tables; a
+        // third equal energy or a decrease has no meaning.
+        const std::size_t size = table.En.size();
+        const bool decreasing = size >= 1 && En < table.En[size - 1];
+        const bool third_equal = size >= 2 && !(En > table.En[size - 2]);
+        if (decreasing || third_equal) {
             throw HpDataError("HP cross section: energies not increasing at point " +
                               std::to_string(i));
         }
@@ -50,7 +55,8 @@ double evaluate(const HpCrossSection& table, double En) {
         throw HpDataError("HP cross section: energy " + std::to_string(En) +
                           " MeV outside the table");
     }
-    // First point strictly above En; at the last point use the last interval.
+    // First point strictly above En, so at a discontinuity the value above
+    // it is taken, as endf::evaluate does; at the last point its value.
     auto upper = std::upper_bound(table.En.begin(), table.En.end(), En);
     if (upper == table.En.end()) {
         return table.sigma.back();

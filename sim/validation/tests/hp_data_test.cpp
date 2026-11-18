@@ -53,10 +53,19 @@ TEST_CASE("evaluate interpolates lin-lin and stops at the table ends", "[hp_data
 
 TEST_CASE("parseHpCrossSection refuses malformed files", "[hp_data]") {
     for (const std::string text :
-         {"", "0 0", "0 0 0", "0 0 -2", "0 0 2 1e6 1.0", "0 0 2 1e6 1.0 1e6 2.0",
+         {"", "0 0", "0 0 0", "0 0 -2", "0 0 2 1e6 1.0", "0 0 3 1e6 1.0 1e6 2.0 1e6 3.0",
           "0 0 2 2e6 1.0 1e6 2.0", "0 0 1 1e6 -1.0", "0 0 1 1e6 abc"}) {
         CAPTURE(text);
         std::istringstream in(text);
         CHECK_THROWS_AS(parseHpCrossSection(in), HpDataError);
     }
+}
+
+TEST_CASE("a repeated energy is a discontinuity, valued above it", "[hp_data]") {
+    std::istringstream in("0 0 4 1e6 1.0 2e6 2.0 2e6 5.0 3e6 6.0");
+    const HpCrossSection t = parseHpCrossSection(in);
+    REQUIRE(t.En.size() == 4);
+    CHECK_THAT(evaluate(t, 2.0 * units::MeV), WithinRel(5.0 * units::barn, kRel));
+    CHECK_THAT(evaluate(t, 1.5 * units::MeV), WithinRel(1.5 * units::barn, kRel));
+    CHECK_THAT(evaluate(t, 2.5 * units::MeV), WithinRel(5.5 * units::barn, kRel));
 }

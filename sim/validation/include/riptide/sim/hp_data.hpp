@@ -27,14 +27,15 @@ struct HpCrossSection {
     std::vector<double> sigma;
 };
 
-// Reads one file. Throws HpDataError if the text is truncated or malformed,
-// if N <= 0, if an energy is not strictly above the previous one or if a
-// cross section is negative.
+// Reads one file. An energy may appear twice in a row, marking a
+// discontinuity (the two values below and above it). Throws HpDataError if
+// the text is truncated or malformed, if N <= 0, if the energies decrease or
+// repeat more than twice, or if a cross section is negative.
 [[nodiscard]] HpCrossSection parseHpCrossSection(std::istream& in);
 
-// Lin-lin interpolation at En [MeV]. Throws HpDataError outside
-// [En.front(), En.back()]: the checks never rely on what the model does
-// beyond its table.
+// Lin-lin interpolation at En [MeV]; at a discontinuity, the value above
+// it. Throws HpDataError outside [En.front(), En.back()]: the checks never
+// rely on what the model does beyond its table.
 [[nodiscard]] double evaluate(const HpCrossSection& table, double En);
 
 } // namespace riptide::sim::checks
