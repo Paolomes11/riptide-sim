@@ -24,7 +24,7 @@
   delle colonne di verità e uguaglianza colonna per colonna fra 1 e 2 thread; senza SSD viene
   saltato.
 
-## In corso: fase 1b (branch `feat/sim-checks`, aggiornato al 2026-11-18, `checks_version` 2)
+## In corso: fase 1b (branch `feat/sim-checks`, aggiornato al 2026-11-18, `checks_version` 3)
 
 Verifiche fisiche non circolari e prestazioni, vedi `roadmap.md`. Fatti i passi 0–5 di 9:
 
@@ -63,11 +63,21 @@ Verifiche fisiche non circolari e prestazioni, vedi `roadmap.md`. Fatti i passi 
   - il residuo di E_p è al più 1.2·10⁻¹⁴ MeV, cioè arrotondamento;
   - lo scarto dalla cinematica fisica è (5.37–5.49)·10⁻⁴ in relativo, con media 5.43·10⁻⁴;
   - i contatori u > 1 e θ_p > π/2 ora devono essere zero, e lo sono.
-- **Test:** `debug` 141/141, `ci` 131/131, zero warning, clang-format pulito.
+- **Carbonio HP (D15).** Verificato sui file: l'inelastico HP del carbonio esclude la cattura
+  (coincide con JEFF-3.3 C-0 MT3 − MT102; integrale su 10–20 MeV entro 2.5·10⁻⁷). G4NDL non ha
+  C-12 e compone il carbonio come 0.9893 · C-0 + 0.0107 · C-13, contando il C-13 due volte:
+  l'attesa `jeff33` ora è composta allo stesso modo (`checks_version` 3). Lettore dei file di
+  sezione d'urto G4NDL (`sim/validation/hp_data.hpp`) e oracolo permanente G4NDL ↔ JEFF-3.3
+  per H-1, C-0 e C-13 (`sim/tests/hp_data_reference_test.cpp`). Residuo noto e non modellato:
+  circa 3·10⁻⁴ sul non elastico del carbonio vicino a 14 MeV, dall'inelastico di C-13.
+  Per H-1, G4NDL non ha un file inelastico: sotto 20 MeV le prime interazioni possibili sono
+  solo l'elastico e la cattura.
+- **Test:** `debug` 150/150, `ci` 135/135, zero warning, clang-format pulito.
 
 Prossimi passi:
 
-6. previsioni scritte prima dei run (`docs/validation/1b_predictions.md`), comprese le soglie;
+6. previsioni scritte prima dei run (`docs/validation/1b_predictions.md`), comprese le soglie e
+   i residui noti (D14, D15);
 7. run, solo col via esplicito, sotto `scripts/run_capped.sh`;
 8. byte/evento misurato;
 9. risultati e chiusura con v0.3.0.
@@ -80,19 +90,10 @@ Prossimi passi:
 - SSD esterno montato su `/mnt/external_ssd`, ma non in modo permanente: prima di ogni run
   `scripts/data_root.sh check` (procedura in `architecture/data_layout.md`).
 - Comportamento di `G4NeutronHP` a 19.5–20 MeV (bordo del dominio).
-- Frazioni della prima interazione, cattura (verificato in parte il 2026-11-18 sui sorgenti di
-  Geant4 11.4.1 e su G4NDL 4.7.1):
-  - in `G4HadronPhysicsQGSP_BIC_HP::Neutron()` l'inelastico (`neutronInelastic`, modello HP fino
-    a 20 MeV) e la cattura (`nCaptureHP`, dataset `G4NeutronHPCaptureData`) sono processi
-    distinti;
-  - `G4NDL4.7.1/Inelastic/CrossSection` non ha un file `1_1_Hydrogen`, che invece c'è in
-    `Capture/CrossSection`: per H-1 sotto 20 MeV le prime interazioni possibili sono solo
-    l'elastico e la cattura;
-  - resta da verificare numericamente, prima di scrivere le previsioni (passo 6 della 1b), che
-    la sezione d'urto inelastica HP del carbonio (`Inelastic/CrossSection/6_nat_Carbon`) escluda
-    la cattura, confrontandola con JEFF-3.3 C-0.
 - **Fase 2:** la verità di Geant4 ha un E_p più alto della cinematica fisica di circa 5.4·10⁻⁴
   in relativo, circa 7.6 keV a E_p = 14 MeV. Ne seguirebbe un bias relativo dello stesso ordine
   su E_n ricostruito. Va deciso prima dell'analisi se correggerlo, se modellarlo o se riportarlo
   come sistematica (D14).
+- **Fase 2:** il doppio conteggio del C-13 nel modello HP (circa +0.5% sul non elastico del
+  carbonio) va tenuto fra le sistematiche del fondo da carbonio (D15).
 - kB di Birks per BC-408: da prendere da letteratura citata (fase 2).

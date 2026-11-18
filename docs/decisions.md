@@ -211,3 +211,35 @@ cancellano: se cambiano, se ne aggiunge una nuova che rimanda alla vecchia.
     riportarlo come sistematica nota.
   - Un cambio di G4NDL che modifichi l'AWR di H-1 si vede in `checks.json` e nello smoke test,
     che controlla AWR = 0.999167.
+
+## D15 — Carbonio HP: inelastico senza cattura e composizione isotopica (2026-11-18)
+
+- **Fatti** (verificati sui sorgenti di Geant4 11.4.1, su G4NDL 4.7.1 e su JEFF-3.3; oracolo
+  permanente in `sim/tests/hp_data_reference_test.cpp`):
+  - La sezione d'urto inelastica HP del carbonio esclude la cattura. `Inelastic/CrossSection/
+    6_nat_Carbon` parte dalla soglia (4.812 MeV) e coincide con JEFF-3.3 C-0 MT3 − MT102.
+    L'integrale su 10–20 MeV differisce di +2.5·10⁻⁷, contro −2.67·10⁻⁴ rispetto a MT3, cioè
+    proprio −σ_cap/MT3. Su alcuni nodi lo scarto arriva a 6.2·10⁻⁴, con origine non verificata.
+    L'elastico e la cattura di H-1, C-0 e C-13 sono copiati da JEFF-3.3.
+  - G4NDL non ha `6_12_Carbon`: `G4ParticleHPNames::GetName` ripiega su `6_nat_Carbon`. L'elemento
+    è Σ abbondanza · σ(file), quindi σ_C = 0.9893 · σ(C-0) + 0.0107 · σ(C-13). Il C-13 entra due
+    volte, una dentro C-0 e una come isotopo a sé.
+  - L'inelastico di `6_13_Carbon` è la somma dei canali parziali di JEFF-3.3 C-13 entro 2.7·10⁻⁴,
+    ma non è MT3 − MT102: ne differisce fino a 1.84·10⁻², perché in JEFF-3.3 C-13 MT4 non è la
+    somma di MT51–91.
+- **Decisione:** l'attesa `jeff33` è composta come la compone il modello HP: H-1, C-0 con
+  densità n_C12 e C-13 con densità n_C13. Verifica quindi l'implementazione, non la fisica di C-0.
+  `endfb80` resta H-1 + C-12 + C-13. `checks_version` passa a 3.
+- **Motivo:** con C-0 a tutta la densità del carbonio, il non elastico atteso sul carbonio era
+  basso di circa 5.3·10⁻³ in relativo a 14 MeV (0.724 b per C-13 contro 0.483 b per C-0). A
+  10⁷ eventi l'errore statistico è circa 8·10⁻⁴: un falso fallimento di circa 6σ, dello stesso
+  tipo di D14. Sullo smoke test la frazione attesa nc_inelastic sale di 4.5·10⁻³ in relativo.
+- **Alternative:** modellare l'inelastico di C-13 come somma dei parziali, che richiederebbe una
+  tabella non elastica nel modello dei nuclidi delle verifiche (rimandato: l'effetto è sotto la
+  statistica di produzione); confrontare con C-0 a tutta densità e una tolleranza (nasconde
+  l'effetto).
+- **Conseguenze:**
+  - Resta un residuo noto e non modellato di circa 0.0107 × 0.0130 / 0.486 ≈ 2.9·10⁻⁴ sul non
+    elastico del carbonio vicino a 14 MeV, da riportare nelle previsioni della fase 1b.
+  - **Per la fase 2:** il doppio conteggio del C-13 è un artefatto di Geant4 (circa +0.5% sul non
+    elastico del carbonio) e va tenuto fra le sistematiche del fondo da carbonio.

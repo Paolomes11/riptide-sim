@@ -137,7 +137,8 @@ ENDF/B-VIII.0, da NNDC:
 
 JEFF-3.3, da IAEA-NDS (https://www-nds.iaea.org/public/download-endf/JEFF-3.3/n/), scaricato a
 mano dal browser perché il sito rifiuta gli accessi automatici. JEFF-3.3 non ha un file per C-12,
-ma solo quello del carbonio naturale (C-0), che è anche quello usato da G4NDL (D13).
+ma solo quello del carbonio naturale (C-0), che è anche quello usato da G4NDL (D13). Le
+verifiche leggono H-1, C-0 e C-13 (D15).
 
 | File | Origine | sha256 |
 |---|---|---|
@@ -159,7 +160,8 @@ Non dà verdetti: le soglie di esito vengono dalle previsioni scritte prima dei 
 Le attese si sommano evento per evento alla E_n di ciascun evento e sono calcolate per due
 librerie:
 
-- `jeff33`: H-1 e C-0 con la densità totale del carbonio;
+- `jeff33`: H-1, C-0 con la densità di C-12 e C-13 con la sua, come il modello HP compone il
+  carbonio (D15);
 - `endfb80`: H-1, C-12 e C-13.
 
 Le densità atomiche sono quelle del materiale NIST `G4_PLASTIC_SC_VINYLTOLUENE` costruito da
@@ -181,7 +183,7 @@ I CSV, a precisione piena (`max_digits10`):
   - `Ep_residual_MeV`, l'E_p simulata meno la cinematica HP (arrotondamento);
   - `Ep_physical_offset_MeV`, l'E_p simulata meno la cinematica fisica n–p (convenzione HP, D14).
 
-`checks.json` (versione `checks_version` = 2) si scrive per ultimo, con tmp + rename. Chiavi:
+`checks.json` (versione `checks_version` = 3) si scrive per ultimo, con tmp + rename. Chiavi:
 
 | Chiave | Contenuto |
 |---|---|
