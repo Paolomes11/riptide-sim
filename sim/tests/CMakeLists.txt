@@ -1,7 +1,7 @@
 add_executable(sim_tests
-    units_consistency_test.cpp)
+    units_consistency_test.cpp hp_data_reference_test.cpp)
 target_link_libraries(sim_tests PRIVATE
-    riptide::common riptide::options riptide::warnings Catch2::Catch2WithMain ${Geant4_LIBRARIES})
+    riptide::common riptide::sim_validation riptide::options riptide::warnings Catch2::Catch2WithMain ${Geant4_LIBRARIES})
 catch_discover_tests(sim_tests PROPERTIES SKIP_RETURN_CODE 4)
 
 # Integration test: real riptide_sim runs read back through the Geant4 ROOT
