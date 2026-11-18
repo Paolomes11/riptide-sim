@@ -9,7 +9,9 @@ riptide-sim/
 │   ├── config/  configurazione del run e run.json, senza Geant4
 │   ├── truth/   classificazione della verità per evento, senza Geant4
 │   ├── reader/  lettura di run.json e delle ntuple di un run (con Geant4), anche in streaming
-│   └── validation/  lettura ENDF, attese e statistiche delle verifiche fisiche, senza Geant4
+│   ├── validation/  lettura ENDF, attese, statistiche e report delle verifiche fisiche,
+│   │                riga di comando di riptide_sim_check; senza Geant4
+│   └── apps/    riptide_sim (simulazione), riptide_sim_check (verifiche fisiche di un run)
 ├── analysis/
 │   ├── stats/   motore statistico, C++ puro (niente ROOT, niente Geant4)
 │   ├── io/      (fase 4) lettura ROOT via RDataFrame → struct-of-arrays
@@ -25,10 +27,20 @@ Dipendenze, solo verso il basso:
 ```
 common  ←  sim/config  ←  sim/truth  ←  sim
                            sim/truth  ←  sim/reader  (Geant4)  ←  test d'integrazione, app di verifica
-common  ←  sim/validation
+common  ←  sim/config  ←  sim/validation  ←  riptide_sim_check (con sim/reader e Geant4)
 common  ←  analysis/stats  ←  analysis/apps
 common  ←  analysis/io     ←  analysis/apps
 ```
+
+Note:
+
+- `riptide_sim_check` usa Geant4 solo per costruire il materiale NIST dello scintillatore (nome
+  in `sim/include/riptide/sim/detector_materials.hpp`, condiviso con la simulazione) e per il
+  lettore ROOT; non crea un run manager.
+- La conversione riga dell'ntupla → `TruthRecord` (`truthRecord`) sta in `sim/truth`, accanto
+  alla conversione inversa `eventRow`.
+- `CliError` e il parsing dei numeri sono in `sim/config/cli_parse.hpp`, condivisi dalle due
+  righe di comando.
 
 Simulazione e analisi comunicano **solo** attraverso i file su disco e lo schema in
 `common/include/riptide/common/event_schema.hpp`. Lo schema ha una versione (`kSchemaVersion`):

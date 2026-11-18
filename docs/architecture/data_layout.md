@@ -103,6 +103,9 @@ $RIPTIDE_DATA_DIR/
 ├── analysis/<run_id>/<analysis_id>/
 │   ├── results.root | results.csv
 │   └── analysis.json         # parametri, semi dello smearing, versione dello schema letto
+├── validation/<run_id>/<check_id>/
+│   ├── spectrum_u.csv | depth_z.csv | fractions.csv | legendre.csv | residuals_Ep.csv
+│   └── checks.json           # esiti numerici delle verifiche e marcatore di completamento
 └── reference/                # valutazioni nucleari di riferimento (D13), sola lettura
     ├── endfb80/              # file ENDF-6 estratti; download/ con gli originali
     └── jeff33/
@@ -110,10 +113,12 @@ $RIPTIDE_DATA_DIR/
 
 Nel repository, ignorata da git: `outputs/figures/<analysis_id>/` (figure da risultati ridotti).
 
-Gli identificativi `run_id` e `analysis_id` contengono solo `[A-Za-z0-9._-]`, non iniziano con
+Gli identificativi `run_id`, `analysis_id` e `check_id` contengono solo `[A-Za-z0-9._-]`, non iniziano con
 `.` o `-` e sono lunghi al più 128 caratteri (`isValidId`): niente attraversamento di cartelle.
 I `run_id` `ctest_it_1t` e `ctest_it_2t` sono riservati al test d'integrazione
 (`sim/tests/run_integration.sh`), che cancella e ricrea le loro cartelle a ogni esecuzione.
+Il `check_id` `ctest_smoke` è riservato allo smoke test di `riptide_sim_check`
+(`sim/tests/run_check_smoke.sh`), che ricrea solo `validation/ctest_it_1t/ctest_smoke`.
 
 ## Valutazioni di riferimento
 
@@ -144,6 +149,51 @@ ma solo quello del carbonio naturale (C-0), che è anche quello usato da G4NDL (
 | `n_0628_6-C-13.dat` | dallo zip (MAT 628) | `c51b1895594c2ee354c2c0c353bf90b7e229fac1154464c88971f200a642d244` |
 
 In ogni file l'intestazione MF1 riporta "JEFF-3.3" e ZA/MAT corrispondono al nome.
+
+## Verifiche fisiche (`riptide_sim_check`)
+
+`riptide_sim_check --run-id <run> --check-id <id>` legge un run completo una sola volta e scrive
+in `validation/<run_id>/<check_id>/`. Se la cartella esiste già si ferma: nessuna sovrascrittura.
+Non dà verdetti: le soglie di esito vengono dalle previsioni scritte prima dei run.
+
+Le attese si sommano evento per evento alla E_n di ciascun evento e sono calcolate per due
+librerie:
+
+- `jeff33`: H-1 e C-0 con la densità totale del carbonio;
+- `endfb80`: H-1, C-12 e C-13.
+
+Le densità atomiche sono quelle del materiale NIST `G4_PLASTIC_SC_VINYLTOLUENE` costruito da
+Geant4, quindi del mezzo effettivamente simulato. Il deuterio non ha un file di riferimento:
+nella verità è classificato n–p (Z = 1), ma le attese usano solo H-1, e `checks.json` riporta
+n_H2/n_H1 (circa 1.15·10⁻⁴) come sistematica nota.
+
+I CSV, a precisione piena (`max_digits10`):
+
+- `spectrum_u.csv`, `depth_z.csv`: `low,high,observed,expected_<lib>…`, una riga per bin
+  originale (u = E_p/E_p,max; profondità del primo vertice lungo il fascio, in mm);
+- `fractions.csv`: `code,category,observed,expected_<lib>…` per i 5 codici di
+  `FirstInteraction`;
+- `legendre.csv`: `l,value,error,expected_<lib>,pull_<lib>…` per l ≥ 1 (solo intestazione se la
+  verifica è saltata);
+- `residuals_Ep.csv`: `mu,Ep_residual_MeV`, una riga per evento n–p.
+
+`checks.json` (versione `checks_version` = 1) si scrive per ultimo, con tmp + rename. Chiavi:
+
+| Chiave | Contenuto |
+|---|---|
+| `checks_version`, `run_id`, `check_id` | identificazione |
+| `versions` | `riptide`, `git`, `geant4`, `schema`, `run_record` (del run letto) |
+| `reference_files` | per file: `library`, `nuclide`, `path`, `sha256` |
+| `medium` | `material`, `density_g_cm3`, `n_H1_per_mm3`, `n_H2_per_mm3`, `n_C12_per_mm3`, `n_C13_per_mm3`, `H2_over_H1` |
+| `beam` | `L_mm` (corda del fascio nel blocco), `En_min_MeV`, `En_max_MeV`, `bins_u`, `bins_z` |
+| `results` | `events`, `np_events`, `spectrum_u`, `depth_z`, `fractions`, `legendre`, `Ep_residuals`, `counters` |
+
+In `results`, ogni verifica riporta per libreria `skipped` (`null` oppure il motivo). Se la
+verifica è stata fatta, riporta anche χ², `ndf`, `p_value` e i pull; per gli istogrammi pure i
+bin fusi (attesa < 5) da cui viene il χ². `counters.must_be_zero` raccoglie i contatori che
+solo un bug può rendere diversi da zero, con il loro `total`. `counters.expected_rare`
+raccoglie la fisica nota, che viene riportata e non tagliata: n–d senza protone, u > 1 e
+θ_p > π/2 dovuti al moto termico.
 
 ## File degli eventi
 

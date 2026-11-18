@@ -26,7 +26,7 @@
 
 ## In corso: fase 1b (branch `feat/sim-checks`, aggiornato al 2026-11-18)
 
-Verifiche fisiche non circolari e prestazioni, vedi `roadmap.md`. Fatti i passi 0–3 di 9:
+Verifiche fisiche non circolari e prestazioni, vedi `roadmap.md`. Fatti i passi 0–5 di 9:
 
 - `scripts/mount_ssd.sh`: monta l'SSD per UUID (UUID fuori dal repo), senza toccare `/etc/fstab`.
 - **D13:** valutazioni di riferimento JEFF-3.3 (da cui deriva G4NDL: verifica
@@ -40,17 +40,27 @@ Verifiche fisiche non circolari e prestazioni, vedi `roadmap.md`. Fatti i passi 
   - lettore ENDF-6 (sezioni d'urto MF3, coefficienti di Legendre MF4, leggi d'interpolazione
     1–5);
   - statistiche delle verifiche (χ² con probabilità di sopravvivenza, frazioni multinomiali,
-    momenti di Legendre);
+    momenti di Legendre, fusione dei bin con attesa < 5);
   - distribuzioni attese (spettro E_p da Legendre, profondità del primo vertice, frazioni della
     prima interazione);
+  - sha256, corda del fascio nel blocco, `CheckAccumulator` (attese sommate evento per
+    evento), report JSON/CSV, riga di comando di `riptide_sim_check`;
   - test sui file reali dell'SSD, saltati se il disco manca.
-- **Test:** `debug` 92/92, `ci` 89/89, zero warning, clang-format pulito.
+- `riptide::sim_reader`: lettura di `run.json` e delle ntuple, anche in streaming
+  (`forEachEventRow`).
+- App `riptide_sim_check` (layout dell'output in `architecture/data_layout.md`), più lo smoke
+  test `sim_check_smoke` sul run a 1 thread di `sim_integration`. Sul run da 1000 eventi a
+  14 MeV:
+  - RSS 45 MB in 0.45 s; a 10⁷ eventi si stima circa 0.1 GB (16 B per evento n–p);
+  - n_H1 = 5.26·10²² cm⁻³, n_C = 4.73·10²² cm⁻³, n_H2/n_H1 = 1.15·10⁻⁴, L = 100 mm;
+  - contatori di coerenza a zero.
+
+  Questi numeri servono solo come controllo del funzionamento, non sono un risultato.
+- **Test:** `debug` 134/134, `ci` 124/124, zero warning, clang-format pulito.
 
 Prossimi passi:
 
-4. lettore delle ntuple riusabile `riptide::sim_reader`, estratto dal test d'integrazione;
-5. app `riptide_sim_check`;
-6. previsioni scritte prima dei run (`docs/validation/1b_predictions.md`);
+6. previsioni scritte prima dei run (`docs/validation/1b_predictions.md`), comprese le soglie;
 7. run, solo col via esplicito, sotto `scripts/run_capped.sh`;
 8. byte/evento misurato;
 9. risultati e chiusura con v0.3.0.
@@ -74,4 +84,8 @@ Prossimi passi:
   - resta da verificare numericamente, prima di scrivere le previsioni (passo 6 della 1b), che
     la sezione d'urto inelastica HP del carbonio (`Inelastic/CrossSection/6_nat_Carbon`) escluda
     la cattura, confrontandola con JEFF-3.3 C-0.
+- Residui di E_p nello smoke test (248 eventi n–p a 14 MeV), cioè E_p simulata meno
+  E_p(E_n, θ_p): media +3.7 keV, rms 4.3 keV, massimo 7.4 keV, quasi tutti positivi. È una
+  deviazione sistematica, non uno sparpagliamento; va capita e prevista al passo 6, prima dei
+  run.
 - kB di Birks per BC-408: da prendere da letteratura citata (fase 2).
