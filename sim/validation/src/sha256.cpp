@@ -52,10 +52,10 @@ void Sha256::compress(const unsigned char* block) {
         w.at(t) = loadBigEndian(block + 4 * t);
     }
     for (std::size_t t = 16; t < kScheduleWords; ++t) {
-        const std::uint32_t s0 = rotr(w.at(t - 15), 7U) ^ rotr(w.at(t - 15), 18U) ^
-                                 (w.at(t - 15) >> 3U);
-        const std::uint32_t s1 = rotr(w.at(t - 2), 17U) ^ rotr(w.at(t - 2), 19U) ^
-                                 (w.at(t - 2) >> 10U);
+        const std::uint32_t s0 =
+            rotr(w.at(t - 15), 7U) ^ rotr(w.at(t - 15), 18U) ^ (w.at(t - 15) >> 3U);
+        const std::uint32_t s1 =
+            rotr(w.at(t - 2), 17U) ^ rotr(w.at(t - 2), 19U) ^ (w.at(t - 2) >> 10U);
         w.at(t) = w.at(t - 16) + s0 + w.at(t - 7) + s1;
     }
     std::uint32_t a = state_[0];
