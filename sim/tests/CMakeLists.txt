@@ -17,5 +17,16 @@ add_test(NAME sim_integration
         $<TARGET_FILE:riptide_sim> $<TARGET_FILE:sim_integration_reader> "${PROJECT_SOURCE_DIR}")
 set_tests_properties(sim_integration PROPERTIES
     LABELS integration
+    FIXTURES_SETUP sim_integration
+    SKIP_RETURN_CODE 4
+    TIMEOUT 300)
+
+# Smoke test of riptide_sim_check on the 1-thread run made by sim_integration.
+add_test(NAME sim_check_smoke
+    COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/run_check_smoke.sh"
+        $<TARGET_FILE:riptide_sim_check> "${PROJECT_SOURCE_DIR}")
+set_tests_properties(sim_check_smoke PROPERTIES
+    LABELS integration
+    FIXTURES_REQUIRED sim_integration
     SKIP_RETURN_CODE 4
     TIMEOUT 300)
