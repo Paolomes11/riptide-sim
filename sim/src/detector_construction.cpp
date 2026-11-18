@@ -9,13 +9,12 @@
 
 #include <utility>
 
+#include "riptide/sim/detector_materials.hpp"
+
 namespace riptide::sim {
 
 namespace {
 
-// Polyvinyltoluene-based plastic scintillator of the Geant4 NIST database
-// (G4NistMaterialBuilder: density 1.032 g/cm3).
-constexpr const char* kScintillatorMaterial = "G4_PLASTIC_SC_VINYLTOLUENE";
 constexpr const char* kWorldMaterial = "G4_Galactic";
 constexpr bool kCheckOverlaps = true;
 
