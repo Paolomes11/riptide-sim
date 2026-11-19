@@ -307,9 +307,9 @@ Chiavi (versione 1 del formato):
 `git_describe` viene rigenerato a ogni build (`cmake/RiptideGitDescribe.cmake`) e descrive i
 sorgenti al momento della build, non al momento del run.
 
-## Schema degli eventi (v1)
+## Schema degli eventi (v2)
 
-Albero `events`, 19 colonne in quest'ordine. Ci sono solo due tipi, `Int32` (`Int_t`) e `Double`
+Albero `events`: le 19 colonne della v1, poi le 18 della v2, in quest'ordine. Ci sono solo due tipi, `Int32` (`Int_t`) e `Double`
 (`Double_t`), perché il writer di Geant4 non ha colonne intere a 64 bit.
 
 | Colonne | Tipo | Contenuto |
@@ -322,6 +322,16 @@ Albero `events`, 19 colonne in quest'ordine. Ci sono solo due tipi, `Int32` (`In
 | `truth_n_np_scatters` | Int32 | numero di scattering elastici su H del neutrone primario |
 | `truth_Ep`, `truth_p_dir_{x,y,z}`, `truth_theta_p` | Double | protone di rinculo del **primo** n–p: energia [MeV], direzione, angolo [rad] rispetto a Ω_n del fascio |
 | `truth_valid_np` | Int32 | 1 se le colonne del protone sono riempite |
+| `det_Edep`, `det_Evis` | Double | energia depositata nello scintillatore da tutte le particelle e luce visibile con Birks [MeV] (v2) |
+| `truth_np_vertex_{x,y,z}` | Double | vertice del primo n–p [mm] (v2) |
+| `truth_p_end_{x,y,z}` | Double | punto finale del protone di rinculo nello scintillatore [mm] (v2) |
+| `truth_p_length` | Double | cammino del protone nello scintillatore [mm] (v2) |
+| `truth_p_exits` | Int32 | 1 se il protone esce dallo scintillatore (v2) |
+| `truth_p_Edep`, `truth_p_Evis` | Double | deposito e luce visibile della sola traccia del protone [MeV] (v2) |
+| `truth_p_n_hadronic` | Int32 | interazioni adroniche del protone nello scintillatore (v2) |
+| `truth_n_nC_elastic`, `truth_n_nC_inelastic`, `truth_n_other` | Int32 | interazioni n–C elastiche, n–C anelastiche e altre del neutrone primario (v2) |
+| `truth_n_secondary_n_hadronic` | Int32 | interazioni adroniche dei neutroni non primari nello scintillatore (v2) |
+| `truth_event_class` | Int32 | codice `EventClass` (D19): 0 nessuna, 1 singolo n–p, 2 n–p multiplo, 3 solo n–C elastico, 4 n–C anelastico senza n–p, 5 misto, 6 altro (v2) |
 
 Unità: MeV, mm, ns, rad. Nomi, unità e descrizioni stanno in `event_schema.hpp`, che è l'unica
 fonte: la riga scritta dalla sim (`sim/truth/.../event_row.hpp`) è verificata colonna per colonna
@@ -329,5 +339,13 @@ contro lo schema da un test.
 
 Il primo n–p può venire dopo un'altra interazione, per esempio un n–C elastico. In quel caso il
 neutrone non viaggia più lungo Ω_n, e θ_p può superare π/2. Per il campione pulito del singolo
-scattering si seleziona quindi `truth_first_interaction == 1`. Le colonne `det_` (fase 2) e `reco_`
-(analisi) arriveranno con le rispettive fasi.
+scattering si seleziona quindi `truth_first_interaction == 1`. Le colonne `reco_` arriveranno con
+l'analisi.
+
+Le colonne del vertice n–p e del protone (`truth_np_vertex_*`, `truth_p_*`) valgono 0 se
+`truth_valid_np` = 0. Il protone è la traccia nata nel primo n–p, senza i suoi secondari; i
+dettagli e il margine di `G4NuclearStopping` su `truth_p_Edep` stanno in D19.
+
+Le versioni successive aggiungono colonne solo in coda e non cambiano quelle esistenti. Il
+lettore (`sim/reader`) accetta le versioni da 1 a quella della build e collega solo le colonne
+presenti nel file. Le altre restano a zero, quindi in un file v1 le colonne v2 valgono 0.

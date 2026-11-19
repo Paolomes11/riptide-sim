@@ -41,8 +41,10 @@ namespace {
 // events (8 threads, compressed ROOT) measured 54.3 B (mono 14 MeV), 58.0 B
 // (flat 19.5-20 MeV) and 61.7 B (flat 10-20 MeV); about twice the largest
 // leaves room for sources that compress worse, while per-file overhead of
-// small runs is covered by the fixed margin of the check.
-constexpr std::uint64_t kBytesPerEvent = 128;
+// small runs is covered by the fixed margin of the check. Schema v2 adds 18
+// columns, most of them doubles, so the v1 value is doubled until the phase 2
+// pilot measures it.
+constexpr std::uint64_t kBytesPerEvent = 256;
 
 constexpr int kExitOk = 0;
 constexpr int kExitUsage = 2;
@@ -106,12 +108,13 @@ void runSimulation(const riptide::sim::RunConfig& config, const riptide::sim::Cl
         throw std::runtime_error("random engine is not CLHEP::MixMaxRng");
     }
     // The run manager takes ownership of the three initialisation objects.
-    run_manager->SetUserInitialization(new riptide::sim::DetectorConstruction(config));
+    auto* detector = new riptide::sim::DetectorConstruction(config);
+    run_manager->SetUserInitialization(detector);
     run_manager->SetUserInitialization(factory.GetReferencePhysList(config.physics_list));
     // value(): loadRunConfig only accepts the current version, which has it.
     applyProtonStepFunction(config.proton_step_function.value());
     run_manager->SetUserInitialization(
-        new riptide::sim::ActionInitialization(config, opts.seed, run_dir));
+        new riptide::sim::ActionInitialization(config, opts.seed, run_dir, *detector));
     run_manager->Initialize();
     run_manager->BeamOn(static_cast<int>(opts.events));
 }

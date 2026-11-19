@@ -26,14 +26,16 @@ public:
 };
 
 // Reads run_dir/run.json and checks that a reader can trust it: the file
-// exists (without it the run was interrupted), run_record_version and
-// schema_version are the ones this build writes, and event_files is a list of
-// names. Throws RunReadError otherwise.
+// exists (without it the run was interrupted), run_record_version is the one
+// this build writes, schema_version is one it can read (kOldestReadable...
+// up to kSchemaVersion), and event_files is a list of names. Throws
+// RunReadError otherwise.
 [[nodiscard]] nlohmann::json readRunRecord(const std::filesystem::path& run_dir);
 
 // Calls `visit` on every row of every event file listed in `record`, in file
-// order and, within a file, in write order. Every schema column is bound by
-// name, so a file missing a column throws RunReadError. The files are closed on
+// order and, within a file, in write order. Every column of the record's
+// schema version is bound by name, so a file missing one throws RunReadError;
+// columns added by later versions are 0 in the rows of an older file. The files are closed on
 // return and on exception. Returns the number of rows visited.
 std::size_t forEachEventRow(const std::filesystem::path& run_dir, const nlohmann::json& record,
                             const std::function<void(const EventRow&)>& visit);

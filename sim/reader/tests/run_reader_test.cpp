@@ -6,6 +6,7 @@
 #include <nlohmann/json.hpp>
 
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <stdexcept>
@@ -53,6 +54,18 @@ TEST_CASE("a valid run record is read back", "[run_reader]") {
     CHECK(riptide::sim::readRunRecord(dir) == validRecord());
 }
 
+TEST_CASE("run records of every readable schema version are accepted", "[run_reader]") {
+    const auto dir = freshTempDir("riptide_run_reader_versions");
+    for (std::int32_t v = riptide::schema::kOldestReadableSchemaVersion;
+         v <= riptide::schema::kSchemaVersion; ++v) {
+        INFO("schema_version " << v);
+        json doc = validRecord();
+        doc["schema_version"] = v;
+        writeRecord(dir, doc);
+        CHECK(riptide::sim::readRunRecord(dir) == doc);
+    }
+}
+
 TEST_CASE("a run without run.json is refused", "[run_reader]") {
     const auto dir = freshTempDir("riptide_run_reader_missing");
     CHECK_THROWS_AS(riptide::sim::readRunRecord(dir), RunReadError);
@@ -65,8 +78,11 @@ TEST_CASE("run records of another layout are refused", "[run_reader]") {
     SECTION("run_record_version") {
         doc["run_record_version"] = riptide::sim::kRunRecordVersion + 1;
     }
-    SECTION("schema_version") {
+    SECTION("schema_version newer than this build") {
         doc["schema_version"] = riptide::schema::kSchemaVersion + 1;
+    }
+    SECTION("schema_version older than the oldest readable") {
+        doc["schema_version"] = riptide::schema::kOldestReadableSchemaVersion - 1;
     }
     SECTION("event_files missing") {
         doc.erase("event_files");
@@ -104,7 +120,8 @@ TEST_CASE("columns are read by name and type", "[run_reader]") {
     constexpr double kEn = 14.0; // MeV
     riptide::sim::TruthRecord truth;
     truth.En = kEn;
-    const auto row = riptide::sim::eventRow(riptide::sim::EventMeta{kEventId, 1, 2}, truth);
+    const auto row = riptide::sim::eventRow(riptide::sim::EventMeta{kEventId, 1, 2}, truth,
+                                            riptide::sim::DepositRecord{});
 
     CHECK(riptide::sim::intAt(row, "event_id") == kEventId);
     CHECK_THAT(riptide::sim::doubleAt(row, "truth_En"), Catch::Matchers::WithinULP(kEn, 0));

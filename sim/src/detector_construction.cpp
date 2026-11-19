@@ -1,6 +1,7 @@
 #include "riptide/sim/detector_construction.hpp"
 
 #include <G4Box.hh>
+#include <G4EmParameters.hh>
 #include <G4IonisParamMat.hh>
 #include <G4LogicalVolume.hh>
 #include <G4Material.hh>
@@ -54,8 +55,14 @@ G4VPhysicalVolume* DetectorConstruction::Construct() {
     // hands to a new run.
     setBirksConstant(scint_material, config_.scintillator.value());
     auto* scint_logical = new G4LogicalVolume(scint_solid, scint_material, kScintillatorName);
-    new G4PVPlacement(nullptr, G4ThreeVector(), scint_logical, kScintillatorName, world_logical,
-                      false, 0, kCheckOverlaps);
+    scintillator_ = new G4PVPlacement(nullptr, G4ThreeVector(), scint_logical, kScintillatorName,
+                                      world_logical, false, 0, kCheckOverlaps);
+    // G4EmSaturation is created here, once, on the master: its constructor
+    // fills tables shared by all instances and is not thread-safe, and the
+    // shared instance's lazy creation in G4EmParameters writes a flag every
+    // time it is fetched. The tables are built from the material table, so
+    // this must come after the materials and their Birks constants are set.
+    saturation_ = G4EmParameters::Instance()->GetEmSaturation();
     return world_physical;
 }
 

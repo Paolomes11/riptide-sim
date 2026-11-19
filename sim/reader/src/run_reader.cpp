@@ -3,6 +3,7 @@
 #include <G4RootAnalysisReader.hh>
 
 #include <array>
+#include <cstdint>
 #include <fstream>
 #include <string>
 #include <variant>
@@ -34,7 +35,9 @@ public:
     }
 };
 
-std::size_t forEachRowInFile(const std::filesystem::path& file,
+// Binds the first n_columns schema columns (those of the file's schema
+// version); the later columns of the row stay 0 of their type.
+std::size_t forEachRowInFile(const std::filesystem::path& file, std::size_t n_columns,
                              const std::function<void(const EventRow&)>& visit) {
     if (!std::filesystem::is_regular_file(file)) {
         throw RunReadError("missing event file " + file.string());
@@ -46,7 +49,7 @@ std::size_t forEachRowInFile(const std::filesystem::path& file,
     }
     std::array<G4int, kEventColumns> ints{};
     std::array<G4double, kEventColumns> doubles{};
-    for (std::size_t i = 0; i < kEventColumns; ++i) {
+    for (std::size_t i = 0; i < n_columns; ++i) {
         const auto& spec = columnSpec(i);
         const G4String name(spec.name);
         const bool bound = spec.type == ColumnType::Int32
@@ -58,8 +61,12 @@ std::size_t forEachRowInFile(const std::filesystem::path& file,
     }
     std::size_t count = 0;
     EventRow row;
+    for (std::size_t i = 0; i < kEventColumns; ++i) {
+        row.at(i) = columnSpec(i).type == ColumnType::Int32 ? ColumnValue{std::int32_t{0}}
+                                                            : ColumnValue{0.0};
+    }
     while (reader->GetNtupleRow(id)) {
-        for (std::size_t i = 0; i < kEventColumns; ++i) {
+        for (std::size_t i = 0; i < n_columns; ++i) {
             row.at(i) = columnSpec(i).type == ColumnType::Int32 ? ColumnValue{ints.at(i)}
                                                                 : ColumnValue{doubles.at(i)};
         }
@@ -84,7 +91,8 @@ json readRunRecord(const std::filesystem::path& run_dir) {
         if (record.at("run_record_version").get<int>() != kRunRecordVersion) {
             throw RunReadError("unknown run_record_version in " + path.string());
         }
-        if (record.at("schema_version").get<std::int32_t>() != schema::kSchemaVersion) {
+        const auto version = record.at("schema_version").get<std::int32_t>();
+        if (version < schema::kOldestReadableSchemaVersion || version > schema::kSchemaVersion) {
             throw RunReadError("unknown schema_version in " + path.string());
         }
         const auto& files = record.at("event_files");
@@ -104,10 +112,11 @@ json readRunRecord(const std::filesystem::path& run_dir) {
 
 std::size_t forEachEventRow(const std::filesystem::path& run_dir, const json& record,
                             const std::function<void(const EventRow&)>& visit) {
+    const std::size_t n_columns = columnCount(record.at("schema_version").get<std::int32_t>());
     const ReaderFilesGuard guard;
     std::size_t count = 0;
     for (const auto& name : record.at("event_files")) {
-        count += forEachRowInFile(run_dir / name.get<std::string>(), visit);
+        count += forEachRowInFile(run_dir / name.get<std::string>(), n_columns, visit);
     }
     return count;
 }

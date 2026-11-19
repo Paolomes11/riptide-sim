@@ -36,6 +36,10 @@ TEST_CASE("branch names are unique and well formed", "[schema]") {
         CHECK(isSnakeCase(b.name));
         CHECK(names.insert(b.name).second);
     }
+    for (const auto& b : kV2Branches) {
+        CHECK(isSnakeCase(b.name));
+        CHECK(names.insert(b.name).second);
+    }
 }
 
 TEST_CASE("truth branches carry the truth_ prefix and a unit", "[schema]") {
@@ -43,6 +47,16 @@ TEST_CASE("truth branches carry the truth_ prefix and a unit", "[schema]") {
     for (const auto& b : kTruthBranches) {
         INFO(std::string{b.name});
         CHECK(b.name.substr(0, 6) == "truth_");
+        CHECK_FALSE(b.unit.empty());
+        CHECK_FALSE(b.description.empty());
+    }
+}
+
+TEST_CASE("v2 branches carry a truth_ or det_ prefix and a unit", "[schema]") {
+    using namespace riptide::schema;
+    for (const auto& b : kV2Branches) {
+        INFO(std::string{b.name});
+        CHECK((b.name.substr(0, 6) == "truth_" || b.name.substr(0, 4) == "det_"));
         CHECK_FALSE(b.unit.empty());
         CHECK_FALSE(b.description.empty());
     }
@@ -69,9 +83,15 @@ TEST_CASE("event-class codes are stable", "[schema]") {
     STATIC_REQUIRE(static_cast<int>(EventClass::Other) == 6);
 }
 
-TEST_CASE("schema v1 uses only the column types Geant4 can write", "[schema]") {
+TEST_CASE("schema uses only the column types Geant4 can write", "[schema]") {
     using namespace riptide::schema;
-    STATIC_REQUIRE(kSchemaVersion == 1);
+    STATIC_REQUIRE(kSchemaVersion == 2);
+    STATIC_REQUIRE(kOldestReadableSchemaVersion == 1);
+    STATIC_REQUIRE(kV2Columns == kV1Columns + kV2Branches.size());
+    for (const auto& b : kV2Branches) {
+        INFO(std::string{b.name});
+        CHECK((b.type == ColumnType::Int32 || b.type == ColumnType::Double));
+    }
     for (const auto& b : kMetaBranches) {
         INFO(std::string{b.name});
         CHECK(b.type == ColumnType::Int32);

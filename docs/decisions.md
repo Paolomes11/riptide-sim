@@ -392,3 +392,53 @@ cancellano: se cambiano, se ne aggiunge una nuova che rimanda alla vecchia.
   - la luce visibile simulata dipende dal passo del protone: la funzione di passo diventa un
     parametro registrato, con studio di convergenza nella fase 2;
   - i PDF delle fonti restano fuori dal repo.
+
+## D19 — Schema v2: depositi, traccia del protone e classe dell'evento (2026-11-19)
+
+- **Fatti** (sorgente di Geant4 11.4.1):
+  - `G4EmSaturation` riempie tabelle statiche condivise e non è thread-safe da costruire;
+    `G4EmParameters::GetEmSaturation()` la crea al primo uso e attiva Birks;
+  - i modelli HP anelastici uccidono il neutrone primario ed emettono il neutrone uscente come
+    traccia nuova;
+  - `G4NuclearStopping::AlongStepDoIt` limita la perdita del passo all'energia cinetica *prima*
+    del passo, non a quella rimasta dopo la ionizzazione, e `G4ParticleChangeForLoss` porta poi
+    l'energia a 0 depositando comunque l'intera perdita. Sull'ultimo passo di un protone che si
+    ferma, la traccia può quindi depositare un po' più dell'energia con cui è nata: 1.9·10⁻⁴ MeV
+    su un protone da 11.6 MeV in un run di prova a 14 MeV (perdita nucleare del passo
+    1.3·10⁻³ MeV, energia residua 1.1·10⁻³ MeV).
+- **Decisione:**
+  - `G4EmSaturation` si crea una volta sul master in `DetectorConstruction::Construct()`, dopo
+    materiali e kB; i worker la usano in sola lettura per `VisibleEnergyDepositionAtAStep`.
+  - Il protone di rinculo è il secondario protone del passo del **primo** n–p (D7), marcato con
+    un `G4VUserTrackInformation`; il ruolo si legge dal marcatore, mai confrontando energie.
+  - `det_Edep` e `det_Evis` sommano i passi di **tutte** le particelle nello scintillatore;
+    `truth_p_*` solo quelli della traccia marcata (i suoi secondari no).
+  - Le colonne del vertice n–p e del protone valgono 0 se `truth_valid_np` = 0, per costruzione.
+  - La classe dell'evento viene dalle interazioni adroniche del neutrone **primario** nello
+    scintillatore, con precedenza dall'alto:
+
+    | Codice | Classe | Condizione |
+    |---|---|---|
+    | 6 | altro | almeno un'interazione che non è n–p, n–C elastico o n–C anelastico |
+    | 5 | misto | almeno un n–p e almeno un n–C |
+    | 1 | singolo n–p | esattamente un n–p, nient'altro |
+    | 2 | n–p multiplo | due o più n–p, nient'altro |
+    | 4 | n–C anelastico senza n–p | almeno un n–C anelastico (n–C elastici ammessi) |
+    | 3 | solo n–C elastico | solo n–C elastici |
+    | 0 | nessuna | il primario attraversa senza interagire |
+
+    I codici sono Int32 dello schema e non si riusano mai. Come in D17, n–p comprende lo
+    scattering su H-2 (Z = 1).
+  - Nei confronti fra `truth_p_Edep` e `truth_Ep` si ammette un margine di 0.01 MeV per l'effetto
+    di `G4NuclearStopping` (molto sopra l'eccesso visto, molto sotto l'errore di MeV di una
+    traccia sbagliata). La distribuzione dell'eccesso si misura nelle verifiche della fase 2.
+- **Limite noto:** le interazioni dei neutroni secondari (per esempio un n–p dopo un n–C
+  anelastico) non entrano nella classe; `truth_n_secondary_n_hadronic` dice quanto spesso
+  accade.
+- **Alternative:**
+  - riconoscere il protone confrontando energia e direzione dei secondari, fragile;
+  - creare `G4EmSaturation` in ogni worker, che non è sicuro con le tabelle statiche;
+  - seguire nella classe anche i neutroni secondari, che richiede di marcare la catena delle
+    tracce: rimandato finché il contatore non mostra che serve.
+- **Conseguenze:** lo schema passa alla versione 2 (18 colonne in coda); il lettore accetta
+  ancora la versione 1, quindi `riptide_sim_check` legge i run della fase 1b.

@@ -41,6 +41,18 @@ constexpr double kUnitNormTolerance = 1e-12;
 // The gun energy is written back unchanged, so the relative tolerance only
 // absorbs the MeV conversion.
 constexpr double kEnergyRelTolerance = 1e-12;
+// Sums of per-step deposits compared with each other or with a kinetic energy:
+// each side is a sum of up to a few hundred doubles, so allow far more than
+// their rounding but far less than any physical deposit.
+constexpr double kSumAbsTolerance = 1e-9; // MeV
+// G4NuclearStopping (11.4.1) caps its step loss at the pre-step kinetic energy,
+// not at what ionisation left, and G4ParticleChangeForLoss then clamps the
+// kinetic energy to 0 while still depositing the whole loss: on the last step
+// of a stopping proton the track can deposit slightly more than it started
+// with (1.9e-4 MeV seen at 14 MeV). The excess is bounded by one step of
+// nuclear stopping; 10 keV is far above that and far below the MeV-scale error
+// of tagging the wrong track.
+constexpr double kNuclearStoppingSlack = 0.01; // MeV
 
 std::filesystem::path pathFromEnv(const char* name) {
     const char* value = std::getenv(name); // NOLINT(concurrency-mt-unsafe): single-threaded
@@ -119,6 +131,41 @@ TEST_CASE("truth columns are consistent", "[integration]") {
         if (first == FirstInteraction::Unknown) {
             CHECK_FALSE(valid_np);
             CHECK(intAt(row, "truth_n_np_scatters") == 0);
+        }
+    }
+}
+
+TEST_CASE("deposit and proton-track columns are consistent", "[integration]") {
+    using riptide::schema::EventClass;
+    const RunData& run = run2t();
+    CHECK(run.record.at("schema_version").get<int>() == riptide::schema::kSchemaVersion);
+    for (const auto& [event_id, row] : run.rows) {
+        INFO("event_id " << event_id);
+        const double Edep = doubleAt(row, "det_Edep");
+        const double Evis = doubleAt(row, "det_Evis");
+        CHECK(Edep >= 0.0);
+        CHECK(Evis >= 0.0);
+        // Birks quenching only ever reduces a step's deposit.
+        CHECK(Evis <= Edep + kSumAbsTolerance);
+
+        const auto event_class = intAt(row, "truth_event_class");
+        if (static_cast<FirstInteraction>(intAt(row, "truth_first_interaction")) ==
+            FirstInteraction::Unknown) {
+            CHECK(event_class == static_cast<std::int32_t>(EventClass::NoInteraction));
+            // Nothing interacted, so nothing was deposited: exactly zero.
+            CHECK_THAT(Edep, Catch::Matchers::WithinAbs(0.0, 0.0));
+        }
+        if (intAt(row, "truth_valid_np") == 1) {
+            const double p_Edep = doubleAt(row, "truth_p_Edep");
+            const double p_Evis = doubleAt(row, "truth_p_Evis");
+            CHECK(doubleAt(row, "truth_p_length") > 0.0);
+            CHECK(p_Evis <= p_Edep + kSumAbsTolerance);
+            CHECK(p_Edep <= doubleAt(row, "truth_Ep") + kNuclearStoppingSlack);
+            CHECK(p_Edep <= Edep + kSumAbsTolerance);
+            CHECK(event_class != static_cast<std::int32_t>(EventClass::NoInteraction));
+        } else {
+            CHECK(intAt(row, "truth_p_exits") == 0);
+            CHECK(intAt(row, "truth_p_n_hadronic") == 0);
         }
     }
 }
