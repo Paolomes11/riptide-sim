@@ -22,6 +22,11 @@ constexpr const char* kTemporarySuffix = ".tmp";
 constexpr std::array<std::string_view, kFirstInteractionCategories> kCategoryNames{
     "unknown", "np_elastic", "nc_elastic", "nc_inelastic", "other"};
 
+// Same order as the schema::EventClass codes 0 ... 6.
+constexpr std::array<std::string_view, kEventClasses> kEventClassNames{
+    "no_interaction",     "single_np", "multiple_np", "nc_elastic_only",
+    "nc_inelastic_no_np", "mixed",     "other"};
+
 // Enough digits for every double to read back to the same value.
 void setFullPrecision(std::ostream& out) {
     out.precision(std::numeric_limits<double>::max_digits10);
@@ -163,6 +168,26 @@ nlohmann::json modelMixJson(const ModelMixResult& mix) {
     return doc;
 }
 
+nlohmann::json depositCountersJson(const DepositCounters& c) {
+    return {{"must_be_zero",
+             {{"negative_deposit", c.negative_deposit},
+              {"Evis_above_Edep", c.Evis_above_Edep},
+              {"p_Evis_above_p_Edep", c.p_Evis_above_p_Edep},
+              {"p_Edep_above_det_Edep", c.p_Edep_above_det_Edep},
+              {"p_Edep_above_Ep_slack", c.p_Edep_above_Ep_slack},
+              {"proton_without_track", c.proton_without_track},
+              {"deposit_without_interaction", c.deposit_without_interaction},
+              {"class_mismatch", c.class_mismatch},
+              {"first_interaction_uncounted", c.first_interaction_uncounted},
+              {"exit_not_on_surface", c.exit_not_on_surface},
+              {"end_outside_box", c.end_outside_box},
+              {"kB_zero_visible_mismatch", c.kB_zero_visible_mismatch},
+              {"total", c.mustBeZeroTotal()}}},
+            {"expected_rare",
+             {{"p_Edep_above_Ep", c.p_Edep_above_Ep},
+              {"contained_end_on_surface", c.contained_end_on_surface}}}};
+}
+
 template <typename Check> void writeLibraryHeader(std::ostream& out, const std::vector<Check>& v) {
     for (const auto& check : v) {
         out << ",expected_" << check.library;
@@ -198,6 +223,59 @@ nlohmann::json resultsJson(const CheckResults& results) {
     doc["model_mix"] = modelMixJson(results.model_mix);
     doc["counters"] = countersJson(results.counters);
     return doc;
+}
+
+nlohmann::json depositsJson(const DepositSetup& setup, const DepositResults& results) {
+    nlohmann::json doc;
+    doc["skipped"] = nullptr;
+    doc["setup"] = {{"half_size_mm", {setup.half_size.x, setup.half_size.y, setup.half_size.z}},
+                    {"En_max_MeV", setup.En_max},
+                    {"birks_kB_mm_per_MeV", setup.birks_kB / kBirksUnit},
+                    {"bins", setup.bins},
+                    {"deposit_sum_tolerance_MeV", kDepositSumTolerance},
+                    {"nuclear_stopping_slack_MeV", kNuclearStoppingSlack},
+                    {"surface_tolerance_mm", kSurfaceTolerance}};
+    doc["events"] = results.events;
+    doc["np_events"] = results.np_events;
+    nlohmann::json classes = nlohmann::json::object();
+    for (std::size_t c = 0; c < kEventClasses; ++c) {
+        classes[std::string(kEventClassNames.at(c))] = results.classes.at(c);
+    }
+    doc["event_classes"] = classes;
+    doc["events_secondary_n_hadronic"] = results.events_secondary_n_hadronic;
+    doc["protons_hadronic"] = results.protons_hadronic;
+    doc["protons_exiting"] = results.protons_exiting;
+    const BalanceSummary& b = results.contained_balance;
+    doc["contained_balance_MeV"] = {{"samples", b.samples},   {"mean", b.mean},
+                                    {"min", b.min},           {"max", b.max},
+                                    {"positive", b.positive}, {"negative", b.negative}};
+    doc["kB_zero_max_abs_difference_MeV"] = results.kB_zero_max_abs_difference;
+    doc["Edep_overflow"] = results.Edep_overflow;
+    doc["Evis_overflow"] = results.Evis_overflow;
+    doc["counters"] = depositCountersJson(results.counters);
+    return doc;
+}
+
+nlohmann::json depositsSkippedJson(const std::string& reason) {
+    return {{"skipped", reason}};
+}
+
+void writeDepositSpectraCsv(std::ostream& out, const DepositResults& results) {
+    setFullPrecision(out);
+    out << "low,high,Edep,Evis\n";
+    for (std::size_t i = 0; i < results.Edep_counts.size(); ++i) {
+        out << results.edges.at(i) << ',' << results.edges.at(i + 1) << ','
+            << results.Edep_counts.at(i) << ',' << results.Evis_counts.at(i) << '\n';
+    }
+}
+
+void writeProtonExitsCsv(std::ostream& out, const DepositResults& results) {
+    setFullPrecision(out);
+    out << "Ep_low,Ep_high,protons,exiting\n";
+    for (std::size_t i = 0; i < results.protons_per_Ep.size(); ++i) {
+        out << results.edges.at(i) << ',' << results.edges.at(i + 1) << ','
+            << results.protons_per_Ep.at(i) << ',' << results.exiting_per_Ep.at(i) << '\n';
+    }
 }
 
 void writeHistogramCsv(std::ostream& out, const HistogramResult& histogram) {

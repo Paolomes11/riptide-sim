@@ -106,6 +106,7 @@ $RIPTIDE_DATA_DIR/
 ├── validation/<run_id>/<check_id>/
 │   ├── spectrum_u.csv | depth_z.csv | fractions.csv | legendre.csv | residuals_Ep.csv
 │   ├── model_mix.csv
+│   ├── deposit_spectra.csv | proton_exits.csv   # solo per run con schema ≥ 2
 │   └── checks.json           # esiti numerici delle verifiche e marcatore di completamento
 └── reference/                # valutazioni nucleari di riferimento (D13), sola lettura
     ├── endfb80/              # file ENDF-6 estratti; download/ con gli originali
@@ -116,14 +117,18 @@ Nel repository, ignorata da git: `outputs/figures/<analysis_id>/` (figure da ris
 
 Gli identificativi `run_id`, `analysis_id` e `check_id` contengono solo `[A-Za-z0-9._-]`, non iniziano con
 `.` o `-` e sono lunghi al più 128 caratteri (`isValidId`): niente attraversamento di cartelle.
-I `run_id` `ctest_it_1t` e `ctest_it_2t` sono riservati al test d'integrazione
+I `run_id` `ctest_it_1t`, `ctest_it_2t` e `ctest_it_kB0` sono riservati al test d'integrazione
 (`sim/tests/run_integration.sh`), che cancella e ricrea le loro cartelle a ogni esecuzione.
+`ctest_it_kB0` ripete il run a 1 thread con kB = 0 (config generato al volo, fuori dal repo):
+il reader controlla `det_Evis` = `det_Edep` evento per evento entro 10⁻⁹ MeV e `det_Edep`
+identico, bit per bit, a quello di `ctest_it_1t`, perché kB entra solo nella luce visibile.
 Il `check_id` `ctest_smoke` è riservato allo smoke test di `riptide_sim_check`
 (`sim/tests/run_check_smoke.sh`), che ricrea solo `validation/ctest_it_1t/ctest_smoke`. Lo
-smoke test controlla `checks_version` = 5, i file JEFF-3.3 letti (H-1, C-0, C-13, D15) e lo
+smoke test controlla `checks_version` = 6, i file JEFF-3.3 letti (H-1, C-0, C-13, D15) e lo
 sha256 del primo, l'AWR di H-1 (0.999167, D14), il residuo di E_p all'arrotondamento, lo scarto
 dalla cinematica fisica in [5.3, 5.5]·10⁻⁴, i contatori di coerenza a zero e, a 14 MeV, nessun
-evento n–p con la cinematica non HP (D16).
+evento n–p con la cinematica non HP (D16). Controlla anche la sezione `deposits`: fatta, con kB
+nominale, con le classi che sommano agli eventi e con `must_be_zero.total` = 0.
 
 ## Valutazioni di riferimento
 
@@ -203,7 +208,13 @@ I CSV, a precisione piena (`max_digits10`):
   una riga per bin di E_n nella finestra di sovrapposizione HP/CHIPS (D16) intersecata con la
   sorgente; solo intestazione se l'intersezione è vuota.
 
-`checks.json` (versione `checks_version` = 5) si scrive per ultimo, con tmp + rename. Chiavi:
+- `deposit_spectra.csv`: `low,high,Edep,Evis`, eventi con `det_Edep` > 0 e `det_Evis` > 0 in
+  bin uguali su [0, E_n,max]; i valori sopra E_n,max (catture, con il loro Q) vanno nei
+  contatori di overflow di `checks.json`, non nell'ultimo bin.
+- `proton_exits.csv`: `Ep_low,Ep_high,protons,exiting`, protoni di rinculo validi e quelli che
+  escono dal blocco, per bin di `truth_Ep` con gli stessi bordi.
+
+`checks.json` (versione `checks_version` = 6) si scrive per ultimo, con tmp + rename. Chiavi:
 
 | Chiave | Contenuto |
 |---|---|
@@ -214,7 +225,7 @@ I CSV, a precisione piena (`max_digits10`):
 | `hp_deuterium` | per file: `file`, `sha256` delle sezioni d'urto G4NDL di H-2 (elastica, anelastica, cattura; D17) |
 | `medium` | `material`, `density_g_cm3`, `n_H1_per_mm3`, `n_H2_per_mm3`, `n_C12_per_mm3`, `n_C13_per_mm3`, `H2_over_H1` |
 | `beam` | `L_mm` (corda del fascio nel blocco), `En_min_MeV`, `En_max_MeV`, `bins_u`, `bins_z` |
-| `results` | `events`, `np_events`, `np_hp_events`, `spectrum_u`, `depth_z`, `fractions`, `legendre`, `Ep_residuals`, `Ep_physical_offset`, `model_mix`, `counters` |
+| `results` | `events`, `np_events`, `np_hp_events`, `spectrum_u`, `depth_z`, `fractions`, `legendre`, `Ep_residuals`, `Ep_physical_offset`, `model_mix`, `counters`, `deposits` |
 
 In `results`, ogni verifica riporta per libreria `skipped` (`null` oppure il motivo). Se la
 verifica è stata fatta, riporta anche χ², `ndf`, `p_value` e i pull; per gli istogrammi pure i
@@ -244,6 +255,30 @@ Un evento non HP con E_n fuori dalla finestra 19.5–20 MeV va in
 con p la rampa lineare di D16), `variance` (Σ p(1 − p)), `skipped` e `pull` (`null` se saltato),
 `bins`, `chi2_skipped` e, se fatto, `chi2`, `ndf`, `p_value` sui bin di E_n, più `Ep_residuals`
 degli eventi non HP contro la cinematica fisica.
+
+`deposits` riguarda le colonne v2 (fase 2). Per un run con schema 1 vale solo
+`{"skipped": "schema version 1 has no deposit columns"}`, e le altre verifiche restano
+invariate. Altrimenti ha `skipped` = `null` e:
+- `setup`: `half_size_mm`, `En_max_MeV`, `birks_kB_mm_per_MeV`, `bins` e le tolleranze
+  `deposit_sum_tolerance_MeV` (10⁻⁹), `nuclear_stopping_slack_MeV` (0.01, D19),
+  `surface_tolerance_mm` (10⁻⁶);
+- `events`, `np_events`, `event_classes` (conteggi per nome della classe, D19),
+  `events_secondary_n_hadronic`, `protons_hadronic`, `protons_exiting`;
+- `contained_balance_MeV`: `samples`, `mean`, `min`, `max`, `positive`, `negative` di
+  `truth_p_Edep` − `truth_Ep` per i protoni contenuti senza interazioni adroniche;
+- `kB_zero_max_abs_difference_MeV`: max |`det_Evis` − `det_Edep`| su tutti gli eventi (con kB = 0
+  è l'oracolo, altrimenti misura il quenching);
+- `Edep_overflow`, `Evis_overflow`;
+- `counters.must_be_zero`: depositi negativi, Evis > Edep (evento e protone), deposito del
+  protone sopra il totale o sopra E_p oltre lo slack, protone valido senza traccia, deposito senza
+  interazione del primario, classe scritta diversa da quella ricalcolata, prima interazione non
+  contata, uscita con punto finale fuori dalla superficie, punto finale fuori dal blocco,
+  Evis ≠ Edep con kB = 0, e `total`;
+- `counters.expected_rare`: `p_Edep_above_Ep` (entro lo slack, G4NuclearStopping a fine range)
+  e `contained_end_on_surface`.
+
+Dalla versione 6 (2026-11-19): c'è `results.deposits` e ci sono `deposit_spectra.csv` e
+`proton_exits.csv`.
 
 Dalla versione 5 (2026-11-19):
 - le attese contengono H-2 dalle sezioni d'urto di G4NDL (D17): l'elastico va in n–p senza

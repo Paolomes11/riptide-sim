@@ -52,7 +52,7 @@ rm -rf -- "${out_dir}"
     --data-dir "${root}" --run-id "${run_id}" --check-id "${check_id}"
 
 for f in checks.json spectrum_u.csv depth_z.csv fractions.csv legendre.csv model_mix.csv \
-    residuals_Ep.csv; do
+    residuals_Ep.csv deposit_spectra.csv proton_exits.csv; do
     [[ -s "${out_dir}/${f}" ]] || { echo "missing or empty ${out_dir}/${f}" >&2; exit 1; }
 done
 
@@ -68,10 +68,10 @@ with open(path, encoding="utf-8") as f:
 for key in ("checks_version", "run_id", "check_id", "versions", "reference_files",
             "hp_elastic_H1", "hp_deuterium", "medium", "beam", "results"):
     assert key in doc, f"checks.json has no key {key}"
-assert doc["checks_version"] == 5, f"unexpected checks_version {doc['checks_version']}"
+assert doc["checks_version"] == 6, f"unexpected checks_version {doc['checks_version']}"
 results = doc["results"]
 for key in ("spectrum_u", "depth_z", "fractions", "legendre", "Ep_residuals",
-            "Ep_physical_offset", "model_mix", "counters"):
+            "Ep_physical_offset", "model_mix", "counters", "deposits"):
     assert key in results, f"results has no key {key}"
 # The HP target mass of H-1 as G4NDL 4.7.1 gives it, in neutron masses.
 hp = doc["hp_elastic_H1"]
@@ -101,5 +101,13 @@ assert recorded.get(ref_path) == ref_sha, f"sha256 of {ref_path}: {recorded.get(
 h2 = [f["file"].split("/")[-3] for f in doc["hp_deuterium"]
       if f["file"].endswith("/CrossSection/1_2_Hydrogen.z") and len(f["sha256"]) == 64]
 assert h2 == ["Elastic", "Inelastic", "Capture"], f"unexpected H-2 files {doc['hp_deuterium']}"
+# The integration run is schema v2 with the nominal kB: the deposit checks run.
+deposits = results["deposits"]
+assert deposits["skipped"] is None, f"deposit checks skipped: {deposits['skipped']}"
+assert deposits["events"] == results["events"], "deposit checks saw a different event count"
+assert sum(deposits["event_classes"].values()) == deposits["events"], "event classes do not add up"
+assert deposits["setup"]["birks_kB_mm_per_MeV"] > 0, "the integration run should use the nominal kB"
+dep_total = deposits["counters"]["must_be_zero"]["total"]
+assert dep_total == 0, f"{dep_total} deposit violations: {deposits['counters']['must_be_zero']}"
 print(f"checks.json ok: {results['events']} events, {results['np_events']} n-p")
 PY

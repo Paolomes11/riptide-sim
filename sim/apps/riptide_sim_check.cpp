@@ -17,8 +17,10 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <optional>
 #include <stdexcept>
 #include <string>
+#include <variant>
 #include <vector>
 
 #include "riptide/common/data_paths.hpp"
@@ -29,6 +31,7 @@
 #include "riptide/sim/check_cli_options.hpp"
 #include "riptide/sim/check_inputs.hpp"
 #include "riptide/sim/check_report.hpp"
+#include "riptide/sim/deposit_checks.hpp"
 #include "riptide/sim/event_row.hpp"
 #include "riptide/sim/run_config.hpp"
 #include "riptide/sim/run_reader.hpp"
@@ -90,17 +93,32 @@ int runChecks(const checks::CheckCliOptions& opts) {
     checks::CheckAccumulator acc(
         checks::makeCheckSetup(config, hp.target_mass, opts.bins_u, opts.bins_z),
         checks::referenceModels(refs, densities, deuterium));
+    // Runs of schema 1 (phase 1b) have no deposit columns: their checks are
+    // skipped, and the truth checks above still reproduce the phase 1b numbers.
+    const auto schema_version = record.at("schema_version").get<std::int32_t>();
+    std::optional<checks::DepositAccumulator> deposits;
+    if (schema_version >= checks::kFirstDepositSchemaVersion) {
+        deposits.emplace(checks::makeDepositSetup(config));
+    }
+    const std::size_t class_column = riptide::sim::columnIndex("truth_event_class");
     std::cout << "riptide_sim_check: reading " << run_dir << " (" << events << " events)\n";
 
     const std::size_t rows =
-        riptide::sim::forEachEventRow(run_dir, record, [&acc](const riptide::sim::EventRow& row) {
-            acc.add(riptide::sim::truthRecord(row));
+        riptide::sim::forEachEventRow(run_dir, record, [&](const riptide::sim::EventRow& row) {
+            const riptide::sim::TruthRecord truth = riptide::sim::truthRecord(row);
+            acc.add(truth);
+            if (deposits) {
+                deposits->add(truth, riptide::sim::depositRecord(row),
+                              std::get<std::int32_t>(row.at(class_column)));
+            }
         });
     if (rows != events) {
         throw std::runtime_error("run " + opts.run_id + " has " + std::to_string(rows) +
                                  " rows for " + std::to_string(events) + " events");
     }
     const checks::CheckResults results = acc.finish();
+    const std::optional<checks::DepositResults> deposit_results =
+        deposits ? std::optional(deposits->finish()) : std::nullopt;
 
     fs::create_directories(out_dir);
     writeCsv(out_dir / checks::kSpectrumUFileName,
@@ -116,6 +134,13 @@ int runChecks(const checks::CheckCliOptions& opts) {
     writeCsv(out_dir / checks::kResidualsFileName, [&](std::ostream& o) {
         checks::writeResidualsCsv(o, acc.cosines(), acc.EpResiduals(), acc.EpPhysicalOffsets());
     });
+
+    if (deposit_results) {
+        writeCsv(out_dir / checks::kDepositSpectraFileName,
+                 [&](std::ostream& o) { checks::writeDepositSpectraCsv(o, *deposit_results); });
+        writeCsv(out_dir / checks::kProtonExitsFileName,
+                 [&](std::ostream& o) { checks::writeProtonExitsCsv(o, *deposit_results); });
+    }
 
     nlohmann::json doc;
     doc["checks_version"] = checks::kChecksVersion;
@@ -136,12 +161,21 @@ int runChecks(const checks::CheckCliOptions& opts) {
                    {"bins_u", opts.bins_u},
                    {"bins_z", opts.bins_z}};
     doc["results"] = checks::resultsJson(results);
+    doc["results"]["deposits"] =
+        deposit_results
+            ? checks::depositsJson(deposits->setup(), *deposit_results)
+            : checks::depositsSkippedJson("schema version " + std::to_string(schema_version) +
+                                          " has no deposit columns");
     // Last, and atomically: its presence marks a complete check.
     checks::writeJsonAtomically(out_dir / checks::kChecksFileName, doc);
 
     std::cout << "riptide_sim_check: " << results.np_events << " n-p events ("
               << results.np_hp_events << " HP), " << results.counters.mustBeZeroTotal()
-              << " consistency violations, output in " << out_dir << '\n';
+              << " consistency violations";
+    if (deposit_results) {
+        std::cout << ", " << deposit_results->counters.mustBeZeroTotal() << " deposit violations";
+    }
+    std::cout << ", output in " << out_dir << '\n';
     return kExitOk;
 }
 

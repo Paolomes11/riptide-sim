@@ -76,6 +76,11 @@ const RunData& run2t() {
     return run;
 }
 
+const RunData& runKB0() {
+    static const RunData run = loadRun(pathFromEnv("RIPTIDE_IT_RUN_KB0"));
+    return run;
+}
+
 void checkRecord(const RunData& run, int threads, const std::filesystem::path& dir) {
     CHECK(run.record.at("events").get<std::size_t>() == expectedEvents());
     CHECK(run.record.at("threads").get<int>() == threads);
@@ -90,6 +95,7 @@ void checkRecord(const RunData& run, int threads, const std::filesystem::path& d
 TEST_CASE("run records match the requested runs", "[integration]") {
     checkRecord(run1t(), 1, pathFromEnv("RIPTIDE_IT_RUN_1T"));
     checkRecord(run2t(), 2, pathFromEnv("RIPTIDE_IT_RUN_2T"));
+    checkRecord(runKB0(), 1, pathFromEnv("RIPTIDE_IT_RUN_KB0"));
 }
 
 TEST_CASE("event ids are unique and cover 0..N-1", "[integration]") {
@@ -188,5 +194,28 @@ TEST_CASE("the same events come out with 1 and 2 threads", "[integration]") {
                            Catch::Matchers::WithinULP(std::get<double>(it->second.at(i)), 0));
             }
         }
+    }
+}
+
+TEST_CASE("with kB = 0 the visible energy is the deposit", "[integration]") {
+    const RunData& run = runKB0();
+    REQUIRE_THAT(run.record.at("config").at("scintillator").at("birks_kB_mm_per_MeV").get<double>(),
+                 Catch::Matchers::WithinAbs(0.0, 0.0));
+    const auto& nominal = run1t().rows;
+    REQUIRE(run.rows.size() == nominal.size());
+    for (const auto& [event_id, row] : run.rows) {
+        INFO("event_id " << event_id);
+        // G4EmSaturation returns each step's deposit unchanged when kB = 0, and
+        // both totals add the same steps in the same order.
+        const double Edep = doubleAt(row, "det_Edep");
+        CHECK_THAT(doubleAt(row, "det_Evis"), Catch::Matchers::WithinAbs(Edep, kSumAbsTolerance));
+        CHECK_THAT(doubleAt(row, "truth_p_Evis"),
+                   Catch::Matchers::WithinAbs(doubleAt(row, "truth_p_Edep"), kSumAbsTolerance));
+        // kB only enters the visible energy, computed after the step: transport
+        // and random numbers are those of the nominal 1-thread run.
+        const auto it = nominal.find(event_id);
+        REQUIRE(it != nominal.end());
+        CHECK_THAT(Edep, Catch::Matchers::WithinULP(doubleAt(it->second, "det_Edep"), 0));
+        CHECK(intAt(row, "truth_event_class") == intAt(it->second, "truth_event_class"));
     }
 }

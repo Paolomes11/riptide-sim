@@ -12,10 +12,12 @@
 #include <filesystem>
 #include <ostream>
 #include <stdexcept>
+#include <string>
 #include <string_view>
 #include <vector>
 
 #include "riptide/sim/check_accumulator.hpp"
+#include "riptide/sim/deposit_checks.hpp"
 
 namespace riptide::sim::checks {
 
@@ -26,9 +28,12 @@ inline constexpr const char* kFractionsFileName = "fractions.csv";
 inline constexpr const char* kLegendreFileName = "legendre.csv";
 inline constexpr const char* kResidualsFileName = "residuals_Ep.csv";
 inline constexpr const char* kModelMixFileName = "model_mix.csv";
+inline constexpr const char* kDepositSpectraFileName = "deposit_spectra.csv";
+inline constexpr const char* kProtonExitsFileName = "proton_exits.csv";
 
 // Version of the checks.json layout; bumped on any change of its keys.
-inline constexpr int kChecksVersion = 5;
+// Version 6 added results.deposits.
+inline constexpr int kChecksVersion = 6;
 
 class ReportError : public std::runtime_error {
 public:
@@ -44,6 +49,21 @@ public:
 // the expected-rare ones. A skipped check carries its reason in "skipped" and no chi^2; a compared
 // one has "skipped": null.
 [[nodiscard]] nlohmann::json resultsJson(const CheckResults& results);
+
+// The "deposits" object of checks.json for a run with deposit columns: the
+// setup, the event classes, the proton counts, the energy balance of the
+// contained protons, the kB = 0 oracle and the counters, must-be-zero apart
+// from expected-rare. "skipped" is null here; depositsSkippedJson gives the
+// object of a run without deposit columns.
+[[nodiscard]] nlohmann::json depositsJson(const DepositSetup& setup, const DepositResults& results);
+[[nodiscard]] nlohmann::json depositsSkippedJson(const std::string& reason);
+
+// low,high,Edep,Evis: events per bin of det_Edep and det_Evis; the overflow
+// above En_max is only in the JSON.
+void writeDepositSpectraCsv(std::ostream& out, const DepositResults& results);
+// Ep_low,Ep_high,protons,exiting: recoil protons by truth_Ep and how many left
+// the scintillator.
+void writeProtonExitsCsv(std::ostream& out, const DepositResults& results);
 
 // low,high,observed,expected_<library>... one row per original bin.
 void writeHistogramCsv(std::ostream& out, const HistogramResult& histogram);
