@@ -31,7 +31,7 @@ progetto ricostruisce il neutrone incidente da ciò che interagisce nello scinti
 - Ntupla di verità secondo `event_schema.hpp` v1, un file per thread.
 - Test d'integrazione `sim_integration`: run a 1 e a 2 thread identici colonna per colonna.
 
-### 1b — Verifiche fisiche e prestazioni
+### 1b — Verifiche fisiche e prestazioni ✅ completata (v0.3.0, 2026-11-19)
 
 - Verifiche **non circolari**:
   - spettro E_p del primo scattering n–p piatto su [0, E_n] (a);
@@ -44,9 +44,11 @@ progetto ricostruisce il neutrone incidente da ciò che interagisce nello scinti
   - comportamento a 19.5–20 MeV (bordo di validità di `G4NeutronHP`);
   - convenzioni del modello HP verificate sui dati che Geant4 usa davvero: massa del bersaglio di
     H-1 (D14), cattura esclusa dall'inelastico del carbonio e composizione isotopica del
-    carbonio (D15, oracolo G4NDL ↔ JEFF-3.3).
-- Prestazioni: eventi/s per thread, byte/evento (serve a `estimateRunBytes`, oggi con una stima
-  provvisoria).
+    carbonio (D15, oracolo G4NDL ↔ JEFF-3.3); sopra 19.5 MeV elastico HP e CHIPS sovrapposti
+    (D16); break-up n–d su H-2 nelle attese, da G4NDL (D17).
+- Prestazioni: eventi/s per thread, byte/evento misurato (`kBytesPerEvent` per
+  `estimateRunBytes`).
+- Risultati: `validation/1b_results.md` (tre run da 10⁷, tutte le verifiche passate).
 
 ## Fase 2 — Deposito di energia e quenching di Birks
 

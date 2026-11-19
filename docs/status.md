@@ -1,6 +1,6 @@
 # Stato
 
-**v0.2.0 — 2026-11-17 — Fase 1a (simulazione minima con verità MC) completata.**
+**v0.3.0 — 2026-11-19 — Fase 1b (verifiche fisiche e prestazioni) completata.**
 
 ## Fatto
 
@@ -24,9 +24,9 @@
   delle colonne di verità e uguaglianza colonna per colonna fra 1 e 2 thread; senza SSD viene
   saltato.
 
-## In corso: fase 1b (branch `feat/sim-checks`, aggiornato al 2026-11-18, `checks_version` 3)
+### Fase 1b (v0.3.0, branch `feat/sim-checks`, `checks_version` 5)
 
-Verifiche fisiche non circolari e prestazioni, vedi `roadmap.md`. Fatti i passi 0–5 di 9:
+Verifiche fisiche non circolari e prestazioni, vedi `roadmap.md`.
 
 - `scripts/mount_ssd.sh`: monta l'SSD per UUID (UUID fuori dal repo), senza toccare `/etc/fstab`.
 - **D13:** valutazioni di riferimento JEFF-3.3 (da cui deriva G4NDL: verifica
@@ -72,28 +72,33 @@ Verifiche fisiche non circolari e prestazioni, vedi `roadmap.md`. Fatti i passi 
   circa 3·10⁻⁴ sul non elastico del carbonio vicino a 14 MeV, dall'inelastico di C-13.
   Per H-1, G4NDL non ha un file inelastico: sotto 20 MeV le prime interazioni possibili sono
   solo l'elastico e la cattura.
-- **Test:** `debug` 150/150, `ci` 135/135, zero warning, clang-format pulito.
-
-Prossimi passi:
-
-6. previsioni scritte prima dei run (`docs/validation/1b_predictions.md`), comprese le soglie e
-   i residui noti (D14, D15);
-7. run, solo col via esplicito, sotto `scripts/run_capped.sh`;
-8. byte/evento misurato;
-9. risultati e chiusura con v0.3.0.
+- **Bordo a 20 MeV (D16):** in 19.5–20 MeV l'elastico n–p è HP o CHIPS secondo una rampa
+  lineare; le verifiche contano la miscela attesa (`model_mix`).
+- **Previsioni prima dei run** (`validation/1b_predictions.md`, commit `6de0124`): soglie
+  Bonferroni con α_family = 0.01 a run, range dell'offset di D14, residui noti.
+- **Run:** tre run da 10⁷ eventi (mono 14 MeV, piatto 10–20 MeV, bordo 19.5–20 MeV), 8 thread,
+  circa 4.5 minuti e 145 MiB ciascuno; 54–62 B/evento, da cui `kBytesPerEvent` = 128 B.
+- **Esito (D17, `validation/1b_results.md`):** al primo esito il mono falliva su due verifiche,
+  per due difetti delle attese: il break-up n–d su H-2 non era previsto, e l'oracolo dell'offset
+  risentiva dell'arrotondamento a E_p di pochi eV. Corrette le attese (H-2 da G4NDL,
+  `checks_version` 5) e rilanciate le verifiche sugli stessi eventi, con soglie invariate e
+  previsioni committate prima: tutte le verifiche passano nei tre run.
+- **Test:** `debug` 172/172, `ci` 157/157, zero warning, clang-format pulito.
 
 ## Punti aperti
 
 - Dimensioni dello scintillatore: cubo di 10 cm provvisorio nei config; definitive prima della
   fase 3.
-- Byte per evento: stima provvisoria (`kProvisionalBytesPerEvent` = 1 KiB) da misurare in 1b.
 - SSD esterno montato su `/mnt/external_ssd`, ma non in modo permanente: prima di ogni run
   `scripts/data_root.sh check` (procedura in `architecture/data_layout.md`).
-- Comportamento di `G4NeutronHP` a 19.5–20 MeV (bordo del dominio).
+- **Fase 2:** sopra 19.5 MeV lo stato finale elastico è in parte CHIPS (D16): il bordo della
+  sorgente va evitato o trattato come sistematica.
 - **Fase 2:** la verità di Geant4 ha un E_p più alto della cinematica fisica di circa 5.4·10⁻⁴
   in relativo, circa 7.6 keV a E_p = 14 MeV. Ne seguirebbe un bias relativo dello stesso ordine
   su E_n ricostruito. Va deciso prima dell'analisi se correggerlo, se modellarlo o se riportarlo
   come sistematica (D14).
 - **Fase 2:** il doppio conteggio del C-13 nel modello HP (circa +0.5% sul non elastico del
   carbonio) va tenuto fra le sistematiche del fondo da carbonio (D15).
+- Confronto n–p indipendente da JEFF-3.3/ENDF-B-VIII.0 (D13) e verifica di H-2 contro una
+  valutazione indipendente (D17): non fatti in 1b.
 - kB di Birks per BC-408: da prendere da letteratura citata (fase 2).
