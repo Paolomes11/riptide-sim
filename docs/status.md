@@ -2,6 +2,8 @@
 
 **v0.3.0 — 2026-11-19 — Fase 1b (verifiche fisiche e prestazioni) completata.**
 
+Fase 2 in corso (branch `feat/sim-deposits`, 2026-11-19): passi 1–5 del piano fatti.
+
 ## Fatto
 
 - **Fase 0 (v0.1.0):** superbuild CMake con preset `debug`, `release`, `ci`; C++17; warning
@@ -85,6 +87,38 @@ Verifiche fisiche non circolari e prestazioni, vedi `roadmap.md`.
   previsioni committate prima: tutte le verifiche passano nei tre run.
 - **Test:** `debug` 172/172, `ci` 157/157, zero warning, clang-format pulito.
 
+### Fase 2 (in corso, branch `feat/sim-deposits`)
+
+Deposito, Birks, traccia del protone e classificazione dell'evento, vedi `roadmap.md`.
+
+- **D18:** kB = 0.155 mm/MeV per il plastico vinil-toluenico, da letteratura citata.
+- **Config v2:** blocco `scintillator` (kB e fonte) e funzione di passo del protone.
+- **Libreria:** registrazione dei depositi per evento (totale e del protone di rinculo, con e
+  senza Birks), traccia del protone (lunghezza, punto finale, uscita, interazioni adroniche),
+  classificazione dell'evento in 7 classi dai contatori d'interazione.
+- **Schema v2 (D19):** colonne di deposito, energia visibile, traccia del protone e classe
+  dell'evento. Il protone può depositare fino a circa 10⁻⁴ MeV più di `truth_Ep` per
+  G4NuclearStopping a fine percorso; tolleranza 0.01 MeV.
+- **Verifiche (`checks_version` 6):** sezione `deposits` di `checks.json` (contatori che devono
+  essere zero, rari attesi, classi, bilancio dei protoni contenuti), `deposit_spectra.csv`,
+  `proton_exits.csv`; per i run con schema v1 la sezione è `skipped`.
+- **Oracolo kB = 0:** terzo run `ctest_it_kB0` in `sim_integration`, con E_vis = E_dep entro
+  10⁻⁹ MeV e depositi identici al run a 1 thread.
+- **Smoke test** (1000 eventi a 14 MeV): contatori che devono essere zero tutti a zero; 292
+  protoni contenuti con bilancio massimo 1.9·10⁻⁴ MeV e nessun bilancio negativo. Solo
+  controllo del funzionamento, non un risultato.
+- **Test:** `debug` 204/204, `ci` 188/188, zero warning, clang-format pulito.
+
+**Prossimi passi, nell'ordine:**
+
+1. Confronti (c) con PSTAR (range CSDA, resa di luce L(E_p)): tabella NIST sull'SSD con
+   sha256. Da decidere se prima o dopo le previsioni.
+2. Regressione di `riptide_sim_check` sui dati 1b (schema v1): stessi numeri e `deposits`
+   `skipped`. Solo col via.
+3. Previsioni `validation/2_predictions.md`, committate prima dei run.
+4. Run pilota e run della fase 2, col via e con `scripts/run_capped.sh`.
+5. Risultati `validation/2_results.md` e v0.4.0.
+
 ## Punti aperti
 
 - Dimensioni dello scintillatore: cubo di 10 cm provvisorio nei config; definitive prima della
@@ -101,4 +135,9 @@ Verifiche fisiche non circolari e prestazioni, vedi `roadmap.md`.
   carbonio) va tenuto fra le sistematiche del fondo da carbonio (D15).
 - Confronto n–p indipendente da JEFF-3.3/ENDF-B-VIII.0 (D13) e verifica di H-2 contro una
   valutazione indipendente (D17): non fatti in 1b.
-- kB di Birks per BC-408: da prendere da letteratura citata (fase 2).
+- **Fase 2:** nel run d'integrazione da 1000 eventi a 14 MeV, 28 eventi hanno `det_Edep` >
+  14 MeV: neutroni termalizzati (6–74 urti n–p) e poi catturati. 27 stanno fra 14.002 e
+  14.012 MeV (circa +7.5 keV), uno a 15.6 MeV (γ di cattura in parte depositato). La banda a
+  +7.5 keV è dello stesso ordine dell'offset di D14 (7.6 keV a 14 MeV), ma l'ipotesi non è
+  verificata: va spiegata prima dei risultati.
+- **Fase 2:** `kBytesPerEvent` dello schema v2 è provvisorio (256 B): va misurato nel pilota.
