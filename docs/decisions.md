@@ -249,3 +249,50 @@ cancellano: se cambiano, se ne aggiunge una nuova che rimanda alla vecchia.
     elastico del carbonio vicino a 14 MeV, da riportare nelle previsioni della fase 1b.
   - **Per la fase 2:** il doppio conteggio del C-13 è un artefatto di Geant4 (circa +0.5% sul non
     elastico del carbonio) e va tenuto fra le sistematiche del fondo da carbonio.
+
+## D16 — Bordo a 20 MeV: elastico HP e CHIPS sovrapposti in 19.5–20 MeV (2026-11-19)
+
+- **Fatti** (verificati sui sorgenti di Geant4 11.4.1):
+  - `G4ParticleHPElastic` vale da 0 a 20 MeV (`SetMaxEnergy(20. * MeV)`).
+    `G4HadronElasticPhysicsHP::ConstructProcess` abbassa il minimo del modello elastico del
+    neutrone già registrato (`G4ChipsElasticModel`, da `G4HadronElasticPhysics`) a 19.5 MeV e
+    poi registra HP. In 19.5–20 MeV i due modelli si sovrappongono.
+  - Con due modelli applicabili, `G4EnergyRangeManager::GetHadronicInteraction` ne sceglie uno a
+    caso, evento per evento, con una rampa lineare: P(CHIPS) = (E_n − 19.5 MeV)/(0.5 MeV),
+    P(HP) = 1 − P(CHIPS). Sotto 19.5 MeV c'è solo HP.
+  - Le sezioni d'urto restano quelle HP fino a 20 MeV (`G4ParticleHPElasticData` è aggiunto per
+    ultimo e prevale). La sovrapposizione cambia quindi solo lo stato finale, non le frazioni
+    della prima interazione né la profondità.
+  - L'inelastico segue la stessa logica: BIC da 19.9 MeV (`G4HadronPhysicsQGSP_BIC_HP`), HP fino
+    a 20 MeV (`G4NeutronPHPBuilder`). Cambia solo lo stato finale non elastico, che le verifiche
+    non usano.
+  - `G4ChipsElasticModel` usa la cinematica di `G4HadronElastic::ApplyYourself`: proiettile con
+    la massa PDG del neutrone, bersaglio con `G4NucleiProperties::GetNuclearMass(1, 1)`, cioè la
+    massa del protone, e rinculo `G4Proton`. Le masse CLHEP coincidono con quelle di
+    `riptide::kinematics`, quindi un evento CHIPS segue la cinematica fisica n–p, non quella HP
+    di D14. La distribuzione angolare è quella di CHIPS, non JEFF-3.3.
+- **Decisione:** `riptide_sim_check` classifica ogni evento n–p dalla cinematica, senza nuove
+  colonne nello schema. È HP se E_p coincide con la cinematica HP entro 10⁻¹¹·E_n, non HP se
+  coincide con la cinematica fisica, ambiguo se con entrambe (trattato come HP, in
+  `expected_rare`). Se non coincide con nessuna, o se è non HP sotto 19.5 MeV, va fra i contatori
+  `must_be_zero`. Spettro u, Legendre e residui di E_p usano solo gli eventi HP, che seguono
+  ancora JEFF-3.3. Gli eventi non HP formano un oracolo a sé (`model_mix`): conteggio contro
+  Σ p(E_n) con pull binomiale e χ² su 10 bin di E_n nella finestra, più il loro residuo contro la
+  cinematica fisica. `checks_version` passa a 4.
+- **Motivo:** la tolleranza viene dallo smoke test a 14 MeV (residuo HP massimo 1.24·10⁻¹⁴ MeV),
+  ben sotto lo scarto fra le due cinematiche (circa 5.4·10⁻⁴ in relativo). Senza
+  classificazione, nel run piatto 10–20 MeV poco meno del 2.5% degli eventi n–p (media della
+  rampa sulla sorgente, pesata con σ_np decrescente) sarebbe stato CHIPS:
+  l'oracolo dei residui sarebbe fallito per costruzione e spettro u e Legendre avrebbero
+  mescolato due modelli angolari.
+- **Alternative:** tagliare E_n > 19.5 MeV nelle verifiche (perde il controllo del bordo);
+  salvare il modello in una nuova colonna (cambio di schema, non necessario perché la cinematica
+  lo distingue); tolleranza larga sui residui (nasconderebbe errori veri).
+- **Conseguenze:**
+  - Il run di bordo 19.5–20 MeV verifica la rampa. Gli eventi CHIPS ambigui attesi sono
+    trascurabili (circa 0.06 su 1.5·10⁶ eventi n–p), ma un evento ambiguo abbasserebbe
+    `Ep_physical_offset.relative_min`.
+  - Lo scarto relativo dalla cinematica fisica dipende da E_n: (5.37–5.49)·10⁻⁴ di D14 vale a
+    14 MeV e scende a circa 5.33·10⁻⁴ vicino a 20 MeV. Le previsioni lo calcolano per ogni run.
+  - **Per la fase 2:** sopra 19.5 MeV lo stato finale elastico di Geant4 non è più solo JEFF-3.3.
+    Il bordo della sorgente a 20 MeV va trattato come sistematica o evitato.
