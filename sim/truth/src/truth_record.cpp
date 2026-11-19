@@ -3,9 +3,11 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <stdexcept>
 
 namespace riptide::sim {
 
+using schema::EventClass;
 using schema::FirstInteraction;
 
 FirstInteraction classifyFirstInteraction(HadronicKind kind, int target_Z) {
@@ -19,6 +21,34 @@ FirstInteraction classifyFirstInteraction(HadronicKind kind, int target_Z) {
         return FirstInteraction::NCInelastic;
     }
     return FirstInteraction::Other;
+}
+
+InteractionCounts interactionCounts(const TruthRecord& record) {
+    return {record.n_np_scatters, record.n_nC_elastic, record.n_nC_inelastic, record.n_other};
+}
+
+EventClass classifyEvent(const InteractionCounts& counts) {
+    if (counts.np < 0 || counts.nC_elastic < 0 || counts.nC_inelastic < 0 || counts.other < 0) {
+        throw std::invalid_argument("classifyEvent: negative interaction count");
+    }
+    const bool has_np = counts.np > 0;
+    const bool has_nC = counts.nC_elastic > 0 || counts.nC_inelastic > 0;
+    if (counts.other > 0) {
+        return EventClass::Other;
+    }
+    if (has_np && has_nC) {
+        return EventClass::Mixed;
+    }
+    if (has_np) {
+        return counts.np == 1 ? EventClass::SingleNp : EventClass::MultipleNp;
+    }
+    if (counts.nC_inelastic > 0) {
+        return EventClass::NCInelasticNoNp;
+    }
+    if (counts.nC_elastic > 0) {
+        return EventClass::NCElasticOnly;
+    }
+    return EventClass::NoInteraction;
 }
 
 double thetaP(const Vec3& omega_n, const Vec3& p_dir) {
@@ -42,7 +72,18 @@ void TruthRecorder::onHadronicStep(const HadronicStep& step) {
         record_.r0 = step.position;
         record_.t0 = step.time;
     }
-    if (step.kind != HadronicKind::Elastic || step.target_Z != kHydrogenZ) {
+    switch (classifyFirstInteraction(step.kind, step.target_Z)) {
+    case FirstInteraction::NpElastic:
+        break;
+    case FirstInteraction::NCElastic:
+        ++record_.n_nC_elastic;
+        return;
+    case FirstInteraction::NCInelastic:
+        ++record_.n_nC_inelastic;
+        return;
+    case FirstInteraction::Unknown:
+    case FirstInteraction::Other:
+        ++record_.n_other;
         return;
     }
     ++record_.n_np_scatters;
@@ -56,8 +97,13 @@ void TruthRecorder::onHadronicStep(const HadronicStep& step) {
         record_.Ep = step.proton->Ep;
         record_.p_dir = step.proton->dir;
         record_.theta_p = thetaP(record_.omega_n, step.proton->dir);
+        record_.np_vertex = step.position;
         record_.valid_np = true;
     }
+}
+
+void TruthRecorder::onSecondaryNeutronHadronic() {
+    ++record_.n_secondary_n_hadronic;
 }
 
 void TruthTally::add(const TruthRecord& record) {

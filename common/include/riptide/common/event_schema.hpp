@@ -40,6 +40,21 @@ enum class FirstInteraction : std::int32_t {
     Other = 4,
 };
 
+// Class of an event from all hadronic interactions of the primary neutron
+// inside the scintillator. Stored as Int32 like FirstInteraction: the numeric
+// values are part of the schema and must never be reused. Precedence, highest
+// first: any interaction outside the three below gives Other; then n-p with
+// n-C gives Mixed; then the classes of a single kind.
+enum class EventClass : std::int32_t {
+    NoInteraction = 0,   // the primary neutron crossed without interacting
+    SingleNp = 1,        // exactly one n-p elastic scatter, nothing else
+    MultipleNp = 2,      // two or more n-p elastic scatters, nothing else
+    NCElasticOnly = 3,   // n-C elastic scatters only
+    NCInelasticNoNp = 4, // at least one n-C inelastic, no n-p (n-C elastic allowed)
+    Mixed = 5,           // at least one n-p and at least one n-C
+    Other = 6,           // at least one interaction not n-p or n-C elastic/inelastic
+};
+
 // Event identification. Multithreaded Geant4 runs write one file per thread in
 // a non-deterministic order, so each event carries its id and the two seeds that
 // reproduce it on its own. The seeds fit in 31 bits (see the simulation's

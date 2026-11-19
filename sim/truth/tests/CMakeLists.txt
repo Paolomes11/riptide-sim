@@ -1,4 +1,5 @@
 add_executable(sim_truth_tests
+    deposit_record_test.cpp
     event_row_test.cpp
     truth_record_test.cpp)
 target_link_libraries(sim_truth_tests PRIVATE

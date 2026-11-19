@@ -58,6 +58,17 @@ TEST_CASE("first-interaction codes are stable", "[schema]") {
     STATIC_REQUIRE(static_cast<int>(FirstInteraction::Other) == 4);
 }
 
+TEST_CASE("event-class codes are stable", "[schema]") {
+    using riptide::schema::EventClass;
+    STATIC_REQUIRE(static_cast<int>(EventClass::NoInteraction) == 0);
+    STATIC_REQUIRE(static_cast<int>(EventClass::SingleNp) == 1);
+    STATIC_REQUIRE(static_cast<int>(EventClass::MultipleNp) == 2);
+    STATIC_REQUIRE(static_cast<int>(EventClass::NCElasticOnly) == 3);
+    STATIC_REQUIRE(static_cast<int>(EventClass::NCInelasticNoNp) == 4);
+    STATIC_REQUIRE(static_cast<int>(EventClass::Mixed) == 5);
+    STATIC_REQUIRE(static_cast<int>(EventClass::Other) == 6);
+}
+
 TEST_CASE("schema v1 uses only the column types Geant4 can write", "[schema]") {
     using namespace riptide::schema;
     STATIC_REQUIRE(kSchemaVersion == 1);
