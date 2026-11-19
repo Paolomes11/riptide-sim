@@ -141,18 +141,72 @@ SourceConfig parseSource(const json& obj) {
     return source;
 }
 
+ScintillatorConfig parseScintillator(const json& obj) {
+    constexpr std::string_view where = "scintillator";
+    requireOnlyKeys(obj, where, {"birks_kB_mm_per_MeV", "birks_source"});
+    ScintillatorConfig scintillator;
+    scintillator.birks_kB = finiteNumber(member(obj, where, "birks_kB_mm_per_MeV"),
+                                         "scintillator.birks_kB_mm_per_MeV") *
+                            kBirksUnit;
+    // Zero is allowed on purpose: it switches quenching off, which is the
+    // deterministic oracle visible energy == deposited energy.
+    if (scintillator.birks_kB < 0.0) {
+        fail("scintillator.birks_kB_mm_per_MeV", "the Birks constant must not be negative");
+    }
+    const auto& source = member(obj, where, "birks_source");
+    if (!source.is_string() || source.get<std::string>().empty()) {
+        fail("scintillator.birks_source", "expected a non-empty string");
+    }
+    scintillator.birks_source = source.get<std::string>();
+    return scintillator;
+}
+
+StepFunction parseStepFunction(const json& obj) {
+    constexpr std::string_view where = "proton_step_function";
+    requireOnlyKeys(obj, where, {"dRoverRange", "finalRange_mm"});
+    StepFunction step;
+    step.dRoverRange =
+        finiteNumber(member(obj, where, "dRoverRange"), "proton_step_function.dRoverRange");
+    step.finalRange =
+        finiteNumber(member(obj, where, "finalRange_mm"), "proton_step_function.finalRange_mm") *
+        units::mm;
+    if (!(step.dRoverRange > 0.0 && step.dRoverRange <= kMaxDRoverRange)) {
+        fail("proton_step_function.dRoverRange", "expected a value in (0, 1]");
+    }
+    if (!(step.finalRange > 0.0)) {
+        fail("proton_step_function.finalRange_mm", "expected a positive length");
+    }
+    return step;
+}
+
+int parseVersion(const json& doc) {
+    const auto& version = member(doc, "config", "config_version");
+    if (!version.is_number_integer() || version.get<int>() < kOldestConfigVersion ||
+        version.get<int>() > kConfigVersion) {
+        fail("config_version", "expected a version from " + std::to_string(kOldestConfigVersion) +
+                                   " to " + std::to_string(kConfigVersion));
+    }
+    return version.get<int>();
+}
+
 } // namespace
 
 RunConfig parseRunConfig(const json& doc) {
     constexpr std::string_view where = "config";
-    requireOnlyKeys(doc, where, {"config_version", "geometry", "source", "physics_list"});
-    RunConfig config;
-
-    const auto& version = member(doc, where, "config_version");
-    if (!version.is_number_integer() || version.get<int>() != kConfigVersion) {
-        fail("config_version", "expected " + std::to_string(kConfigVersion));
+    if (!doc.is_object()) {
+        fail(where, "expected a JSON object");
     }
-    config.config_version = kConfigVersion;
+    RunConfig config;
+    config.config_version = parseVersion(doc);
+    if (config.config_version >= kFirstBirksConfigVersion) {
+        requireOnlyKeys(doc, where,
+                        {"config_version", "geometry", "source", "physics_list", "scintillator",
+                         "proton_step_function"});
+        config.scintillator = parseScintillator(member(doc, where, "scintillator"));
+        config.proton_step_function = parseStepFunction(member(doc, where, "proton_step_function"));
+    } else {
+        requireOnlyKeys(doc, where, {"config_version", "geometry", "source", "physics_list"});
+    }
     config.geometry = parseGeometry(member(doc, where, "geometry"));
     config.source = parseSource(member(doc, where, "source"));
     // The gun must start outside the scintillator, otherwise the "first
@@ -188,7 +242,13 @@ RunConfig loadRunConfig(const std::filesystem::path& path) {
     } catch (const json::parse_error& e) {
         throw ConfigError("invalid JSON in " + path.string() + ": " + e.what());
     }
-    return parseRunConfig(doc);
+    auto config = parseRunConfig(doc);
+    if (config.config_version != kConfigVersion) {
+        throw ConfigError(path.string() + ": config_version " +
+                          std::to_string(config.config_version) +
+                          " is only readable, a new run needs " + std::to_string(kConfigVersion));
+    }
+    return config;
 }
 
 json toJson(const RunConfig& config) {
@@ -206,10 +266,20 @@ json toJson(const RunConfig& config) {
     }
     source["direction"] = array(s.direction, 1.0);
     source["position_mm"] = array(s.position, units::mm);
-    return {{"config_version", config.config_version},
-            {"geometry", {{"scint_size_mm", array(config.geometry.scint_size, units::mm)}}},
-            {"source", source},
-            {"physics_list", config.physics_list}};
+    json doc = {{"config_version", config.config_version},
+                {"geometry", {{"scint_size_mm", array(config.geometry.scint_size, units::mm)}}},
+                {"source", source},
+                {"physics_list", config.physics_list}};
+    if (config.scintillator) {
+        doc["scintillator"] = {{"birks_kB_mm_per_MeV", config.scintillator->birks_kB / kBirksUnit},
+                               {"birks_source", config.scintillator->birks_source}};
+    }
+    if (config.proton_step_function) {
+        doc["proton_step_function"] = {
+            {"dRoverRange", config.proton_step_function->dRoverRange},
+            {"finalRange_mm", config.proton_step_function->finalRange / units::mm}};
+    }
+    return doc;
 }
 
 } // namespace riptide::sim

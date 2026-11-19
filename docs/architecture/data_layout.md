@@ -295,14 +295,14 @@ Chiavi (versione 1 del formato):
 | `git_describe` | string | `git describe --tags --always --dirty` dei sorgenti alla build; `-dirty` indica modifiche non committate, `unknown` che git non è disponibile |
 | `geant4_version` | string | `major.minor.patch` di Geant4 |
 | `schema_version` | int | versione dello schema dei file degli eventi |
-| `config_version` | int | versione del formato del config |
+| `config_version` | int | versione del formato del config: 1 per i run della fase 1b, 2 da kB di Birks in poi (`config/README.md`) |
 | `seed` | uint | seme del run, da cui derivano i semi per evento |
 | `events` | uint | eventi richiesti e simulati |
 | `threads` | int | thread worker |
 | `started_utc` | string | inizio del run, ISO 8601 in UTC (`2026-09-07T12:34:56Z`) |
 | `elapsed_s` | double | tempo reale da `Initialize` alla fine di `BeamOn` [s] |
 | `event_files` | array di string | `events_t0.root` … `events_t<N−1>.root` |
-| `config` | object | config effettivo; rileggibile con `parseRunConfig` |
+| `config` | object | config effettivo; rileggibile con `parseRunConfig`. Dalla versione 2 contiene kB di Birks con la sua fonte e la funzione di passo applicata |
 
 `git_describe` viene rigenerato a ogni build (`cmake/RiptideGitDescribe.cmake`) e descrive i
 sorgenti al momento della build, non al momento del run.

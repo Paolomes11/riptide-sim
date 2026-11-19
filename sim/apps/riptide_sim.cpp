@@ -2,9 +2,11 @@
 // configuration, then checks the data root before anything is simulated, so a
 // missing SSD or a full disk stops the run at startup rather than mid-run.
 
+#include <G4EmParameters.hh>
 #include <G4PhysListFactory.hh>
 #include <G4RunManager.hh>
 #include <G4RunManagerFactory.hh>
+#include <G4SystemOfUnits.hh>
 #include <G4VModularPhysicsList.hh>
 #include <G4Version.hh>
 #include <Randomize.hh>
@@ -25,6 +27,7 @@
 #include "riptide/common/data_paths.hpp"
 #include "riptide/common/event_schema.hpp"
 #include "riptide/common/git_info.hpp"
+#include "riptide/common/units.hpp"
 #include "riptide/common/version.hpp"
 #include "riptide/sim/action_initialization.hpp"
 #include "riptide/sim/cli_options.hpp"
@@ -75,6 +78,17 @@ std::filesystem::path prepareRunDir(const riptide::sim::CliOptions& opts) {
     return run_dir;
 }
 
+// Must run after the reference physics list is built, because its EM
+// constructor resets every EM parameter to the defaults, and before
+// Initialize, after which the parameters are locked and the call is ignored.
+// The ionisation of each particle prints the step function it received in the
+// Geant4 initialisation log ("StepFunction=(...)"), which is where the pilot
+// run checks that the value was applied.
+void applyProtonStepFunction(const riptide::sim::StepFunction& step) {
+    G4EmParameters::Instance()->SetStepFunctionMuHad(
+        step.dRoverRange, step.finalRange / riptide::units::mm * CLHEP::mm);
+}
+
 // Classic MT run manager, requested explicitly: "Default" would let the
 // G4RUN_MANAGER_TYPE environment variable switch to another backend.
 void runSimulation(const riptide::sim::RunConfig& config, const riptide::sim::CliOptions& opts,
@@ -94,6 +108,8 @@ void runSimulation(const riptide::sim::RunConfig& config, const riptide::sim::Cl
     // The run manager takes ownership of the three initialisation objects.
     run_manager->SetUserInitialization(new riptide::sim::DetectorConstruction(config));
     run_manager->SetUserInitialization(factory.GetReferencePhysList(config.physics_list));
+    // value(): loadRunConfig only accepts the current version, which has it.
+    applyProtonStepFunction(config.proton_step_function.value());
     run_manager->SetUserInitialization(
         new riptide::sim::ActionInitialization(config, opts.seed, run_dir));
     run_manager->Initialize();
