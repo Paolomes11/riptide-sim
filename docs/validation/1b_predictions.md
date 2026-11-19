@@ -156,23 +156,28 @@ non centralità e non giustificano un fallimento.
 Gli eventi n–d con deutone di rinculo non hanno protone: non entrano nello spettro u né nei
 residui, e sono contati in `expected_rare` (a).
 
-## 5. Prestazioni attese — da compilare dopo il pilota
+## 5. Prestazioni attese (dal pilota, 2026-11-19)
 
-Si compila con il pilota da 10⁵ (mono 14 MeV, build `release`, sotto
-`scripts/run_capped.sh -m 5G`), **prima** dei run da 10⁷, in un commit a parte.
+Pilota mono 14 MeV, build `release` del commit `6de0124`, sotto `scripts/run_capped.sh -m 5G`,
+RSS da `/usr/bin/time -v`, tempo da `run.json` (`elapsed_s`, inizializzazione compresa).
 
-| Grandezza | Pilota | Stima a 10⁷ |
+| Grandezza | 10⁵ eventi, 1 thread | 4·10⁵ eventi, 8 thread |
 |---|---|---|
-| eventi/s per thread | — | — |
-| thread usati | — | — |
-| RSS massimo | — | — |
-| byte/evento su disco | — | — |
-| tempo per run | — | — |
-| spazio su disco per run | — | — |
+| tempo | 12.8 s | 9.1 s |
+| eventi/s | 7.8·10³ | 4.4·10⁴ (5.5·10³ per thread) |
+| RSS massimo | 89 MB | 139 MB |
+| byte/evento su disco | 54.5 | 55.1 |
 
-Il limite provvisorio di 1024 byte/evento (`kProvisionalBytesPerEvent`) dà al più ≈ 10 GB per
-run da 10⁷ (b); la verifica dello spazio libero (`scripts/data_root.sh check --need`) usa questo
-valore finché non è misurato.
+`riptide_sim_check` sul pilota da 4·10⁵: 1.8 s, RSS 65 MB.
+
+Stime per un run da 10⁷ con 8 thread (b): circa 4 minuti, RSS sotto 0.2 GB, circa 0.55 GB
+su disco; la verifica, circa 45 s. Il run piatto e quello di bordo hanno E_n più alto e un po'
+più di interazioni sul carbonio: il tempo può crescere, non l'ordine di grandezza. Si usano
+8 thread su 20 core, con tetto di 5G a run, un run alla volta.
+
+Sul pilota l'attesa n–p di `riptide_sim_check` (somma evento per evento) coincide con la
+previsione scalata a 4·10⁵ eventi: 92 162.5678 contro 92 162.5678 (c). Il pilota non è un run
+di validazione e i suoi test statistici non entrano nei risultati.
 
 ## 6. Se una soglia fallisce
 
