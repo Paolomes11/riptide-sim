@@ -296,3 +296,56 @@ cancellano: se cambiano, se ne aggiunge una nuova che rimanda alla vecchia.
     14 MeV e scende a circa 5.33·10⁻⁴ vicino a 20 MeV. Le previsioni lo calcolano per ogni run.
   - **Per la fase 2:** sopra 19.5 MeV lo stato finale elastico di Geant4 non è più solo JEFF-3.3.
     Il bordo della sorgente a 20 MeV va trattato come sistematica o evitato.
+
+## D17 — Esito c1 della fase 1b: H-2 nelle attese e offset al netto dell'arrotondamento (2026-11-19)
+
+- **Fatti** (run `1b_*_1e7`, verifiche `c1` con `checks_version` 4, soglie delle previsioni
+  committate prima dei run):
+  - piatto 10–20 MeV e bordo 19.5–20 MeV: PASS; mono 14 MeV: FAIL su due verifiche;
+  - **offset relativo massimo, mono:** osservato 5.4861409·10⁻⁴ contro il massimo previsto
+    5.4861387·10⁻⁴ (margine 10⁻⁹ relativo). L'evento che lo dà ha E_p ≈ 9 eV e residuo
+    E_p − E_p,HP = 2·10⁻¹⁵ MeV: un arrotondamento, che diviso per pochi eV sposta lo scarto
+    relativo di ~2·10⁻¹⁰. La sola parte HP dello stesso evento vale 5.4861386·10⁻⁴, dentro il
+    range. L'errore è nella formulazione dell'oracolo, non nella simulazione;
+  - **eccesso di "other":** pull di +4.8 (mono), +2.9 (piatto), +2.5 (bordo). Nel mono:
+    395 osservati contro 310.4 attesi, eccesso 85 ± 18 (c). Il break-up n–d su H-2 (Z = 1,
+    anelastico) finisce in "other" nella simulazione, ma le attese contenevano solo H-1 e C: le
+    previsioni avevano stimato l'effetto del deuterio solo sul conteggio n–p. Con le sezioni
+    d'urto di G4NDL a 14 MeV (σ_inel(H-2) = 0.1659 b, σ_el(H-1) = 0.6871 b) e n(H-2)/n(H-1) =
+    1.15·10⁻⁴ l'aggiunta attesa è di circa 64 eventi.
+- **Decisione:**
+  - H-2 entra nelle attese con le sezioni d'urto elastica, anelastica e di cattura di **G4NDL
+    4.7.1**, cioè gli stessi dati che usa HP, in entrambe le librerie di riferimento. Per H-1
+    sarebbe circolare; per una componente di 1.15·10⁻⁴ basta dichiararlo: la verifica di H-2 **non
+    è indipendente**. Le categorie seguono la simulazione: l'elastico su H-2 conta come n–p (Z = 1)
+    ma non ha protone di rinculo, break-up e cattura vanno in "other". Il peso n–p HP (spettro u,
+    Legendre, `model_mix` previsto) usa solo l'elastico su H-1. Le tabelle G4NDL hanno
+    discontinuità vere (punto doppio a 14.25 MeV in elastico e cattura), riportate nel totale.
+  - L'oracolo dell'offset confronta col range previsto gli estremi `rounding_free_relative_*`:
+    a ogni evento si toglie R/E_p,fis, con R = `Ep_residuals.max_abs` del run (già vincolato a
+    < 10⁻⁹·E_n,max dal suo oracolo). Il confronto è una condizione necessaria sull'offset esatto e
+    non può più fallire per arrotondamento; `relative_min/max` restano riportati.
+  - `checks_version` passa a 5. Soglie, α, margine e range previsti **non cambiano**. Come previsto
+    al §6 delle previsioni, `riptide_sim_check` si rilancia (`c2`) sugli **stessi eventi** e si
+    riportano entrambi gli esiti.
+- **Previsioni del rilancio** (scritte prima di `c2`; JSON in
+  `docs/validation/predictions/*_1e7_v5.json`, stessi comandi delle previsioni originali):
+  - attese di "other" (jeff33): mono 310.4 → 374.4, piatto 500.1 → 562.3, bordo 776.2 → 839.9;
+    le altre attese cambiano di ≤ 10⁻⁴ in relativo, i coefficienti di Legendre attesi di
+    ≤ 6·10⁻⁹, piano dei test e range dell'offset sono identici (a);
+  - pull delle frazioni attesi in `c2`, stimati dai conteggi di `c1` con le nuove attese (d):
+
+    | Run | unknown | n–p | n–C el. | n–C inel. | other | χ² frazioni |
+    |---|---|---|---|---|---|---|
+    | mono | +1.0 | +0.5 | +0.2 | −2.3 | +1.1 | ≈ 6/4, p ≈ 0.2 |
+    | piatto | 0.0 | −1.2 | +0.9 | +0.3 | +0.1 | ≈ 2/4, p ≈ 0.7 |
+    | bordo | 0.0 | +0.3 | −0.3 | 0.0 | +0.2 | ≈ 0.2/4, p ≈ 0.99 |
+
+  - spettro u, profondità e Legendre: stessi esiti di `c1` entro ~10⁻³ in χ² (le attese cambiano
+    solo al livello di 10⁻⁴); `model_mix` invariato;
+  - offset: `rounding_free_relative_max` del mono sotto 5.4861387·10⁻⁴; tutti e tre i run PASS.
+- **Alternative:** un'altra valutazione di H-2 (indipendente, ma senza un file pronto nel formato
+  già letto e per un effetto di 10⁻⁴); allargare il margine dell'offset (nasconderebbe errori veri
+  a E_p alti); tagliare gli eventi a E_p piccolo (perde proprio il bordo dello spettro).
+- **Conseguenze:** l'esito della fase 1b è quello di `c2`, con `c1` riportato accanto. Il
+  confronto n–p indipendente resta quello di D13; H-2 è controllato solo per coerenza con G4NDL.
