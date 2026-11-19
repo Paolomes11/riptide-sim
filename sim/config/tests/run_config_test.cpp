@@ -178,6 +178,11 @@ TEST_CASE("shipped config files are valid", "[config]") {
     CHECK(mono.source.mode == SourceMode::Mono);
     const auto flat = riptide::sim::loadRunConfig(dir / "flat_10_20MeV.json");
     CHECK(flat.source.mode == SourceMode::Flat);
+    // The edge run covers exactly the HP/CHIPS elastic overlap up to 20 MeV.
+    const auto edge = riptide::sim::loadRunConfig(dir / "flat_19p5_20MeV.json");
+    CHECK(edge.source.mode == SourceMode::Flat);
+    CHECK_THAT(edge.source.En_min, WithinULP(19.5, 0));
+    CHECK_THAT(edge.source.En_max, WithinULP(20.0, 0));
 }
 
 TEST_CASE("unreadable or malformed files raise ConfigError", "[config]") {
