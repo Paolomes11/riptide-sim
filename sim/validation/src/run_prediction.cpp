@@ -66,8 +66,7 @@ std::pair<double, double> legendreWithDerivative(int degree, double x) {
     return {p, static_cast<double>(degree) * (x * p - previous) / (x * x - 1.0)};
 }
 
-void offsetRange(const CheckSetup& setup, const std::vector<double>& energies,
-                 RunPrediction& run) {
+void offsetRange(const CheckSetup& setup, const std::vector<double>& energies, RunPrediction& run) {
     double low = std::numeric_limits<double>::infinity();
     double high = -std::numeric_limits<double>::infinity();
     for (const double En : energies) {
@@ -88,9 +87,7 @@ void offsetRange(const CheckSetup& setup, const std::vector<double>& energies,
 LibraryPrediction predictLibrary(const CheckSetup& setup, const ReferenceModel& model,
                                  const QuadratureRule& spectrum) {
     const double L = setup.chord.length();
-    const std::vector<double> u_edges = [&] {
-        return uniformEdges(0.0, 1.0, setup.bins_u);
-    }();
+    const std::vector<double> u_edges = [&] { return uniformEdges(0.0, 1.0, setup.bins_u); }();
     LibraryPrediction p;
     p.library = model.library;
     p.u_probabilities.assign(setup.bins_u, 0.0);
@@ -389,26 +386,27 @@ nlohmann::json predictionJson(const RunPrediction& run, const PredictionShift& q
             errors.hp_np_events *
             *std::min_element(lib.u_probabilities.begin(), lib.u_probabilities.end());
         if (m > 0) {
-            const PredictionShift shift = predictionShift(run.libraries.front(), lib,
-                                                          expectedErrors(run, 0), run.events);
+            const PredictionShift shift =
+                predictionShift(run.libraries.front(), lib, expectedErrors(run, 0), run.events);
             entry["shift_from_first_in_sigma"] = {{"fractions", shift.fractions},
                                                   {"legendre", shift.legendre},
                                                   {"u_noncentrality", shift.u_noncentrality}};
             std::vector<double> legendre_shift;
             const ExpectedErrors reference = expectedErrors(run, 0);
             for (std::size_t l = 0; l < lib.legendre.size(); ++l) {
-                legendre_shift.push_back((lib.legendre.at(l) - run.libraries.front().legendre.at(l)) /
-                                         reference.legendre_sigma.at(l));
+                legendre_shift.push_back(
+                    (lib.legendre.at(l) - run.libraries.front().legendre.at(l)) /
+                    reference.legendre_sigma.at(l));
             }
             entry["legendre_shift_in_sigma"] = legendre_shift;
             std::array<double, kFirstInteractionCategories> fraction_shift{};
             for (std::size_t c = 0; c < kFirstInteractionCategories; ++c) {
                 const double sigma = reference.fraction_sigma.at(c);
                 fraction_shift.at(c) =
-                    sigma > 0.0 ? (lib.probabilities.at(c) -
-                                   run.libraries.front().probabilities.at(c)) /
-                                      sigma
-                                : 0.0;
+                    sigma > 0.0
+                        ? (lib.probabilities.at(c) - run.libraries.front().probabilities.at(c)) /
+                              sigma
+                        : 0.0;
             }
             entry["fraction_shift_in_sigma"] = categoriesJson(fraction_shift);
         }

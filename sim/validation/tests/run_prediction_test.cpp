@@ -62,16 +62,14 @@ checks::ReferenceModel model(const std::string& library, const std::vector<doubl
 const std::vector<double> kCoefficients{0.1, 0.05};
 
 // Pencil beam along +z through a 100 mm cube: L = 100 mm.
-checks::CheckSetup cubeSetup(double En_min, double En_max,
-                             double target_mass = kin::kProtonMass) {
+checks::CheckSetup cubeSetup(double En_min, double En_max, double target_mass = kin::kProtonMass) {
     riptide::sim::RunConfig config;
     config.geometry.scint_size = {100.0, 100.0, 100.0};
     config.source.En_min = En_min;
     config.source.En_max = En_max;
     config.source.direction = {0.0, 0.0, 1.0};
     config.source.position = {0.0, 0.0, -100.0};
-    return checks::makeCheckSetup(config, target_mass, checks::kDefaultBins,
-                                  checks::kDefaultBins);
+    return checks::makeCheckSetup(config, target_mass, checks::kDefaultBins, checks::kDefaultBins);
 }
 
 std::size_t index(FirstInteraction c) {
@@ -166,21 +164,17 @@ TEST_CASE("predictRun of a monoenergetic source equals the single-energy formula
     for (std::size_t l = 0; l < kCoefficients.size(); ++l) {
         CHECK_THAT(lib.legendre.at(l), WithinRel(kCoefficients.at(l), kTolerance));
         const double second = checks::legendreSecondMoment(kCoefficients, static_cast<int>(l + 1));
-        CHECK_THAT(lib.legendre_spread.at(l),
-                   WithinRel(std::sqrt(second - kCoefficients.at(l) * kCoefficients.at(l)),
-                             kTolerance));
+        CHECK_THAT(
+            lib.legendre_spread.at(l),
+            WithinRel(std::sqrt(second - kCoefficients.at(l) * kCoefficients.at(l)), kTolerance));
     }
-    const auto u = checks::protonEnergyBinProbabilities(kCoefficients,
-                                                        [] {
-                                                            std::vector<double> edges;
-                                                            for (std::size_t i = 0;
-                                                                 i <= checks::kDefaultBins; ++i) {
-                                                                edges.push_back(
-                                                                    static_cast<double>(i) /
-                                                                    checks::kDefaultBins);
-                                                            }
-                                                            return edges;
-                                                        }());
+    const auto u = checks::protonEnergyBinProbabilities(kCoefficients, [] {
+        std::vector<double> edges;
+        for (std::size_t i = 0; i <= checks::kDefaultBins; ++i) {
+            edges.push_back(static_cast<double>(i) / checks::kDefaultBins);
+        }
+        return edges;
+    }());
     REQUIRE(lib.u_probabilities.size() == u.size());
     for (std::size_t b = 0; b < u.size(); ++b) {
         CHECK_THAT(lib.u_probabilities.at(b), WithinAbs(u.at(b), kTolerance));
@@ -196,13 +190,12 @@ TEST_CASE("predictRun of a monoenergetic source equals the single-energy formula
     CHECK_THAT(errors.legendre_sigma.at(0),
                WithinRel(lib.legendre_spread.at(0) / std::sqrt(hp_events), kTolerance));
     const double p_np = lib.probabilities.at(index(FirstInteraction::NpElastic));
-    CHECK_THAT(errors.fraction_sigma.at(index(FirstInteraction::NpElastic)),
-               WithinRel(std::sqrt(p_np * (1.0 - p_np) / static_cast<double>(kEvents)),
-                         kTolerance));
+    CHECK_THAT(
+        errors.fraction_sigma.at(index(FirstInteraction::NpElastic)),
+        WithinRel(std::sqrt(p_np * (1.0 - p_np) / static_cast<double>(kEvents)), kTolerance));
 }
 
-TEST_CASE("predictRun: the H-1 atomic mass shifts Ep upward by a few 1e-4",
-          "[run_prediction]") {
+TEST_CASE("predictRun: the H-1 atomic mass shifts Ep upward by a few 1e-4", "[run_prediction]") {
     const auto setup = cubeSetup(kEn, kEn, kAwrH1 * kin::kNeutronMass);
     const auto run = checks::predictRun(setup, {model("lib", kCoefficients)}, kEvents, 1);
     // A lighter target takes more energy at a given lab angle; the order is
@@ -212,12 +205,11 @@ TEST_CASE("predictRun: the H-1 atomic mass shifts Ep upward by a few 1e-4",
     CHECK(run.offset_relative_max >= run.offset_relative_min);
 }
 
-TEST_CASE("predictRun of a flat source: constant data average to themselves",
-          "[run_prediction]") {
-    const auto mono = checks::predictRun(cubeSetup(kEn, kEn), {model("lib", kCoefficients)},
-                                         kEvents, 1);
-    const auto flat = checks::predictRun(cubeSetup(10.0, 19.0), {model("lib", kCoefficients)},
-                                         kEvents, 16);
+TEST_CASE("predictRun of a flat source: constant data average to themselves", "[run_prediction]") {
+    const auto mono =
+        checks::predictRun(cubeSetup(kEn, kEn), {model("lib", kCoefficients)}, kEvents, 1);
+    const auto flat =
+        checks::predictRun(cubeSetup(10.0, 19.0), {model("lib", kCoefficients)}, kEvents, 16);
     CHECK(flat.energy_nodes == 16);
     CHECK_FALSE(flat.overlaps_model_window);
     const auto& a = mono.libraries.front();
@@ -233,9 +225,9 @@ TEST_CASE("predictRun of a flat source: constant data average to themselves",
 
 TEST_CASE("predictRun across the overlap window splits n-p between HP and CHIPS",
           "[run_prediction]") {
-    const auto run = checks::predictRun(cubeSetup(checks::kChipsElasticMinEnergy,
-                                                  checks::kHpElasticMaxEnergy),
-                                        {model("lib", kCoefficients)}, kEvents, 10);
+    const auto run =
+        checks::predictRun(cubeSetup(checks::kChipsElasticMinEnergy, checks::kHpElasticMaxEnergy),
+                           {model("lib", kCoefficients)}, kEvents, 10);
     CHECK(run.overlaps_model_window);
     const auto& lib = run.libraries.front();
     const double np = lib.probabilities.at(index(FirstInteraction::NpElastic));
@@ -245,17 +237,16 @@ TEST_CASE("predictRun across the overlap window splits n-p between HP and CHIPS"
     CHECK_THAT(lib.hp_np_probability, WithinRel(0.5 * np, 1e-12));
 
     // At the upper edge every n-p event is CHIPS: nothing to predict for HP.
-    CHECK_THROWS_AS(checks::predictRun(cubeSetup(checks::kHpElasticMaxEnergy,
-                                                 checks::kHpElasticMaxEnergy),
-                                       {model("lib", kCoefficients)}, kEvents, 1),
-                    std::invalid_argument);
+    CHECK_THROWS_AS(
+        checks::predictRun(cubeSetup(checks::kHpElasticMaxEnergy, checks::kHpElasticMaxEnergy),
+                           {model("lib", kCoefficients)}, kEvents, 1),
+        std::invalid_argument);
 }
 
 TEST_CASE("predictRun pads shorter Legendre expansions with zeros", "[run_prediction]") {
-    const auto run = checks::predictRun(cubeSetup(kEn, kEn),
-                                        {model("short", kCoefficients),
-                                         model("long", {0.1, 0.05, 0.01})},
-                                        kEvents, 1);
+    const auto run = checks::predictRun(
+        cubeSetup(kEn, kEn), {model("short", kCoefficients), model("long", {0.1, 0.05, 0.01})},
+        kEvents, 1);
     REQUIRE(run.libraries.size() == 2);
     REQUIRE(run.libraries.at(0).legendre.size() == 3);
     CHECK_THAT(run.libraries.at(0).legendre.at(2), WithinAbs(0.0, kTolerance));
@@ -268,8 +259,7 @@ TEST_CASE("predictRun pads shorter Legendre expansions with zeros", "[run_predic
     CHECK_THAT(shift.fractions, WithinAbs(0.0, kTolerance));
     CHECK(shift.u_noncentrality > 0.0);
 
-    CHECK_THROWS_AS(checks::predictRun(cubeSetup(kEn, kEn), {}, kEvents, 1),
-                    std::invalid_argument);
+    CHECK_THROWS_AS(checks::predictRun(cubeSetup(kEn, kEn), {}, kEvents, 1), std::invalid_argument);
     CHECK_THROWS_AS(checks::predictRun(cubeSetup(kEn, kEn), {model("lib", kCoefficients)}, 0, 1),
                     std::invalid_argument);
 }
@@ -285,9 +275,9 @@ TEST_CASE("testPlan counts the tests and splits alpha", "[run_prediction]") {
     CHECK_THAT(std::erfc(plan.pull_threshold / std::sqrt(2.0)),
                WithinRel(plan.alpha_per_test, 1e-9));
 
-    const auto edge = checks::predictRun(
-        cubeSetup(checks::kChipsElasticMinEnergy, checks::kHpElasticMaxEnergy),
-        {model("lib", kCoefficients)}, kEvents, 10);
+    const auto edge =
+        checks::predictRun(cubeSetup(checks::kChipsElasticMinEnergy, checks::kHpElasticMaxEnergy),
+                           {model("lib", kCoefficients)}, kEvents, 10);
     const auto edge_plan = checks::testPlan(edge, kAlpha);
     CHECK(edge_plan.chi2_tests == 4);
     CHECK(edge_plan.pull_tests == 3);
@@ -296,11 +286,9 @@ TEST_CASE("testPlan counts the tests and splits alpha", "[run_prediction]") {
     CHECK_THROWS_AS(checks::testPlan(mono, 1.0), std::invalid_argument);
 }
 
-TEST_CASE("predictionJson carries the run, the plan and the library shifts",
-          "[run_prediction]") {
-    const auto run = checks::predictRun(cubeSetup(kEn, kEn),
-                                        {model("a", kCoefficients), model("b", {0.11, 0.05})},
-                                        kEvents, 1);
+TEST_CASE("predictionJson carries the run, the plan and the library shifts", "[run_prediction]") {
+    const auto run = checks::predictRun(
+        cubeSetup(kEn, kEn), {model("a", kCoefficients), model("b", {0.11, 0.05})}, kEvents, 1);
     const auto plan = checks::testPlan(run, 0.01);
     const auto doc = checks::predictionJson(run, checks::PredictionShift{}, plan);
     CHECK(doc.at("events").get<std::uint64_t>() == kEvents);

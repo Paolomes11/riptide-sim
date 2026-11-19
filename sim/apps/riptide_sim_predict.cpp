@@ -52,8 +52,8 @@ constexpr std::size_t kNodeRefinement = 2;
 constexpr int kJsonIndent = 2;
 
 void printVersion() {
-    std::cout << "riptide_sim_predict " << riptide::kProjectVersion << " ("
-              << riptide::kGitDescribe << ")\n"
+    std::cout << "riptide_sim_predict " << riptide::kProjectVersion << " (" << riptide::kGitDescribe
+              << ")\n"
               << "Geant4 " << checks::geant4Version() << ' ' << G4Version << ' ' << G4Date << '\n'
               << "checks version " << checks::kChecksVersion << '\n';
 }

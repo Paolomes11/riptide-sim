@@ -133,8 +133,7 @@ struct TestPlan {
 
 // The whole prediction with derived counts, errors, the shift of every other
 // library from the first and the test plan.
-[[nodiscard]] nlohmann::json predictionJson(const RunPrediction& run,
-                                            const PredictionShift& quadrature,
-                                            const TestPlan& plan);
+[[nodiscard]] nlohmann::json
+predictionJson(const RunPrediction& run, const PredictionShift& quadrature, const TestPlan& plan);
 
 } // namespace riptide::sim::checks
