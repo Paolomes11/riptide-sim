@@ -1,30 +1,26 @@
 // Reader side of the riptide_sim integration test (driven by
 // run_integration.sh). It reads back two runs of the same events, written with
-// 1 and 2 worker threads, through the Geant4 ROOT reader: the simulation side
-// keeps no ROOT dependency. These are consistency checks of the written files,
-// not physics validation.
+// 1 and 2 worker threads, through riptide::sim_reader (the Geant4 ROOT reader, so the simulation
+// side keeps no ROOT dependency). These are consistency checks of the written files, not physics
+// validation.
 
-#include <G4RootAnalysisReader.hh>
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 #include <nlohmann/json.hpp>
 
-#include <array>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <filesystem>
-#include <fstream>
-#include <map>
 #include <stdexcept>
 #include <string>
-#include <string_view>
 #include <variant>
 
 #include "riptide/common/event_schema.hpp"
 #include "riptide/common/units.hpp"
 #include "riptide/sim/event_row.hpp"
+#include "riptide/sim/run_reader.hpp"
 #include "riptide/sim/run_record.hpp"
 
 namespace {
@@ -32,11 +28,12 @@ namespace {
 using nlohmann::json;
 using riptide::schema::ColumnType;
 using riptide::schema::FirstInteraction;
-using riptide::sim::columnIndex;
 using riptide::sim::columnSpec;
-using riptide::sim::ColumnValue;
-using riptide::sim::EventRow;
+using riptide::sim::doubleAt;
+using riptide::sim::intAt;
 using riptide::sim::kEventColumns;
+using riptide::sim::loadRun;
+using riptide::sim::RunData;
 
 // Direction cosines are normalised in double precision; this leaves room for a
 // few rounding steps only.
@@ -44,14 +41,6 @@ constexpr double kUnitNormTolerance = 1e-12;
 // The gun energy is written back unchanged, so the relative tolerance only
 // absorbs the MeV conversion.
 constexpr double kEnergyRelTolerance = 1e-12;
-// G4AnalysisReader's "no ntuple" id (kInvalidId in G4AnalysisUtilities.hh).
-constexpr G4int kInvalidNtupleId = -1;
-
-struct RunData {
-    json record;
-    std::map<std::int32_t, EventRow> rows;
-    std::size_t row_count = 0; // rows read, duplicates included
-};
 
 std::filesystem::path pathFromEnv(const char* name) {
     const char* value = std::getenv(name); // NOLINT(concurrency-mt-unsafe): single-threaded
@@ -65,55 +54,6 @@ std::size_t expectedEvents() {
     return static_cast<std::size_t>(std::stoul(pathFromEnv("RIPTIDE_IT_EVENTS").string()));
 }
 
-// Reads one per-thread file into run.rows. Every schema column is bound by
-// name, so a column missing from the file fails here.
-void readEventFile(const std::filesystem::path& file, RunData& run) {
-    auto* reader = G4RootAnalysisReader::Instance();
-    const G4int id = reader->GetNtuple(G4String(riptide::schema::kEventTreeName), file.string());
-    if (id == kInvalidNtupleId) {
-        throw std::runtime_error("cannot read ntuple from " + file.string());
-    }
-    std::array<G4int, kEventColumns> ints{};
-    std::array<G4double, kEventColumns> doubles{};
-    for (std::size_t i = 0; i < kEventColumns; ++i) {
-        const auto& spec = columnSpec(i);
-        const G4String name(spec.name);
-        const bool bound = spec.type == ColumnType::Int32
-                               ? reader->SetNtupleIColumn(id, name, ints.at(i))
-                               : reader->SetNtupleDColumn(id, name, doubles.at(i));
-        if (!bound) {
-            throw std::runtime_error("cannot bind column " + name + " in " + file.string());
-        }
-    }
-    const std::size_t event_id_col = columnIndex("event_id");
-    while (reader->GetNtupleRow(id)) {
-        EventRow row;
-        for (std::size_t i = 0; i < kEventColumns; ++i) {
-            row.at(i) = columnSpec(i).type == ColumnType::Int32 ? ColumnValue{ints.at(i)}
-                                                                : ColumnValue{doubles.at(i)};
-        }
-        ++run.row_count;
-        run.rows.emplace(ints.at(event_id_col), row);
-    }
-}
-
-RunData loadRun(const std::filesystem::path& dir) {
-    std::ifstream in(dir / riptide::sim::kRunRecordFileName);
-    if (!in) {
-        throw std::runtime_error("no run record in " + dir.string());
-    }
-    RunData run;
-    run.record = json::parse(in);
-    if (run.record.at("schema_version").get<std::int32_t>() != riptide::schema::kSchemaVersion) {
-        throw std::runtime_error("unknown schema_version in " + dir.string());
-    }
-    for (const auto& name : run.record.at("event_files")) {
-        readEventFile(dir / name.get<std::string>(), run);
-    }
-    G4RootAnalysisReader::Instance()->CloseFiles();
-    return run;
-}
-
 const RunData& run1t() {
     static const RunData run = loadRun(pathFromEnv("RIPTIDE_IT_RUN_1T"));
     return run;
@@ -122,14 +62,6 @@ const RunData& run1t() {
 const RunData& run2t() {
     static const RunData run = loadRun(pathFromEnv("RIPTIDE_IT_RUN_2T"));
     return run;
-}
-
-std::int32_t intAt(const EventRow& row, std::string_view name) {
-    return std::get<std::int32_t>(row.at(columnIndex(name)));
-}
-
-double doubleAt(const EventRow& row, std::string_view name) {
-    return std::get<double>(row.at(columnIndex(name)));
 }
 
 void checkRecord(const RunData& run, int threads, const std::filesystem::path& dir) {

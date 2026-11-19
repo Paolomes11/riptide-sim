@@ -8,9 +8,10 @@
 #include <filesystem>
 #include <limits>
 #include <optional>
-#include <stdexcept>
 #include <string>
 #include <vector>
+
+#include "riptide/sim/cli_parse.hpp"
 
 namespace riptide::sim {
 
@@ -21,11 +22,6 @@ inline constexpr std::uint64_t kDefaultSeed = 20260907;
 inline constexpr int kMaxThreads = 256;
 // G4RunManager::BeamOn takes the number of events as a G4int (int).
 inline constexpr std::uint64_t kMaxEvents = std::numeric_limits<int>::max();
-
-class CliError : public std::runtime_error {
-public:
-    using std::runtime_error::runtime_error;
-};
 
 struct CliOptions {
     bool show_help = false;

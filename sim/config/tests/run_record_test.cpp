@@ -104,7 +104,7 @@ TEST_CASE("run record holds provenance with the expected types", "[run_record]")
 }
 
 TEST_CASE("run record config parses back to the run config", "[run_record]") {
-    for (const char* name : {"mono_14MeV.json", "flat_10_20MeV.json"}) {
+    for (const char* name : {"mono_14MeV.json", "flat_10_20MeV.json", "flat_19p5_20MeV.json"}) {
         INFO("config " << name);
         const auto config = shippedConfig(name);
         const auto doc = riptide::sim::runRecordJson(config, sampleRun());

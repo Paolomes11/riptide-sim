@@ -16,6 +16,8 @@ L'energia deve stare in (0, 20] MeV: oltre 20 MeV finiscono i dati valutati di `
 
 - `mono_14MeV.json`: fascio monoenergetico a 14 MeV.
 - `flat_10_20MeV.json`: spettro piatto 10–20 MeV.
+- `flat_19p5_20MeV.json`: spettro piatto 19.5–20 MeV, la finestra in cui l'elastico HP e CHIPS
+  si sovrappongono (D16); serve a verificarne la rampa.
 
-**Provvisorio:** il blocco è un cubo di 10 cm in entrambi i file. Le dimensioni definitive
+**Provvisorio:** il blocco è un cubo di 10 cm in tutti i file. Le dimensioni definitive
 verranno dal progetto di ottimizzazione.

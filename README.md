@@ -62,10 +62,12 @@ I dati non stanno nel repository né sul disco di sistema. Radice: `--data-dir` 
 `$RIPTIDE_DATA_DIR` > `/mnt/external_ssd/riptide-sim`; deve esistere, essere su un disco diverso
 da `/` e avere spazio sufficiente. Dettagli in `docs/architecture/data_layout.md`.
 
-Prima di ogni run, controllo e preparazione dell'SSD. Lo script non usa `sudo`: se l'SSD non è
-montato, stampa i comandi per montarlo.
+Prima di ogni run, controllo e preparazione dell'SSD. `data_root.sh` non usa `sudo`: se l'SSD
+non è montato, stampa i comandi per montarlo. `mount_ssd.sh` monta l'SSD per UUID (chiede la
+password di `sudo`) e poi prepara la radice.
 
 ```bash
+scripts/mount_ssd.sh                   # UUID da RIPTIDE_SSD_UUID o ~/.config/riptide-sim/ssd_uuid
 scripts/data_root.sh check --need 10   # 10 GiB + 2 di margine
 scripts/data_root.sh prepare           # crea sim/ e analysis/ nella radice
 ```
@@ -86,8 +88,8 @@ scripts/run_capped.sh -m 5G -- ./build/release/sim/riptide_sim ...
 
 ## Stato
 
-v0.2.0: fase 1a (simulazione minima con verità MC) completata; prossima: fase 1b, verifiche
-fisiche e prestazioni. Dettagli in `docs/status.md`.
+v0.2.0: fase 1a (simulazione minima con verità MC) completata; fase 1b (verifiche fisiche e
+prestazioni) in corso su `feat/sim-checks`, passi 0–3 di 9. Dettagli in `docs/status.md`.
 
 ## Licenza
 

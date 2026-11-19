@@ -15,8 +15,10 @@
 # Root resolution (same order as resolveDataRoot): --data-dir, then
 # $RIPTIDE_DATA_DIR, then /mnt/external_ssd/riptide-sim.
 # Environment: RIPTIDE_SSD_MOUNT (default /mnt/external_ssd) is the mount
-# point the default root lives on; RIPTIDE_SSD_UUID, if set, is used in the
-# suggested mount command.
+# point the default root lives on; RIPTIDE_SSD_UUID (or the untracked file
+# ${XDG_CONFIG_HOME:-~/.config}/riptide-sim/ssd_uuid), if set, is used in the
+# suggested mount command. scripts/mount_ssd.sh does the mount and then runs
+# this script.
 #
 # Exit codes: 0 ok, 2 usage, 3 root missing or SSD not mounted, 4 root not
 # writable, 5 root on the system disk, 6 not enough free space.
@@ -33,9 +35,16 @@ usage() {
 }
 
 print_mount_help() {
-    local uuid="${RIPTIDE_SSD_UUID:-<UUID>}"
+    # Same UUID lookup as mount_ssd.sh.
+    local uuid="${RIPTIDE_SSD_UUID:-}"
+    local uuid_file="${XDG_CONFIG_HOME:-${HOME}/.config}/riptide-sim/ssd_uuid"
+    if [[ -z "${uuid}" && -r "${uuid_file}" ]]; then
+        uuid="$(head -n 1 -- "${uuid_file}" | tr -d '[:space:]')"
+    fi
+    uuid="${uuid:-<UUID>}"
     cat >&2 <<EOF
-To connect the SSD, run by hand (find the UUID with: lsblk -o NAME,SIZE,FSTYPE,UUID):
+To connect the SSD, run scripts/mount_ssd.sh (it asks for the sudo password),
+or by hand (find the UUID with: lsblk -o NAME,SIZE,FSTYPE,UUID):
   sudo mount UUID=${uuid} ${ssd_mount}
   ls -la ${ssd_mount}          # check that it is the right disk
   sudo mkdir -p ${root}        # only the first time

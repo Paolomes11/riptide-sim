@@ -1,0 +1,248 @@
+{
+  "bins_u": 50,
+  "bins_z": 50,
+  "checks_version": 5,
+  "config": "config/flat_19p5_20MeV.json",
+  "hp_deuterium": [
+    {
+      "file": "/home/giulio-mesini/Software/Geant4/geant4-v11.4.1-install/share/Geant4/data/G4NDL4.7.1/Elastic/CrossSection/1_2_Hydrogen.z",
+      "sha256": "ad1e901e2545bd67792d78a2bfb013daca24d47d006d95690e882ef692fde004"
+    },
+    {
+      "file": "/home/giulio-mesini/Software/Geant4/geant4-v11.4.1-install/share/Geant4/data/G4NDL4.7.1/Inelastic/CrossSection/1_2_Hydrogen.z",
+      "sha256": "ebe306167a4dca0a8c5aca39f7b17deeb79c396b286bd0625fb134175290bd1d"
+    },
+    {
+      "file": "/home/giulio-mesini/Software/Geant4/geant4-v11.4.1-install/share/Geant4/data/G4NDL4.7.1/Capture/CrossSection/1_2_Hydrogen.z",
+      "sha256": "e40c5a72fedd83643107c3de866be1538b5048c0d84ddca366e5bdd48422f786"
+    }
+  ],
+  "hp_elastic_H1": {
+    "awr": 0.999167,
+    "file": "/home/giulio-mesini/Software/Geant4/geant4-v11.4.1-install/share/Geant4/data/G4NDL4.7.1/Elastic/FS/1_1_Hydrogen.z",
+    "frame_flag": 2,
+    "rep_flag": 1,
+    "sha256": "768c16753d5df0d5d3e32f1b3bf75db3a7a33730f2e721877710c5c52d719a89",
+    "target_mass_MeV": 938.7827020551201
+  },
+  "medium": {
+    "H2_over_H1": 0.00011501322652104993,
+    "density_g_cm3": 1.032,
+    "material": "G4_PLASTIC_SC_VINYLTOLUENE",
+    "n_C12_per_mm3": 4.682434422487277e+19,
+    "n_C13_per_mm3": 5.064393846215897e+17,
+    "n_H1_per_mm3": 5.258371174375474e+19,
+    "n_H2_per_mm3": 6.047822350102057e+15
+  },
+  "prediction": {
+    "En_max_MeV": 20.0,
+    "En_min_MeV": 19.5,
+    "Ep_physical_offset_relative": {
+      "max": 0.0005503211933328529,
+      "min": 0.0005332218066593047
+    },
+    "L_mm": 100.0,
+    "energy_nodes": 4096,
+    "events": 10000000,
+    "libraries": [
+      {
+        "expected_counts": {
+          "nc_elastic": 2980345.7514892956,
+          "nc_inelastic": 1576113.6062157569,
+          "np_elastic": 1647317.3654948485,
+          "other": 839.9101264621634,
+          "unknown": 3795383.3666736344
+        },
+        "fraction_sigma": {
+          "nc_elastic": 0.00014464092338087678,
+          "nc_inelastic": 0.00011522587366758879,
+          "np_elastic": 0.00011730097677465264,
+          "other": 2.897998587922551e-06,
+          "unknown": 0.0001534565044783487
+        },
+        "fraction_sigma_relative": {
+          "nc_elastic": 0.0004853159178212759,
+          "nc_inelastic": 0.0007310759402949747,
+          "np_elastic": 0.000712072726431897,
+          "other": 0.034503674817321084,
+          "unknown": 0.0004043241213148955
+        },
+        "hp_np_events": 827004.1322657258,
+        "legendre_expected": [
+          -0.016091248481916672,
+          0.007122611562541539,
+          -0.0014250519110778955,
+          0.0008677264562775499,
+          -5.339190136470771e-05,
+          8.131175775069325e-06
+        ],
+        "legendre_sigma": [
+          0.0006391321246529133,
+          0.0004947481717724033,
+          0.00041788527831915147,
+          0.0003684663219127809,
+          0.0003332612552931409,
+          0.0003065406940727007
+        ],
+        "legendre_spread": [
+          0.5812252685181439,
+          0.44992283738427036,
+          0.3800239007431044,
+          0.3350824166598598,
+          0.3030670109089573,
+          0.27876739464613853
+        ],
+        "library": "jeff33",
+        "non_hp_np_events": 820145.2297519348,
+        "non_hp_np_sigma": 523.9451154709266,
+        "non_hp_share": 0.49791794761545205,
+        "probabilities": {
+          "nc_elastic": 0.29803457514892956,
+          "nc_inelastic": 0.15761136062157569,
+          "np_elastic": 0.16473173654948484,
+          "other": 8.399101264621634e-05,
+          "unknown": 0.3795383366673634
+        },
+        "sigma_total_per_mm": 0.009687999205038508,
+        "u_min_expected_count": 16093.332788880001
+      },
+      {
+        "expected_counts": {
+          "nc_elastic": 2997314.2840415114,
+          "nc_inelastic": 1559382.2314832578,
+          "np_elastic": 1644763.4712497636,
+          "other": 781.398140397725,
+          "unknown": 3797758.615085065
+        },
+        "fraction_shift_in_sigma": {
+          "nc_elastic": 11.731487988038579,
+          "nc_inelastic": -14.520501515802607,
+          "np_elastic": -2.1772148155177624,
+          "other": -2.0190481219793517,
+          "unknown": 1.5478316930945157
+        },
+        "fraction_sigma": {
+          "nc_elastic": 0.00014487667142468394,
+          "nc_inelastic": 0.00011472641095653116,
+          "np_elastic": 0.00011722793112624679,
+          "other": 2.795240744716532e-06,
+          "unknown": 0.0001534751304035863
+        },
+        "fraction_sigma_relative": {
+          "nc_elastic": 0.00048335495612203703,
+          "nc_inelastic": 0.0007357170592318815,
+          "np_elastic": 0.0007127342817090402,
+          "other": 0.03577229839955568,
+          "unknown": 0.0004041202876717025
+        },
+        "hp_np_events": 825735.8334787772,
+        "legendre_expected": [
+          -0.016149955630383,
+          0.007386163251903593,
+          -0.0007440398793492648,
+          0.0003547789729686341,
+          9.14320051345671e-06,
+          6.223552698163284e-06
+        ],
+        "legendre_shift_in_sigma": [
+          -0.09185447922557344,
+          0.5326986624688221,
+          1.6296626539892642,
+          -1.392114971718731,
+          0.1876458810765678,
+          -0.0062230663458131925
+        ],
+        "legendre_sigma": [
+          0.0006397872979991219,
+          0.0004948927220762393,
+          0.00041810608192716764,
+          0.0003686757102248321,
+          0.0003334551443355929,
+          0.0003067215682288422
+        ],
+        "legendre_spread": [
+          0.5813747682012634,
+          0.4497090556211087,
+          0.37993302965555154,
+          0.33501564698724623,
+          0.303010715983127,
+          0.2787179132643798
+        ],
+        "library": "endfb80",
+        "non_hp_np_events": 818859.5900979601,
+        "non_hp_np_sigma": 523.540349237785,
+        "non_hp_share": 0.4979094422609232,
+        "probabilities": {
+          "nc_elastic": 0.2997314284041511,
+          "nc_inelastic": 0.15593822314832578,
+          "np_elastic": 0.16447634712497636,
+          "other": 7.81398140397725e-05,
+          "unknown": 0.3797758615085065
+        },
+        "shift_from_first_in_sigma": {
+          "fractions": 14.520501515802607,
+          "legendre": 1.6296626539892642,
+          "u_noncentrality": 4.824690275971907
+        },
+        "sigma_total_per_mm": 0.009681742969107917,
+        "u_min_expected_count": 16061.476538943678
+      }
+    ],
+    "overlaps_model_window": true,
+    "quadrature_shift_in_sigma": {
+      "fractions": 1.5354973788555542e-07,
+      "legendre": 8.821198771571217e-09,
+      "u_noncentrality": 8.034634881435173e-17
+    },
+    "test_plan": {
+      "alpha_family": 0.01,
+      "alpha_per_test": 0.0009090909090909091,
+      "chi2_tests": 4,
+      "pull_tests": 7,
+      "pull_threshold": 3.317247361552454
+    }
+  },
+  "reference_files": [
+    {
+      "library": "jeff33",
+      "nuclide": "H-1",
+      "path": "/mnt/external_ssd/riptide-sim/reference/jeff33/n_0125_1-H-1.dat",
+      "sha256": "d7dc8efb7bb1284013e7ae233d3d9c7fd1c61dad6fd97bcd29542fdb531ceca8"
+    },
+    {
+      "library": "jeff33",
+      "nuclide": "C-0",
+      "path": "/mnt/external_ssd/riptide-sim/reference/jeff33/n_0600_6-C-0.dat",
+      "sha256": "30ca87a83148abe20653c892bc78ffe762b0cf6757e4ad597197140cfb0c5b0c"
+    },
+    {
+      "library": "jeff33",
+      "nuclide": "C-13",
+      "path": "/mnt/external_ssd/riptide-sim/reference/jeff33/n_0628_6-C-13.dat",
+      "sha256": "c51b1895594c2ee354c2c0c353bf90b7e229fac1154464c88971f200a642d244"
+    },
+    {
+      "library": "endfb80",
+      "nuclide": "H-1",
+      "path": "/mnt/external_ssd/riptide-sim/reference/endfb80/n-001_H_001.endf",
+      "sha256": "e7b76c20c1d61f2cb2621de716d324047fa1f9583bef568f643f8d98094260fb"
+    },
+    {
+      "library": "endfb80",
+      "nuclide": "C-12",
+      "path": "/mnt/external_ssd/riptide-sim/reference/endfb80/n-006_C_012.endf",
+      "sha256": "daa7901e0067f9ac6d9b2392514ba00e71e37d00c8a8ecbbde0620237815f981"
+    },
+    {
+      "library": "endfb80",
+      "nuclide": "C-13",
+      "path": "/mnt/external_ssd/riptide-sim/reference/endfb80/n-006_C_013.endf",
+      "sha256": "abaa8cc34398e6ada0a8c451efd5eef1019a37c7a0a708a4280af71ab77621de"
+    }
+  ],
+  "versions": {
+    "geant4": "11.4.1",
+    "git": "00092fd",
+    "riptide": "0.2.0"
+  }
+}

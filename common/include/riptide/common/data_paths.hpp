@@ -9,6 +9,7 @@
 // Layout below the root:
 //   sim/<run_id>/                     events_t*.root, run.json
 //   analysis/<run_id>/<analysis_id>/  results, analysis.json
+//   validation/<run_id>/<check_id>/   physics checks of a run, checks.json
 
 #include <sys/stat.h>
 #include <unistd.h>
@@ -153,6 +154,14 @@ inline std::filesystem::path analysisDir(const std::filesystem::path& root, std:
     requireValidId(run_id, "run id");
     requireValidId(analysis_id, "analysis id");
     return root / "analysis" / std::string{run_id} / std::string{analysis_id};
+}
+
+// <root>/validation/<run_id>/<check_id>
+inline std::filesystem::path validationDir(const std::filesystem::path& root,
+                                           std::string_view run_id, std::string_view check_id) {
+    requireValidId(run_id, "run id");
+    requireValidId(check_id, "check id");
+    return root / "validation" / std::string{run_id} / std::string{check_id};
 }
 
 } // namespace riptide::data

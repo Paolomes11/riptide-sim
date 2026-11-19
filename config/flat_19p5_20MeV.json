@@ -1,0 +1,14 @@
+{
+  "config_version": 1,
+  "geometry": {
+    "scint_size_mm": [100.0, 100.0, 100.0]
+  },
+  "source": {
+    "mode": "flat",
+    "En_min_MeV": 19.5,
+    "En_max_MeV": 20.0,
+    "direction": [0.0, 0.0, 1.0],
+    "position_mm": [0.0, 0.0, -100.0]
+  },
+  "physics_list": "QGSP_BIC_HP"
+}

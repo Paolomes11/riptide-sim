@@ -2,11 +2,8 @@
 
 #include <lyra/lyra.hpp>
 
-#include <charconv>
 #include <sstream>
 #include <string>
-#include <string_view>
-#include <system_error>
 
 #include "riptide/common/data_paths.hpp"
 #include "riptide/sim/event_seeds.hpp"
@@ -14,21 +11,6 @@
 namespace riptide::sim {
 
 namespace {
-
-// Numbers are taken as strings and converted here: stream extraction into an
-// unsigned type accepts "-1" and wraps it to a huge value, and std::from_chars
-// rejects signs, trailing characters and overflow.
-template <typename T> T parseNumber(const std::string& text, std::string_view option) {
-    T value{};
-    const char* first = text.data();
-    const char* last = first + text.size();
-    const auto [ptr, ec] = std::from_chars(first, last, value);
-    if (text.empty() || ec != std::errc{} || ptr != last) {
-        throw CliError(std::string{option} + ": expected a non-negative integer, got '" + text +
-                       "'");
-    }
-    return value;
-}
 
 struct RawOptions {
     bool show_help = false;
@@ -88,7 +70,7 @@ CliOptions parseCommandLine(const std::vector<std::string>& args) {
         throw CliError("--run-id is required");
     }
     opts.config = raw.config;
-    opts.events = parseNumber<std::uint64_t>(raw.events, "--events");
+    opts.events = parseCliNumber<std::uint64_t>(raw.events, "--events");
     if (opts.events == 0 || opts.events > kMaxEvents) {
         throw CliError("--events: must be in [1, " + std::to_string(kMaxEvents) + "]");
     }
@@ -98,13 +80,13 @@ CliOptions parseCommandLine(const std::vector<std::string>& args) {
     }
     opts.run_id = raw.run_id;
     if (!raw.threads.empty()) {
-        opts.threads = parseNumber<int>(raw.threads, "--threads");
+        opts.threads = parseCliNumber<int>(raw.threads, "--threads");
         if (opts.threads < 1 || opts.threads > kMaxThreads) {
             throw CliError("--threads: must be in [1, " + std::to_string(kMaxThreads) + "]");
         }
     }
     if (!raw.seed.empty()) {
-        opts.seed = parseNumber<std::uint64_t>(raw.seed, "--seed");
+        opts.seed = parseCliNumber<std::uint64_t>(raw.seed, "--seed");
         if (opts.seed > kMaxSeed) {
             throw CliError("--seed: must be in [0, " + std::to_string(kMaxSeed) +
                            "] (seeds are stored as signed 32-bit integers)");

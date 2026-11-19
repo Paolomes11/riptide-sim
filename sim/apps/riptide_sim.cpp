@@ -34,10 +34,12 @@
 
 namespace {
 
-// Provisional, deliberately generous estimate of the output size per event
-// (uncompressed truth row plus ROOT overhead), used only for the free-space
-// check; it is replaced by a measured value in phase 1b.
-constexpr std::uint64_t kProvisionalBytesPerEvent = 1024;
+// Output size per event for the free-space check. The phase 1b runs of 1e7
+// events (8 threads, compressed ROOT) measured 54.3 B (mono 14 MeV), 58.0 B
+// (flat 19.5-20 MeV) and 61.7 B (flat 10-20 MeV); about twice the largest
+// leaves room for sources that compress worse, while per-file overhead of
+// small runs is covered by the fixed margin of the check.
+constexpr std::uint64_t kBytesPerEvent = 128;
 
 constexpr int kExitOk = 0;
 constexpr int kExitUsage = 2;
@@ -64,7 +66,7 @@ void printVersion() {
 std::filesystem::path prepareRunDir(const riptide::sim::CliOptions& opts) {
     namespace data = riptide::data;
     const auto root = data::resolveDataRoot(opts.data_dir);
-    data::requireWritableRoot(root, data::estimateRunBytes(opts.events, kProvisionalBytesPerEvent),
+    data::requireWritableRoot(root, data::estimateRunBytes(opts.events, kBytesPerEvent),
                               data::kFreeSpaceMargin, opts.allow_system_disk);
     const auto run_dir = data::simRunDir(root, opts.run_id);
     if (std::filesystem::exists(run_dir)) {
