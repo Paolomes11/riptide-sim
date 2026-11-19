@@ -40,7 +40,10 @@ namespace riptide::sim::checks {
 truncatedExponentialBinProbabilities(double sigma_total, double L,
                                      const std::vector<double>& edges);
 
-enum class Target : std::uint8_t { Hydrogen, Carbon };
+// Deuterium is a separate target because only protium gives a recoil
+// proton: n-d elastic is still classified as n-p (both are elastic on Z = 1)
+// but has no proton to histogram.
+enum class Target : std::uint8_t { Hydrogen, Deuterium, Carbon };
 
 // One nuclide of the medium with its cross sections at the incident energy.
 struct MediumComponent {
@@ -58,8 +61,12 @@ inline constexpr std::size_t kFirstInteractionCategories = 5;
 // The categories follow the classification of the simulation: elastic on H
 // and on C, non-elastic on C without capture (sigma_total - sigma_elastic -
 // sigma_capture), and Other for captures and any non-elastic channel on H.
+// Hydrogen means both isotopes here, as the simulation classifies by Z.
 struct FirstInteractionProbabilities {
     double sigma_total = 0.0; // macroscopic, sum_i n_i sigma_total,i [1/mm]
+    // P(first interaction is elastic on protium), the only channel of the
+    // NpElastic category with a recoil proton.
+    double protium_elastic = 0.0;
     // P(category); entry Unknown is P(no interaction) = e^{-Sigma L}.
     std::array<double, kFirstInteractionCategories> unconditional{};
     // P(category | an interaction); entry Unknown is 0.

@@ -3,7 +3,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
+#include <iterator>
 #include <random>
 #include <stdexcept>
 #include <vector>
@@ -495,4 +497,55 @@ TEST_CASE("checks with too few events are skipped, not failed", "[check_accumula
     CHECK_FALSE(f.skipped.empty());
     // Three spread cosines are enough for the moments themselves.
     CHECK(results.legendre.moments.has_value());
+}
+
+TEST_CASE("nuclide from HP cross sections", "[check_accumulator][hp]") {
+    // Round numbers on overlapping grids, not physical values.
+    const checks::HpCrossSection elastic{
+        {1.0, 4.0, 4.0, 10.0},
+        {0.6 * units::barn, 0.6 * units::barn, 0.7 * units::barn, 0.4 * units::barn}};
+    const checks::HpCrossSection inelastic{{2.0, 6.0, 12.0},
+                                           {0.0, 0.2 * units::barn, 0.2 * units::barn}};
+    const checks::HpCrossSection capture{{0.5, 8.0}, {2.0e-5 * units::barn, 1.0e-5 * units::barn}};
+    constexpr double kDensity = 1.0e16; // atoms / mm^3
+    const checks::Nuclide h2 = checks::makeHpNuclide(checks::Target::Deuterium, "H-2", kDensity,
+                                                     elastic, inelastic, capture);
+
+    SECTION("the total is the sum of the parts over the common interval") {
+        CHECK(h2.target == checks::Target::Deuterium);
+        CHECK_THAT(h2.number_density, WithinRel(kDensity, kTolerance));
+        CHECK_THAT(h2.total.x.front(), WithinRel(2.0, kTolerance));
+        CHECK_THAT(h2.total.x.back(), WithinRel(8.0, kTolerance));
+        // Points between the union nodes too, where only linearity makes it exact.
+        for (const double En : {2.0, 2.5, 3.9, 4.5, 5.0, 6.0, 7.3, 8.0}) {
+            const double sum = checks::evaluate(elastic, En) + checks::evaluate(inelastic, En) +
+                               checks::evaluate(capture, En);
+            CHECK_THAT(endf::evaluate(h2.total, En), WithinRel(sum, kTolerance));
+            CHECK_THAT(endf::evaluate(h2.elastic, En),
+                       WithinRel(checks::evaluate(elastic, En), kTolerance));
+            CHECK_THAT(endf::evaluate(h2.capture, En),
+                       WithinRel(checks::evaluate(capture, En), kTolerance));
+        }
+    }
+    SECTION("a jump of a part is a jump of the total") {
+        const auto first =
+            std::find_if(h2.total.x.begin(), h2.total.x.end(), [](double x) { return !(x < 4.0); });
+        REQUIRE(std::next(first) != h2.total.x.end());
+        const auto i = static_cast<std::size_t>(std::distance(h2.total.x.begin(), first));
+        CHECK_THAT(h2.total.x.at(i + 1), WithinRel(4.0, kTolerance));
+        const double others = checks::evaluate(inelastic, 4.0) + checks::evaluate(capture, 4.0);
+        CHECK_THAT(h2.total.y.at(i), WithinRel(0.6 * units::barn + others, kTolerance));
+        CHECK_THAT(h2.total.y.at(i + 1), WithinRel(0.7 * units::barn + others, kTolerance));
+    }
+    SECTION("disjoint or malformed tables are refused") {
+        const checks::HpCrossSection late{{20.0, 30.0}, {0.1 * units::barn, 0.1 * units::barn}};
+        CHECK_THROWS_AS(checks::makeHpNuclide(checks::Target::Deuterium, "H-2", kDensity, elastic,
+                                              late, capture),
+                        checks::HpDataError);
+        const checks::HpCrossSection decreasing{
+            {1.0, 3.0, 2.0}, {0.1 * units::barn, 0.1 * units::barn, 0.1 * units::barn}};
+        CHECK_THROWS_AS(checks::makeHpNuclide(checks::Target::Deuterium, "H-2", kDensity,
+                                              decreasing, inelastic, capture),
+                        endf::EndfError);
+    }
 }

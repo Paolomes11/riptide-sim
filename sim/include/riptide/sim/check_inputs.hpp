@@ -14,6 +14,7 @@
 
 #include "riptide/sim/check_accumulator.hpp"
 #include "riptide/sim/endf_reader.hpp"
+#include "riptide/sim/hp_data.hpp"
 #include "riptide/sim/hp_recoil.hpp"
 
 namespace riptide::sim::checks {
@@ -68,10 +69,26 @@ struct HpElasticH1 {
 
 [[nodiscard]] nlohmann::json hpJson(const HpElasticH1& hp);
 
+// G4NDL cross sections of H-2, the ones the HP model uses, with their files.
+struct HpDeuterium {
+    std::filesystem::path elastic_file;
+    std::filesystem::path inelastic_file;
+    std::filesystem::path capture_file;
+    HpCrossSection elastic;
+    HpCrossSection inelastic;
+    HpCrossSection capture;
+};
+
+// Throws std::runtime_error if G4NEUTRONHPDATA is unset or a file missing,
+// HpDataError if a file is malformed.
+[[nodiscard]] HpDeuterium readHpDeuterium();
+
+[[nodiscard]] nlohmann::json hpDeuteriumJson(const HpDeuterium& hp);
+
 // JEFF-3.3, with carbon composed as the HP model composes it, then
-// ENDF/B-VIII.0 with C-12 and C-13 as physics.
-[[nodiscard]] std::vector<ReferenceModel> referenceModels(ReferenceSet& refs,
-                                                          const MediumDensities& densities);
+// ENDF/B-VIII.0 with C-12 and C-13 as physics; both with H-2 from G4NDL.
+[[nodiscard]] std::vector<ReferenceModel>
+referenceModels(ReferenceSet& refs, const MediumDensities& densities, const HpDeuterium& deuterium);
 
 // Geant4 version as "major.minor.patch".
 [[nodiscard]] std::string geant4Version();

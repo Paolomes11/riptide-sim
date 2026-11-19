@@ -10,6 +10,7 @@
 #include <G4Version.hh>
 
 #include <cstddef>
+#include <initializer_list>
 #include <sstream>
 #include <stdexcept>
 #include <utility>
@@ -41,6 +42,10 @@ constexpr const char* kEndfbCarbon13 = "n-006_C_013.endf";
 constexpr const char* kHpDataEnv = "G4NEUTRONHPDATA";
 constexpr const char* kHpElasticH1 = "/Elastic/FS/1_1_Hydrogen";
 constexpr const char* kHpCompressedSuffix = ".z";
+// G4NDL cross sections of H-2, as G4ParticleHPIsoData reads them.
+constexpr const char* kHpElasticH2 = "/Elastic/CrossSection/1_2_Hydrogen";
+constexpr const char* kHpInelasticH2 = "/Inelastic/CrossSection/1_2_Hydrogen";
+constexpr const char* kHpCaptureH2 = "/Capture/CrossSection/1_2_Hydrogen";
 
 constexpr int kHydrogenZ = 1;
 constexpr int kCarbonZ = 6;
@@ -62,6 +67,31 @@ void addIsotope(MediumDensities& densities, int Z, int N, double n, const std::s
         throw std::runtime_error("isotope " + name + " of " + kScintillatorMaterial +
                                  " has no reference evaluation in the checks");
     }
+}
+
+const char* hpDataDir() {
+    const char* dir = G4FindDataDir(kHpDataEnv);
+    if (dir == nullptr) {
+        throw std::runtime_error(std::string(kHpDataEnv) + " is not set: no G4NDL to read");
+    }
+    return dir;
+}
+
+// GetDataStream falls back to an uncompressed file and leaves the stream
+// empty if neither exists; require the compressed file the checks record.
+std::istringstream hpDataStream(const std::string& base, fs::path& file) {
+    file = base + kHpCompressedSuffix;
+    if (!fs::is_regular_file(file)) {
+        throw std::runtime_error("HP data file not found: " + file.string());
+    }
+    std::istringstream in;
+    G4ParticleHPManager::GetInstance()->GetDataStream(base, in);
+    return in;
+}
+
+HpCrossSection readHpCrossSection(const char* relative, fs::path& file) {
+    std::istringstream in = hpDataStream(std::string(hpDataDir()) + relative, file);
+    return parseHpCrossSection(in);
 }
 
 } // namespace
@@ -131,20 +161,8 @@ nlohmann::json ReferenceSet::json() const {
 }
 
 HpElasticH1 readHpElasticH1() {
-    const char* dir = G4FindDataDir(kHpDataEnv);
-    if (dir == nullptr) {
-        throw std::runtime_error(std::string(kHpDataEnv) + " is not set: no G4NDL to read");
-    }
-    const std::string base = std::string(dir) + kHpElasticH1;
     HpElasticH1 hp;
-    hp.file = base + kHpCompressedSuffix;
-    // GetDataStream falls back to an uncompressed file and leaves the stream
-    // empty if neither exists; require the file the checks record.
-    if (!fs::is_regular_file(hp.file)) {
-        throw std::runtime_error("HP elastic file not found: " + hp.file.string());
-    }
-    std::istringstream in;
-    G4ParticleHPManager::GetInstance()->GetDataStream(base, in);
+    std::istringstream in = hpDataStream(std::string(hpDataDir()) + kHpElasticH1, hp.file);
     hp.header = parseHpElasticHeader(in);
     hp.target_mass = hp.header.awr * kinematics::kNeutronMass;
     return hp;
@@ -156,6 +174,22 @@ nlohmann::json hpJson(const HpElasticH1& hp) {
             {"frame_flag", hp.header.frame_flag}, {"target_mass_MeV", hp.target_mass}};
 }
 
+HpDeuterium readHpDeuterium() {
+    HpDeuterium hp;
+    hp.elastic = readHpCrossSection(kHpElasticH2, hp.elastic_file);
+    hp.inelastic = readHpCrossSection(kHpInelasticH2, hp.inelastic_file);
+    hp.capture = readHpCrossSection(kHpCaptureH2, hp.capture_file);
+    return hp;
+}
+
+nlohmann::json hpDeuteriumJson(const HpDeuterium& hp) {
+    nlohmann::json doc = nlohmann::json::array();
+    for (const fs::path* file : {&hp.elastic_file, &hp.inelastic_file, &hp.capture_file}) {
+        doc.push_back({{"file", file->string()}, {"sha256", sha256File(*file)}});
+    }
+    return doc;
+}
+
 // The JEFF-3.3 expectation is composed as the HP model composes carbon, so
 // that it checks the implementation: G4NDL has no C-12 file and the model
 // falls back to the natural-carbon one (derived from JEFF C-0) for the C-12
@@ -164,9 +198,15 @@ nlohmann::json hpJson(const HpElasticH1& hp) {
 // expectation must reproduce. The G4NDL C-13 inelastic is the sum of the
 // JEFF partial channels, not MT3 - MT102; using MT1 of C-13 leaves a known
 // residual of about 3e-4 relative on the carbon nonelastic near 14 MeV.
-// ENDF/B-VIII.0 has C-12 and C-13 as physics. Deuterium has no evaluation
-// here: its share n_H2/n_H1 is reported as a known systematic.
-std::vector<ReferenceModel> referenceModels(ReferenceSet& refs, const MediumDensities& densities) {
+// ENDF/B-VIII.0 has C-12 and C-13 as physics. H-2 has no evaluated file
+// among the references, so both libraries take it from G4NDL: not an
+// independent check of the model, but its n-d break-up (Z = 1, not elastic,
+// classified "other") is a visible share of the first interactions, and its
+// elastic part is counted as n-p, as the simulation counts it.
+std::vector<ReferenceModel> referenceModels(ReferenceSet& refs, const MediumDensities& densities,
+                                            const HpDeuterium& deuterium) {
+    const Nuclide h2 = makeHpNuclide(Target::Deuterium, "H-2 (G4NDL)", densities.n_H2,
+                                     deuterium.elastic, deuterium.inelastic, deuterium.capture);
     const endf::EndfMaterial jeff_h1 = refs.read(kJeffLibrary, "H-1", kJeffHydrogen1);
     const endf::EndfMaterial jeff_c0 = refs.read(kJeffLibrary, "C-0", kJeffCarbonNatural);
     const endf::EndfMaterial jeff_c13 = refs.read(kJeffLibrary, "C-13", kJeffCarbon13);
@@ -175,7 +215,7 @@ std::vector<ReferenceModel> referenceModels(ReferenceSet& refs, const MediumDens
     jeff.np_angular = endf::legendreAngular(jeff_h1);
     jeff.nuclides = {makeNuclide(Target::Hydrogen, "H-1", densities.n_H1, jeff_h1),
                      makeNuclide(Target::Carbon, "C-12 (C-0)", densities.n_C12, jeff_c0),
-                     makeNuclide(Target::Carbon, "C-13", densities.n_C13, jeff_c13)};
+                     makeNuclide(Target::Carbon, "C-13", densities.n_C13, jeff_c13), h2};
 
     const endf::EndfMaterial endfb_h1 = refs.read(kEndfbLibrary, "H-1", kEndfbHydrogen1);
     const endf::EndfMaterial endfb_c12 = refs.read(kEndfbLibrary, "C-12", kEndfbCarbon12);
@@ -185,7 +225,7 @@ std::vector<ReferenceModel> referenceModels(ReferenceSet& refs, const MediumDens
     endfb.np_angular = endf::legendreAngular(endfb_h1);
     endfb.nuclides = {makeNuclide(Target::Hydrogen, "H-1", densities.n_H1, endfb_h1),
                       makeNuclide(Target::Carbon, "C-12", densities.n_C12, endfb_c12),
-                      makeNuclide(Target::Carbon, "C-13", densities.n_C13, endfb_c13)};
+                      makeNuclide(Target::Carbon, "C-13", densities.n_C13, endfb_c13), h2};
 
     std::vector<ReferenceModel> models;
     models.push_back(std::move(jeff));

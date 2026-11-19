@@ -28,7 +28,7 @@ inline constexpr const char* kResidualsFileName = "residuals_Ep.csv";
 inline constexpr const char* kModelMixFileName = "model_mix.csv";
 
 // Version of the checks.json layout; bumped on any change of its keys.
-inline constexpr int kChecksVersion = 4;
+inline constexpr int kChecksVersion = 5;
 
 class ReportError : public std::runtime_error {
 public:

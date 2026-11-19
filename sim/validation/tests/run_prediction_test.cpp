@@ -195,6 +195,39 @@ TEST_CASE("predictRun of a monoenergetic source equals the single-energy formula
         WithinRel(std::sqrt(p_np * (1.0 - p_np) / static_cast<double>(kEvents)), kTolerance));
 }
 
+TEST_CASE("predictRun: deuterium adds to n-p and other, not to the HP n-p events",
+          "[run_prediction]") {
+    // Round numbers, not physical values; the H-2 elastic is counted as n-p
+    // (Z = 1) but gives no recoil proton.
+    constexpr double kDeuteriumDensity = 1.0e17; // atoms / mm^3
+    constexpr double kDeuteriumElastic = 0.6 * units::barn;
+    constexpr double kDeuteriumTotal = 0.8 * units::barn;
+    const auto setup = cubeSetup(kEn, kEn);
+    const auto plain = model("lib", kCoefficients);
+    auto with_h2 = plain;
+    with_h2.nuclides.push_back(checks::Nuclide{
+        checks::Target::Deuterium, "H-2", kDeuteriumDensity, constantTable(kDeuteriumTotal),
+        constantTable(kDeuteriumElastic), constantTable(0.0)});
+    const auto run = checks::predictRun(setup, {with_h2}, kEvents, 1);
+    const auto& lib = run.libraries.front();
+    const auto first = checks::firstInteraction(with_h2.mediumAt(kEn), setup.chord.length());
+    CHECK_THAT(lib.hp_np_probability, WithinRel(first.protium_elastic, kTolerance));
+    CHECK(lib.hp_np_probability < lib.probabilities.at(index(FirstInteraction::NpElastic)));
+    // The two n-p channels share the beam attenuation, so their ratio is the
+    // ratio of the macroscopic elastic cross sections.
+    const double np_ratio =
+        (kHydrogenDensity * kHydrogenElastic + kDeuteriumDensity * kDeuteriumElastic) /
+        (kHydrogenDensity * kHydrogenElastic);
+    CHECK_THAT(lib.probabilities.at(index(FirstInteraction::NpElastic)) / lib.hp_np_probability,
+               WithinRel(np_ratio, kTolerance));
+    const auto base = checks::predictRun(setup, {plain}, kEvents, 1).libraries.front();
+    CHECK(lib.probabilities.at(index(FirstInteraction::Other)) >
+          base.probabilities.at(index(FirstInteraction::Other)));
+    for (std::size_t l = 0; l < kCoefficients.size(); ++l) {
+        CHECK_THAT(lib.legendre.at(l), WithinRel(base.legendre.at(l), kTolerance));
+    }
+}
+
 TEST_CASE("predictRun: the H-1 atomic mass shifts Ep upward by a few 1e-4", "[run_prediction]") {
     const auto setup = cubeSetup(kEn, kEn, kAwrH1 * kin::kNeutronMass);
     const auto run = checks::predictRun(setup, {model("lib", kCoefficients)}, kEvents, 1);

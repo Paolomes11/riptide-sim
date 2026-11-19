@@ -64,8 +64,10 @@ int predict(const checks::PredictCliOptions& opts) {
 
     const checks::MediumDensities densities = checks::scintillatorDensities();
     const checks::HpElasticH1 hp = checks::readHpElasticH1();
+    const checks::HpDeuterium deuterium = checks::readHpDeuterium();
     checks::ReferenceSet refs(root);
-    const std::vector<checks::ReferenceModel> models = checks::referenceModels(refs, densities);
+    const std::vector<checks::ReferenceModel> models =
+        checks::referenceModels(refs, densities, deuterium);
     const checks::CheckSetup setup =
         checks::makeCheckSetup(config, hp.target_mass, opts.bins_u, opts.bins_z);
 
@@ -88,16 +90,11 @@ int predict(const checks::PredictCliOptions& opts) {
                        {"geant4", checks::geant4Version()}};
     doc["reference_files"] = refs.json();
     doc["hp_elastic_H1"] = checks::hpJson(hp);
+    doc["hp_deuterium"] = checks::hpDeuteriumJson(deuterium);
     doc["medium"] = checks::densitiesJson(densities);
     doc["bins_u"] = opts.bins_u;
     doc["bins_z"] = opts.bins_z;
     doc["prediction"] = checks::predictionJson(run, quadrature, plan);
-    // The reference models hold H-1 and carbon only, so scattering on H-2 is
-    // left out of every expectation; HP n-p events times n_H2 / n_H1 gives the
-    // order of magnitude of that omission (the n-d cross section differs).
-    doc["n_H2_over_n_H1"] = densities.n_H2 / densities.n_H1;
-    doc["deuterium_scale_events"] =
-        checks::expectedErrors(run, 0).hp_np_events * densities.n_H2 / densities.n_H1;
     std::cout << doc.dump(kJsonIndent) << '\n';
     return kExitOk;
 }

@@ -19,6 +19,7 @@
 #include "riptide/sim/check_stats.hpp"
 #include "riptide/sim/endf_reader.hpp"
 #include "riptide/sim/expected_distributions.hpp"
+#include "riptide/sim/hp_data.hpp"
 #include "riptide/sim/run_config.hpp"
 #include "riptide/sim/truth_record.hpp"
 
@@ -37,6 +38,19 @@ struct Nuclide {
 // Reads MT1, MT2 and MT102 of `material`. Throws endf::EndfError if one is missing.
 [[nodiscard]] Nuclide makeNuclide(Target target, std::string label, double number_density,
                                   const endf::EndfMaterial& material);
+
+// A nuclide from the G4NDL cross sections the HP model reads (elastic,
+// inelastic, capture), for a component with no evaluated file among the
+// references. Elastic and capture become lin-lin tables; the total is their
+// sum with the inelastic on the union of the three grids, exact because a sum
+// of piecewise-linear functions is linear between the union points, and is
+// limited to the energies all three tables cover. A discontinuity of any part
+// (a doubled energy) becomes a doubled energy of the total. Throws
+// endf::EndfError on a malformed grid, HpDataError if the three tables have
+// no common energy interval.
+[[nodiscard]] Nuclide makeHpNuclide(Target target, std::string label, double number_density,
+                                    const HpCrossSection& elastic, const HpCrossSection& inelastic,
+                                    const HpCrossSection& capture);
 
 // The medium and the n-p angular distribution as one evaluated library sees them.
 struct ReferenceModel {

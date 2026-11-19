@@ -2,9 +2,13 @@
 
 #include <algorithm>
 #include <cmath>
+#include <initializer_list>
+#include <iterator>
 #include <set>
 #include <stdexcept>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "riptide/common/np_kinematics.hpp"
 #include "riptide/common/units.hpp"
@@ -176,6 +180,83 @@ Nuclide makeNuclide(Target target, std::string label, double number_density,
                    endf::crossSection(material, kTotalMt),
                    endf::crossSection(material, kElasticMt),
                    endf::crossSection(material, kCaptureMt)};
+}
+
+namespace {
+
+// The HP tables keep a discontinuity as a doubled energy, as ENDF does; the
+// Tab1 grid accepts the same (validate rejects a third equal energy).
+endf::Tab1 linLinTable(const HpCrossSection& table, const std::string& where) {
+    endf::Tab1 tab;
+    tab.boundaries = {static_cast<int>(table.En.size())};
+    tab.laws = {endf::InterpolationLaw::LinLin};
+    tab.x = table.En;
+    tab.y = table.sigma;
+    endf::validate(tab, where);
+    return tab;
+}
+
+// Limit from below at a point of the grid: at a doubled energy the first of
+// the two values, elsewhere the value itself (endf::evaluate gives the one
+// from above).
+double valueBelow(const endf::Tab1& tab, double x) {
+    const auto it = std::lower_bound(tab.x.begin(), tab.x.end(), x);
+    if (it != tab.x.end() && !(x < *it)) {
+        return tab.y[static_cast<std::size_t>(std::distance(tab.x.begin(), it))];
+    }
+    return endf::evaluate(tab, x);
+}
+
+} // namespace
+
+Nuclide makeHpNuclide(Target target, std::string label, double number_density,
+                      const HpCrossSection& elastic, const HpCrossSection& inelastic,
+                      const HpCrossSection& capture) {
+    endf::Tab1 el = linLinTable(elastic, label + " elastic");
+    const endf::Tab1 inel = linLinTable(inelastic, label + " inelastic");
+    endf::Tab1 cap = linLinTable(capture, label + " capture");
+    const std::initializer_list<const endf::Tab1*> parts{&el, &inel, &cap};
+    const double low = std::max({el.x.front(), inel.x.front(), cap.x.front()});
+    const double high = std::min({el.x.back(), inel.x.back(), cap.x.back()});
+    if (!(low < high)) {
+        throw HpDataError(label + ": the three cross sections share no energy interval");
+    }
+    std::vector<double> grid{low, high};
+    for (const endf::Tab1* tab : parts) {
+        for (const double x : tab->x) {
+            if (x > low && x < high) {
+                grid.push_back(x);
+            }
+        }
+    }
+    std::sort(grid.begin(), grid.end());
+    endf::Tab1 total;
+    for (const double x : grid) {
+        // Each energy once, though several tables may list it.
+        if (!total.x.empty() && !(total.x.back() < x)) {
+            continue;
+        }
+        double below = 0.0;
+        double above = 0.0;
+        for (const endf::Tab1* tab : parts) {
+            below += valueBelow(*tab, x);
+            above += endf::evaluate(*tab, x);
+        }
+        // A jump of any part is a jump of the total: doubled energy, below
+        // then above. Not at the ends, where only one side is tabulated.
+        const bool jump = (below < above || above < below) && x > low && x < high;
+        if (jump) {
+            total.x.push_back(x);
+            total.y.push_back(below);
+        }
+        total.x.push_back(x);
+        total.y.push_back(above);
+    }
+    total.boundaries = {static_cast<int>(total.x.size())};
+    total.laws = {endf::InterpolationLaw::LinLin};
+    endf::validate(total, label + " total");
+    return Nuclide{target,           std::move(label), number_density,
+                   std::move(total), std::move(el),    std::move(cap)};
 }
 
 std::vector<double> ReferenceModel::coefficientsAt(double En) const {

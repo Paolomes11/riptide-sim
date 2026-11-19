@@ -66,9 +66,9 @@ path, ref_path, ref_sha = sys.argv[1:4]
 with open(path, encoding="utf-8") as f:
     doc = json.load(f)
 for key in ("checks_version", "run_id", "check_id", "versions", "reference_files",
-            "hp_elastic_H1", "medium", "beam", "results"):
+            "hp_elastic_H1", "hp_deuterium", "medium", "beam", "results"):
     assert key in doc, f"checks.json has no key {key}"
-assert doc["checks_version"] == 4, f"unexpected checks_version {doc['checks_version']}"
+assert doc["checks_version"] == 5, f"unexpected checks_version {doc['checks_version']}"
 results = doc["results"]
 for key in ("spectrum_u", "depth_z", "fractions", "legendre", "Ep_residuals",
             "Ep_physical_offset", "model_mix", "counters"):
@@ -97,5 +97,9 @@ jeff = [r["nuclide"] for r in doc["reference_files"] if r["library"] == "jeff33"
 assert jeff == ["H-1", "C-0", "C-13"], f"unexpected JEFF-3.3 files {jeff}"
 recorded = {r["path"]: r["sha256"] for r in doc["reference_files"]}
 assert recorded.get(ref_path) == ref_sha, f"sha256 of {ref_path}: {recorded.get(ref_path)} != {ref_sha}"
+# H-2 enters the expectations from its three G4NDL cross-section files.
+h2 = [f["file"].split("/")[-3] for f in doc["hp_deuterium"]
+      if f["file"].endswith("/CrossSection/1_2_Hydrogen.z") and len(f["sha256"]) == 64]
+assert h2 == ["Elastic", "Inelastic", "Capture"], f"unexpected H-2 files {doc['hp_deuterium']}"
 print(f"checks.json ok: {results['events']} events, {results['np_events']} n-p")
 PY

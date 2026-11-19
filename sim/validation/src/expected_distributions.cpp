@@ -110,6 +110,7 @@ FirstInteractionProbabilities firstInteraction(const std::vector<MediumComponent
     }
     // Macroscopic cross sections [1/mm] of each category.
     std::array<double, kFirstInteractionCategories> partial{};
+    double protium_elastic = 0.0;
     double total = 0.0;
     for (const MediumComponent& component : components) {
         const double n = component.number_density;
@@ -126,7 +127,11 @@ FirstInteractionProbabilities firstInteraction(const std::vector<MediumComponent
             invalid("firstInteraction: elastic + capture exceed the total cross section");
         }
         nonelastic = std::max(nonelastic, 0.0);
-        const bool hydrogen = component.target == Target::Hydrogen;
+        const bool hydrogen =
+            component.target == Target::Hydrogen || component.target == Target::Deuterium;
+        if (component.target == Target::Hydrogen) {
+            protium_elastic += n * elastic;
+        }
         partial.at(index(hydrogen ? FirstInteraction::NpElastic : FirstInteraction::NCElastic)) +=
             n * elastic;
         partial.at(index(hydrogen ? FirstInteraction::Other : FirstInteraction::NCInelastic)) +=
@@ -151,6 +156,7 @@ FirstInteractionProbabilities firstInteraction(const std::vector<MediumComponent
         result.unconditional.at(i) = interacts * result.conditional.at(i);
     }
     result.unconditional.at(index(FirstInteraction::Unknown)) = std::exp(-total * L);
+    result.protium_elastic = interacts * protium_elastic / partial_sum;
     return result;
 }
 

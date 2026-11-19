@@ -179,6 +179,29 @@ TEST_CASE("first-interaction probabilities from cross sections", "[expected][fir
                    WithinRel(1.0, 1e-14));
         CHECK_THAT(p.probabilityGivenInteraction(FirstInteraction::Unknown), WithinAbs(0.0, 0.0));
     }
+    SECTION("deuterium: elastic counted as n-p, the rest as other, no recoil proton") {
+        const checks::MediumComponent deuterium{checks::Target::Deuterium, 1.0e19 * kPerCubicMm,
+                                                0.6 * units::barn, 0.0001 * units::barn,
+                                                0.8 * units::barn};
+        const checks::FirstInteractionProbabilities p =
+            checks::firstInteraction({hydrogen, carbon, deuterium}, kLength);
+        const double total = (5.0e19 * 0.9001 + 4.0e19 * 1.2 + 1.0e19 * 0.8) * 1e-22;
+        const double interacts = 1.0 - std::exp(-total * kLength);
+        CHECK_THAT(p.probabilityGivenInteraction(FirstInteraction::NpElastic),
+                   WithinRel((5.0e19 * 0.9 + 1.0e19 * 0.6) * 1e-22 / total, 1e-12));
+        CHECK_THAT(
+            p.probabilityGivenInteraction(FirstInteraction::Other),
+            WithinRel((5.0e19 * 0.0001 + 4.0e19 * 0.0002 + 1.0e19 * (0.8 - 0.6)) * 1e-22 / total,
+                      1e-9));
+        CHECK_THAT(p.probabilityGivenInteraction(FirstInteraction::NCInelastic),
+                   WithinRel(4.0e19 * (1.2 - 0.7 - 0.0002) * 1e-22 / total, 1e-9));
+        CHECK_THAT(p.protium_elastic, WithinRel(interacts * 5.0e19 * 0.9e-22 / total, 1e-12));
+    }
+    SECTION("without deuterium, protium elastic is the n-p probability") {
+        const checks::FirstInteractionProbabilities p =
+            checks::firstInteraction({hydrogen, carbon}, kLength);
+        CHECK_THAT(p.protium_elastic, WithinRel(p.probability(FirstInteraction::NpElastic), 1e-14));
+    }
     SECTION("one component gives sigma_el / sigma_tot") {
         const checks::FirstInteractionProbabilities p = checks::firstInteraction({carbon}, kLength);
         CHECK_THAT(p.probabilityGivenInteraction(FirstInteraction::NCElastic),

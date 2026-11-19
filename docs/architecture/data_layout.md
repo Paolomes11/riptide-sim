@@ -120,7 +120,7 @@ I `run_id` `ctest_it_1t` e `ctest_it_2t` sono riservati al test d'integrazione
 (`sim/tests/run_integration.sh`), che cancella e ricrea le loro cartelle a ogni esecuzione.
 Il `check_id` `ctest_smoke` è riservato allo smoke test di `riptide_sim_check`
 (`sim/tests/run_check_smoke.sh`), che ricrea solo `validation/ctest_it_1t/ctest_smoke`. Lo
-smoke test controlla `checks_version` = 4, i file JEFF-3.3 letti (H-1, C-0, C-13, D15) e lo
+smoke test controlla `checks_version` = 5, i file JEFF-3.3 letti (H-1, C-0, C-13, D15) e lo
 sha256 del primo, l'AWR di H-1 (0.999167, D14), il residuo di E_p all'arrotondamento, lo scarto
 dalla cinematica fisica in [5.3, 5.5]·10⁻⁴, i contatori di coerenza a zero e, a 14 MeV, nessun
 evento n–p con la cinematica non HP (D16).
@@ -155,6 +155,17 @@ verifiche leggono H-1, C-0 e C-13 (D15).
 | `n_0628_6-C-13.dat` | dallo zip (MAT 628) | `c51b1895594c2ee354c2c0c353bf90b7e229fac1154464c88971f200a642d244` |
 
 In ogni file l'intestazione MF1 riporta "JEFF-3.3" e ZA/MAT corrispondono al nome.
+
+H-2 non ha un file valutato fra questi: entrambe le librerie lo prendono dalle sezioni d'urto
+di G4NDL 4.7.1 lette da HP (D17), sotto `$G4NEUTRONHPDATA` e non nella radice dei dati.
+Elastico e cattura hanno una discontinuità a 14.25 MeV (energia ripetuta), che il totale
+riproduce.
+
+| File | sha256 |
+|---|---|
+| `Elastic/CrossSection/1_2_Hydrogen.z` | `ad1e901e2545bd67792d78a2bfb013daca24d47d006d95690e882ef692fde004` |
+| `Inelastic/CrossSection/1_2_Hydrogen.z` | `ebe306167a4dca0a8c5aca39f7b17deeb79c396b286bd0625fb134175290bd1d` |
+| `Capture/CrossSection/1_2_Hydrogen.z` | `e40c5a72fedd83643107c3de866be1538b5048c0d84ddca366e5bdd48422f786` |
 
 ## Verifiche fisiche (`riptide_sim_check`)
 
@@ -192,7 +203,7 @@ I CSV, a precisione piena (`max_digits10`):
   una riga per bin di E_n nella finestra di sovrapposizione HP/CHIPS (D16) intersecata con la
   sorgente; solo intestazione se l'intersezione è vuota.
 
-`checks.json` (versione `checks_version` = 4) si scrive per ultimo, con tmp + rename. Chiavi:
+`checks.json` (versione `checks_version` = 5) si scrive per ultimo, con tmp + rename. Chiavi:
 
 | Chiave | Contenuto |
 |---|---|
@@ -200,6 +211,7 @@ I CSV, a precisione piena (`max_digits10`):
 | `versions` | `riptide`, `git`, `geant4`, `schema`, `run_record` (del run letto) |
 | `reference_files` | per file: `library`, `nuclide`, `path`, `sha256` |
 | `hp_elastic_H1` | `file`, `sha256`, `rep_flag`, `awr`, `frame_flag`, `target_mass_MeV` dell'intestazione G4NDL di H-1 (D14) |
+| `hp_deuterium` | per file: `file`, `sha256` delle sezioni d'urto G4NDL di H-2 (elastica, anelastica, cattura; D17) |
 | `medium` | `material`, `density_g_cm3`, `n_H1_per_mm3`, `n_H2_per_mm3`, `n_C12_per_mm3`, `n_C13_per_mm3`, `H2_over_H1` |
 | `beam` | `L_mm` (corda del fascio nel blocco), `En_min_MeV`, `En_max_MeV`, `bins_u`, `bins_z` |
 | `results` | `events`, `np_events`, `np_hp_events`, `spectrum_u`, `depth_z`, `fractions`, `legendre`, `Ep_residuals`, `Ep_physical_offset`, `model_mix`, `counters` |
@@ -228,6 +240,10 @@ Un evento non HP con E_n fuori dalla finestra 19.5–20 MeV va in
 con p la rampa lineare di D16), `variance` (Σ p(1 − p)), `skipped` e `pull` (`null` se saltato),
 `bins`, `chi2_skipped` e, se fatto, `chi2`, `ndf`, `p_value` sui bin di E_n, più `Ep_residuals`
 degli eventi non HP contro la cinematica fisica.
+
+Dalla versione 5 (2026-11-19):
+- le attese contengono H-2 dalle sezioni d'urto di G4NDL (D17): l'elastico va in n–p senza
+  protone di rinculo, il break-up e la cattura in "other"; c'è la chiave `hp_deuterium`.
 
 Dalla versione 4 (2026-11-19):
 - classificazione HP/non HP degli eventi n–p e chiavi `np_hp_events` e `model_mix`;

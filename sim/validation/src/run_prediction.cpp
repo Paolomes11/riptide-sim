@@ -37,10 +37,6 @@ constexpr std::size_t kOffsetAngles = 4096;
 
 constexpr double kHalfPi = 0.5 * units::pi;
 
-std::size_t category(schema::FirstInteraction c) {
-    return static_cast<std::size_t>(c);
-}
-
 std::vector<double> uniformEdges(double low, double high, std::size_t bins) {
     std::vector<double> edges(bins + 1);
     for (std::size_t i = 0; i <= bins; ++i) {
@@ -100,7 +96,9 @@ LibraryPrediction predictLibrary(const CheckSetup& setup, const ReferenceModel& 
         for (std::size_t c = 0; c < kFirstInteractionCategories; ++c) {
             p.probabilities.at(c) += w * first.unconditional.at(c);
         }
-        const double np = first.unconditional.at(category(schema::FirstInteraction::NpElastic));
+        // Only protium recoils give a proton: n-d elastic is in the NpElastic
+        // fraction but not in the proton spectrum, moments or model mix.
+        const double np = first.protium_elastic;
         const double non_hp = nonHpElasticProbability(En);
         const double hp_weight = w * np * (1.0 - non_hp);
         p.hp_np_probability += hp_weight;

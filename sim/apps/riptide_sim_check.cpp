@@ -85,10 +85,11 @@ int runChecks(const checks::CheckCliOptions& opts) {
 
     const checks::MediumDensities densities = checks::scintillatorDensities();
     const checks::HpElasticH1 hp = checks::readHpElasticH1();
+    const checks::HpDeuterium deuterium = checks::readHpDeuterium();
     checks::ReferenceSet refs(root);
     checks::CheckAccumulator acc(
         checks::makeCheckSetup(config, hp.target_mass, opts.bins_u, opts.bins_z),
-        checks::referenceModels(refs, densities));
+        checks::referenceModels(refs, densities, deuterium));
     std::cout << "riptide_sim_check: reading " << run_dir << " (" << events << " events)\n";
 
     const std::size_t rows =
@@ -127,6 +128,7 @@ int runChecks(const checks::CheckCliOptions& opts) {
                        {"run_record", record.at("run_record_version")}};
     doc["reference_files"] = refs.json();
     doc["hp_elastic_H1"] = checks::hpJson(hp);
+    doc["hp_deuterium"] = checks::hpDeuteriumJson(deuterium);
     doc["medium"] = checks::densitiesJson(densities);
     doc["beam"] = {{"L_mm", acc.setup().chord.length()},
                    {"En_min_MeV", acc.setup().En_min},
