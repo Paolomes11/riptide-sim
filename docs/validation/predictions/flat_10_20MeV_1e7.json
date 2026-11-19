@@ -1,0 +1,236 @@
+{
+  "bins_u": 50,
+  "bins_z": 50,
+  "checks_version": 4,
+  "config": "config/flat_10_20MeV.json",
+  "deuterium_scale_events": 247.25732368354755,
+  "hp_elastic_H1": {
+    "awr": 0.999167,
+    "file": "/home/giulio-mesini/Software/Geant4/geant4-v11.4.1-install/share/Geant4/data/G4NDL4.7.1/Elastic/FS/1_1_Hydrogen.z",
+    "frame_flag": 2,
+    "rep_flag": 1,
+    "sha256": "768c16753d5df0d5d3e32f1b3bf75db3a7a33730f2e721877710c5c52d719a89",
+    "target_mass_MeV": 938.7827020551201
+  },
+  "medium": {
+    "H2_over_H1": 0.00011501322652104993,
+    "density_g_cm3": 1.032,
+    "material": "G4_PLASTIC_SC_VINYLTOLUENE",
+    "n_C12_per_mm3": 4.682434422487277e+19,
+    "n_C13_per_mm3": 5.064393846215897e+17,
+    "n_H1_per_mm3": 5.258371174375474e+19,
+    "n_H2_per_mm3": 6.047822350102057e+15
+  },
+  "n_H2_over_n_H1": 0.00011501322652104993,
+  "prediction": {
+    "En_max_MeV": 20.0,
+    "En_min_MeV": 10.0,
+    "Ep_physical_offset_relative": {
+      "max": 0.0005503211933328529,
+      "min": 0.0005332218066593047
+    },
+    "L_mm": 100.0,
+    "energy_nodes": 4096,
+    "events": 10000000,
+    "libraries": [
+      {
+        "expected_counts": {
+          "nc_elastic": 2671950.5217773556,
+          "nc_inelastic": 1500026.5041721999,
+          "np_elastic": 2190824.2740386804,
+          "other": 500.0827830389741,
+          "unknown": 3636698.6172287357
+        },
+        "fraction_sigma": {
+          "nc_elastic": 0.00013992921648800608,
+          "nc_inelastic": 0.000112916719437393,
+          "np_elastic": 0.00013079958616398483,
+          "other": 2.236197162058804e-06,
+          "unknown": 0.00015212300726627107
+        },
+        "fraction_sigma_relative": {
+          "nc_elastic": 0.0005236968849068602,
+          "nc_inelastic": 0.0007527648286435238,
+          "np_elastic": 0.0005970336722756043,
+          "other": 0.04471653969907869,
+          "unknown": 0.00041829973632017103
+        },
+        "hp_np_events": 2149816.4268810777,
+        "legendre_expected": [
+          -0.01451347305602634,
+          0.0025423397081923366,
+          -0.000739880033324909,
+          0.0003326296422254548,
+          -1.614032616572561e-05,
+          2.360395658524673e-06
+        ],
+        "legendre_sigma": [
+          0.0003946421256003252,
+          0.0003056888066999369,
+          0.0002582876318370955,
+          0.0002277715024134153,
+          0.00020602031774636295,
+          0.0001895077055229026
+        ],
+        "legendre_spread": [
+          0.5786342416172594,
+          0.4482086410988996,
+          0.3787078425543847,
+          0.3339643236527858,
+          0.30207218789826856,
+          0.2778609792329309
+        ],
+        "library": "jeff33",
+        "non_hp_np_events": 41007.84715760361,
+        "non_hp_np_sigma": 117.15910828951705,
+        "non_hp_share": 0.018717999267922836,
+        "probabilities": {
+          "nc_elastic": 0.26719505217773554,
+          "nc_inelastic": 0.15000265041722,
+          "np_elastic": 0.21908242740386805,
+          "other": 5.000827830389741e-05,
+          "unknown": 0.3636698617228736
+        },
+        "sigma_total_per_mm": 0.010125108502201873,
+        "u_min_expected_count": 41578.81568433424
+      },
+      {
+        "expected_counts": {
+          "nc_elastic": 2687568.827964587,
+          "nc_inelastic": 1482217.745771818,
+          "np_elastic": 2192020.212420986,
+          "other": 521.3643008318935,
+          "unknown": 3637671.8495417777
+        },
+        "fraction_shift_in_sigma": {
+          "nc_elastic": 11.161576244922669,
+          "nc_inelastic": -15.771586784591317,
+          "np_elastic": 0.9143288731864442,
+          "other": 0.9516834272934184,
+          "unknown": 0.6397666799593907
+        },
+        "fraction_sigma": {
+          "nc_elastic": 0.0001401879526728275,
+          "nc_inelastic": 0.00011236195090793543,
+          "np_elastic": 0.00013082526328101816,
+          "other": 2.2832807947304145e-06,
+          "unknown": 0.00015213172585121449
+        },
+        "fraction_sigma_relative": {
+          "nc_elastic": 0.0005216162325375605,
+          "nc_inelastic": 0.0007580664259921304,
+          "np_elastic": 0.0005968250773405398,
+          "other": 0.04379434478132069,
+          "unknown": 0.00041821179079244844
+        },
+        "hp_np_events": 2151076.6480689673,
+        "legendre_expected": [
+          -0.01416242987263148,
+          0.002634966909377851,
+          -0.00036937749735152406,
+          0.00013117667230389134,
+          3.5147648081358857e-06,
+          1.4999861672574738e-06
+        ],
+        "legendre_shift_in_sigma": [
+          0.889522837585718,
+          0.30301142585321106,
+          1.43445713346067,
+          -0.8844520398162781,
+          0.09540365333316007,
+          -0.004540234862181981
+        ],
+        "legendre_sigma": [
+          0.0003945688173818774,
+          0.00030554020528108513,
+          0.0002581854839045238,
+          0.0002276850522329023,
+          0.00020594338657548315,
+          0.00018943757057028133
+        ],
+        "legendre_spread": [
+          0.5786962964454575,
+          0.44812204467800376,
+          0.3786690096874053,
+          0.33393540157951385,
+          0.30204788072069566,
+          0.2778395445034526
+        ],
+        "library": "endfb80",
+        "non_hp_np_events": 40943.56435201819,
+        "non_hp_np_sigma": 117.06859876510185,
+        "non_hp_share": 0.018678461138274774,
+        "probabilities": {
+          "nc_elastic": 0.2687568827964587,
+          "nc_inelastic": 0.1482217745771818,
+          "np_elastic": 0.21920202124209862,
+          "other": 5.213643008318935e-05,
+          "unknown": 0.36376718495417776
+        },
+        "shift_from_first_in_sigma": {
+          "fractions": 15.771586784591317,
+          "legendre": 1.43445713346067,
+          "u_noncentrality": 3.6702482978229494
+        },
+        "sigma_total_per_mm": 0.010122574839666634,
+        "u_min_expected_count": 41708.10660623877
+      }
+    ],
+    "overlaps_model_window": true,
+    "quadrature_shift_in_sigma": {
+      "fractions": 0.002566652184222666,
+      "legendre": 2.8932876269456624e-07,
+      "u_noncentrality": 1.1352574932712621e-13
+    },
+    "test_plan": {
+      "alpha_family": 0.01,
+      "alpha_per_test": 0.0009090909090909091,
+      "chi2_tests": 4,
+      "pull_tests": 7,
+      "pull_threshold": 3.317247361552454
+    }
+  },
+  "reference_files": [
+    {
+      "library": "jeff33",
+      "nuclide": "H-1",
+      "path": "/mnt/external_ssd/riptide-sim/reference/jeff33/n_0125_1-H-1.dat",
+      "sha256": "d7dc8efb7bb1284013e7ae233d3d9c7fd1c61dad6fd97bcd29542fdb531ceca8"
+    },
+    {
+      "library": "jeff33",
+      "nuclide": "C-0",
+      "path": "/mnt/external_ssd/riptide-sim/reference/jeff33/n_0600_6-C-0.dat",
+      "sha256": "30ca87a83148abe20653c892bc78ffe762b0cf6757e4ad597197140cfb0c5b0c"
+    },
+    {
+      "library": "jeff33",
+      "nuclide": "C-13",
+      "path": "/mnt/external_ssd/riptide-sim/reference/jeff33/n_0628_6-C-13.dat",
+      "sha256": "c51b1895594c2ee354c2c0c353bf90b7e229fac1154464c88971f200a642d244"
+    },
+    {
+      "library": "endfb80",
+      "nuclide": "H-1",
+      "path": "/mnt/external_ssd/riptide-sim/reference/endfb80/n-001_H_001.endf",
+      "sha256": "e7b76c20c1d61f2cb2621de716d324047fa1f9583bef568f643f8d98094260fb"
+    },
+    {
+      "library": "endfb80",
+      "nuclide": "C-12",
+      "path": "/mnt/external_ssd/riptide-sim/reference/endfb80/n-006_C_012.endf",
+      "sha256": "daa7901e0067f9ac6d9b2392514ba00e71e37d00c8a8ecbbde0620237815f981"
+    },
+    {
+      "library": "endfb80",
+      "nuclide": "C-13",
+      "path": "/mnt/external_ssd/riptide-sim/reference/endfb80/n-006_C_013.endf",
+      "sha256": "abaa8cc34398e6ada0a8c451efd5eef1019a37c7a0a708a4280af71ab77621de"
+    }
+  ],
+  "versions": {
+    "geant4": "11.4.1",
+    "git": "c95eb94",
+    "riptide": "0.2.0"
+  }
+}
