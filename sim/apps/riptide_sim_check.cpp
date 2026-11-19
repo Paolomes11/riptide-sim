@@ -58,7 +58,8 @@ constexpr int kExitRuntime = 1;
 
 // Generous upper bound on the output per simulated event: the only table that
 // grows with the run is residuals_Ep.csv, one row of three full-precision
-// doubles (about 75 bytes) per n-p event.
+// doubles (about 75 bytes) per HP n-p event; model_mix.csv has a fixed number
+// of rows.
 constexpr std::uint64_t kOutputBytesPerEvent = 96;
 
 // Evaluated files under <root>/reference/<library>/, as listed with their
@@ -330,6 +331,8 @@ int runChecks(const checks::CheckCliOptions& opts) {
              [&](std::ostream& o) { checks::writeFractionsCsv(o, results.fractions); });
     writeCsv(out_dir / checks::kLegendreFileName,
              [&](std::ostream& o) { checks::writeLegendreCsv(o, results.legendre); });
+    writeCsv(out_dir / checks::kModelMixFileName,
+             [&](std::ostream& o) { checks::writeModelMixCsv(o, results.model_mix); });
     writeCsv(out_dir / checks::kResidualsFileName, [&](std::ostream& o) {
         checks::writeResidualsCsv(o, acc.cosines(), acc.EpResiduals(), acc.EpPhysicalOffsets());
     });
@@ -355,9 +358,9 @@ int runChecks(const checks::CheckCliOptions& opts) {
     // Last, and atomically: its presence marks a complete check.
     checks::writeJsonAtomically(out_dir / checks::kChecksFileName, doc);
 
-    std::cout << "riptide_sim_check: " << results.np_events << " n-p events, "
-              << results.counters.mustBeZeroTotal() << " consistency violations, output in "
-              << out_dir << '\n';
+    std::cout << "riptide_sim_check: " << results.np_events << " n-p events ("
+              << results.np_hp_events << " HP), " << results.counters.mustBeZeroTotal()
+              << " consistency violations, output in " << out_dir << '\n';
     return kExitOk;
 }
 

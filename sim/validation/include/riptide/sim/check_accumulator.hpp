@@ -71,6 +71,34 @@ inline constexpr double kDirectionTolerance = 1.0e-12;
 // 1e-9 lies far from both, so the counter flags only a modelling error.
 inline constexpr double kUnitTolerance = 1.0e-9;
 
+// Elastic model selection of QGSP_BIC_HP for neutrons (Geant4 11.4.1).
+// G4HadronElasticPhysicsHP registers G4ParticleHPElastic up to 20 MeV
+// (G4ParticleHPElastic.cc) and G4ChipsElasticModel from 19.5 MeV
+// (G4HadronElasticPhysicsHP.cc). Where two models overlap,
+// G4EnergyRangeManager::GetHadronicInteraction picks the one starting higher
+// with probability (E - its minimum) / (overlap width), a linear ramp. The
+// cross sections stay the HP ones up to 20 MeV (the last dataset added wins),
+// so only the final state of n-p scattering changes in the window. CHIPS
+// solves the kinematics with the bare proton mass and follows its own angular
+// parametrisation, not the evaluated file.
+inline constexpr double kChipsElasticMinEnergy = 19.5; // [MeV]
+inline constexpr double kHpElasticMaxEnergy = 20.0;    // [MeV]
+
+// Probability that an n-p elastic scattering at En is handed to CHIPS
+// instead of the HP model: 0 below the window, 1 above it.
+[[nodiscard]] double nonHpElasticProbability(double En) noexcept;
+
+// Tolerance, relative to En, for telling the two kinematics apart. The HP
+// final state reproduces hpProtonEnergy to ~1e-14 MeV and CHIPS reproduces
+// the physical protonEnergy to the rounding of four-vectors of ~1 GeV, while
+// the two differ by ~5.4e-4 Ep. 1e-11 En sits orders of magnitude above the
+// first and below the second except for Ep below ~1e-6 MeV, where an event
+// matches both and is counted as ambiguous.
+inline constexpr double kModelRelTolerance = 1.0e-11;
+
+// Number of E_n bins of the model-mix comparison across the overlap window.
+inline constexpr std::size_t kModelMixBins = 10;
+
 // Beam, box and binning of one run.
 struct CheckSetup {
     Vec3 position;     // gun position [mm]
@@ -100,6 +128,12 @@ struct CheckSetup {
 // elastic scattering is classified NpElastic (the truth tests Z = 1) but has
 // no recoil proton, so it shows up as a first NpElastic without valid_np at
 // a rate of order n_H2 / n_H1.
+//
+// Each n-p event with a valid Ep is classified by its kinematics: HP if Ep
+// matches hpProtonEnergy, non-HP if it matches the physical protonEnergy
+// (CHIPS, see kChipsElasticMinEnergy), ambiguous if it matches both (Ep near
+// zero, treated as HP). An event matching neither, or a non-HP event below
+// the overlap window, cannot come from the physics list as configured.
 struct ConsistencyCounters {
     std::uint64_t En_outside_source = 0;
     std::uint64_t omega_not_beam = 0;
@@ -108,12 +142,16 @@ struct ConsistencyCounters {
     std::uint64_t invalid_proton_energy = 0;    // valid_np with Ep <= 0 or not finite
     std::uint64_t u_overflow = 0;               // u > 1 + kUnitTolerance
     std::uint64_t theta_p_beyond_half_pi = 0;
+    std::uint64_t np_kinematics_unmatched = 0;  // Ep matches neither kinematics
+    std::uint64_t np_non_hp_outside_window = 0; // non-HP at En <= kChipsElasticMinEnergy
 
     std::uint64_t np_first_without_proton = 0;
+    std::uint64_t np_model_ambiguous = 0;
 
     [[nodiscard]] std::uint64_t mustBeZeroTotal() const {
         return En_outside_source + omega_not_beam + valid_np_without_scatter + vertex_outside_box +
-               invalid_proton_energy + u_overflow + theta_p_beyond_half_pi;
+               invalid_proton_energy + u_overflow + theta_p_beyond_half_pi +
+               np_kinematics_unmatched + np_non_hp_outside_window;
     }
 };
 
@@ -178,15 +216,41 @@ struct OffsetSummary {
     double relative_max = 0.0;
 };
 
+// Share of n-p events handed to CHIPS against the ramp of
+// nonHpElasticProbability. Only events classified HP or non-HP count; the
+// model is drawn from E_n alone, so each is a Bernoulli trial with p(E_n):
+// the total is compared through its binomial variance and, per E_n bin of
+// the overlap window, through chi^2 = sum (o - e)^2 / var with ndf = bins.
+struct ModelMixResult {
+    std::uint64_t classified = 0;
+    std::uint64_t observed_non_hp = 0;
+    double expected_non_hp = 0.0;
+    double variance = 0.0;     // sum of p (1 - p)
+    double pull = 0.0;         // meaningful unless `skipped` is set
+    std::vector<double> edges; // E_n bins [MeV] over the window inside the source range
+    std::vector<double> classified_per_bin;
+    std::vector<double> observed_per_bin;
+    std::vector<double> expected_per_bin;
+    std::vector<double> variance_per_bin;
+    std::optional<double> chi2;
+    int ndf = 0;
+    double p_value = 0.0;
+    std::string skipped;          // why the pull was not computed
+    std::string chi2_skipped;     // why the per-bin chi^2 was not computed
+    ResidualSummary Ep_residuals; // non-HP events against np_kinematics: rounding only
+};
+
 struct CheckResults {
     std::uint64_t events = 0;
-    std::uint64_t np_events = 0; // first interaction NpElastic with a recoil proton
+    std::uint64_t np_events = 0;    // first interaction NpElastic with a valid recoil proton
+    std::uint64_t np_hp_events = 0; // of which classified HP or ambiguous: the compared sample
     HistogramResult spectrum_u;
     HistogramResult depth_z;
     FractionResult fractions;
     LegendreResult legendre;
     ResidualSummary Ep_residuals;     // against the HP kinematics: rounding only
     OffsetSummary Ep_physical_offset; // against np_kinematics
+    ModelMixResult model_mix;
     ConsistencyCounters counters;
 };
 
@@ -203,7 +267,7 @@ public:
     [[nodiscard]] const std::vector<ReferenceModel>& models() const {
         return models_;
     }
-    // Per n-p event, in the order added: mu = hpCosCmFromAngle(En, theta_p),
+    // Per HP n-p event, in the order added: mu = hpCosCmFromAngle(En, theta_p),
     // Ep - hpProtonEnergy(En, theta_p) and Ep - protonEnergy(En, theta_p) [MeV].
     [[nodiscard]] const std::vector<double>& cosines() const {
         return mu_;
@@ -221,7 +285,10 @@ public:
 
 private:
     void addNpEvent(const TruthRecord& record);
+    void addHpEvent(const TruthRecord& record);
+    void addModelMix(double En, bool non_hp);
     void addDepth(const TruthRecord& record, const std::vector<double>& sigma_totals);
+    [[nodiscard]] ModelMixResult finishModelMix() const;
 
     CheckSetup setup_;
     std::vector<ReferenceModel> models_;
@@ -242,6 +309,10 @@ private:
     std::vector<double> Ep_physical_offsets_;
     std::vector<double> Ep_physical_relative_;
     std::vector<std::vector<double>> coefficient_sums_; // per library, a_l summed over n-p events
+    std::uint64_t np_events_ = 0;
+    std::vector<double> Ep_non_hp_residuals_;
+    std::vector<double> mix_edges_; // empty when the source misses the window
+    ModelMixResult mix_;            // running sums; finishModelMix adds the statistics
     ConsistencyCounters counters_;
 };
 

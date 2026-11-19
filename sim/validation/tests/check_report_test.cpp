@@ -46,7 +46,8 @@ HistogramResult twoBinHistogram() {
 CheckResults sampleResults() {
     CheckResults r;
     r.events = 100;
-    r.np_events = 10;
+    r.np_events = 12;
+    r.np_hp_events = 10;
     r.spectrum_u = twoBinHistogram();
     r.depth_z = twoBinHistogram();
     r.fractions.observed = {0, 10, 5, 3, 82};
@@ -65,6 +66,20 @@ CheckResults sampleResults() {
     r.counters.omega_not_beam = 2;
     r.counters.u_overflow = 1;
     r.counters.np_first_without_proton = 3;
+    r.counters.np_kinematics_unmatched = 4;
+    r.counters.np_model_ambiguous = 5;
+    r.model_mix.classified = 6;
+    r.model_mix.observed_non_hp = 2;
+    r.model_mix.expected_non_hp = 2.5;
+    r.model_mix.variance = 1.25;
+    r.model_mix.pull = -0.4;
+    r.model_mix.edges = {19.5, 19.75, 20.0};
+    r.model_mix.classified_per_bin = {3.0, 3.0};
+    r.model_mix.observed_per_bin = {0.0, 2.0};
+    r.model_mix.expected_per_bin = {0.5, 2.0};
+    r.model_mix.variance_per_bin = {0.25, 1.0};
+    r.model_mix.chi2_skipped = "too few expected events";
+    r.model_mix.Ep_residuals = {2, 1.0e-15, 2.0e-15, 3.0e-15};
     return r;
 }
 
@@ -100,7 +115,8 @@ TEST_CASE("resultsJson reports compared and skipped checks", "[check_report]") {
     const nlohmann::json doc = resultsJson(sampleResults());
 
     CHECK(doc["events"] == 100);
-    CHECK(doc["np_events"] == 10);
+    CHECK(doc["np_events"] == 12);
+    CHECK(doc["np_hp_events"] == 10);
 
     const auto& u = doc["spectrum_u"];
     CHECK(u["bins"] == 2);
@@ -136,9 +152,48 @@ TEST_CASE("resultsJson reports compared and skipped checks", "[check_report]") {
     CHECK_THAT(doc["Ep_physical_offset"]["relative_max"].get<double>(), WithinULP(5.5e-4, 0));
     CHECK(doc["counters"]["must_be_zero"]["omega_not_beam"] == 2);
     CHECK(doc["counters"]["must_be_zero"]["u_overflow"] == 1);
-    CHECK(doc["counters"]["must_be_zero"]["total"] == 3);
+    CHECK(doc["counters"]["must_be_zero"]["np_kinematics_unmatched"] == 4);
+    CHECK(doc["counters"]["must_be_zero"]["np_non_hp_outside_window"] == 0);
+    CHECK(doc["counters"]["must_be_zero"]["total"] == 7);
     CHECK(doc["counters"]["expected_rare"]["np_first_without_proton"] == 3);
-    CHECK(doc["counters"]["expected_rare"].size() == 1);
+    CHECK(doc["counters"]["expected_rare"]["np_model_ambiguous"] == 5);
+    CHECK(doc["counters"]["expected_rare"].size() == 2);
+
+    const auto& mix = doc["model_mix"];
+    CHECK(mix["window_MeV"].size() == 2);
+    CHECK(mix["classified"] == 6);
+    CHECK(mix["observed_non_hp"] == 2);
+    CHECK_THAT(mix["expected_non_hp"].get<double>(), WithinULP(2.5, 0));
+    CHECK(mix["skipped"].is_null());
+    CHECK_THAT(mix["pull"].get<double>(), WithinULP(-0.4, 0));
+    CHECK(mix["bins"] == 2);
+    CHECK(mix["chi2_skipped"] == "too few expected events");
+    CHECK_FALSE(mix.contains("chi2"));
+    CHECK(mix["Ep_residuals"]["samples"] == 2);
+}
+
+TEST_CASE("resultsJson of a skipped model mix has no pull", "[check_report]") {
+    CheckResults r = sampleResults();
+    r.model_mix = ModelMixResult{};
+    r.model_mix.skipped = "no non-HP events expected";
+    r.model_mix.chi2_skipped = "no non-HP events expected";
+    const nlohmann::json doc = resultsJson(r);
+    CHECK(doc["model_mix"]["pull"].is_null());
+    CHECK(doc["model_mix"]["bins"] == 0);
+}
+
+TEST_CASE("model mix CSV has one row per E_n bin", "[check_report]") {
+    std::ostringstream out;
+    writeModelMixCsv(out, sampleResults().model_mix);
+    const auto rows = lines(out.str());
+    REQUIRE(rows.size() == 3);
+    CHECK(rows[0] == "En_low_MeV,En_high_MeV,classified,observed_non_hp,expected_non_hp,variance");
+    CHECK(rows[1] == "19.5,19.75,3,0,0.5,0.25");
+    CHECK(rows[2] == "19.75,20,3,2,2,1");
+
+    std::ostringstream empty;
+    writeModelMixCsv(empty, ModelMixResult{});
+    CHECK(lines(empty.str()).size() == 1);
 }
 
 TEST_CASE("resultsJson of a skipped Legendre check has no moments", "[check_report]") {

@@ -305,6 +305,7 @@ TEST_CASE("consistency counters", "[check_accumulator]") {
     deuteron.Ep = 0.0;
     accumulator.add(deuteron);
 
+    // Ep beyond the kinematic limit: it matches neither kinematics.
     auto overflow = npRecord(kEn, 0.5 * Ep_max, 10.0);
     overflow.Ep = 1.001 * Ep_max;
     accumulator.add(overflow);
@@ -320,10 +321,15 @@ TEST_CASE("consistency counters", "[check_accumulator]") {
     CHECK(c.valid_np_without_scatter == 1);
     CHECK(c.vertex_outside_box == 1);
     CHECK(c.invalid_proton_energy == 1);
-    CHECK(c.u_overflow == 1);
     CHECK(c.theta_p_beyond_half_pi == 1);
-    CHECK(c.mustBeZeroTotal() == 7);
+    // The overflow and the backward proton fit no kinematics; nothing reaches
+    // the u histogram beyond 1, so the overflow counter stays a second guard.
+    CHECK(c.np_kinematics_unmatched == 2);
+    CHECK(c.u_overflow == 0);
+    CHECK(c.mustBeZeroTotal() == 8);
     CHECK(c.np_first_without_proton == 1);
+    // With the bare proton as HP target the two kinematics coincide.
+    CHECK(c.np_model_ambiguous == 3);
 
     // The event outside the source range is left out of every comparison.
     CHECK(results.events == 8);
@@ -332,13 +338,14 @@ TEST_CASE("consistency counters", "[check_accumulator]") {
         compared += count;
     }
     CHECK(compared == 7);
-    // The overflow event is not histogrammed but is in the Legendre sample.
+    // Unmatched events are left out of the HP sample.
     double histogrammed = 0.0;
     for (const double o : results.spectrum_u.observed) {
         histogrammed += o;
     }
-    CHECK_THAT(histogrammed, WithinAbs(4.0, kTolerance));
+    CHECK_THAT(histogrammed, WithinAbs(3.0, kTolerance));
     CHECK(results.np_events == 5);
+    CHECK(results.np_hp_events == 3);
 }
 
 TEST_CASE("events with the HP target mass are modelled to rounding", "[check_accumulator]") {
@@ -358,7 +365,9 @@ TEST_CASE("events with the HP target mass are modelled to rounding", "[check_acc
     }
     const auto results = hp.finish();
     CHECK(results.counters.mustBeZeroTotal() == 0);
+    CHECK(results.counters.np_model_ambiguous == 0);
     CHECK(results.np_events == kAngles);
+    CHECK(results.np_hp_events == kAngles);
     CHECK(results.Ep_residuals.max_abs < 1e-9 * kin::maxProtonEnergy(kEn));
     // The excess over the physical kinematics is the HP convention, ~m_e/m_p.
     const auto& offset = results.Ep_physical_offset;
@@ -367,8 +376,106 @@ TEST_CASE("events with the HP target mass are modelled to rounding", "[check_acc
     CHECK(offset.relative_max < 5.49e-4);
     CHECK(offset.relative_mean > offset.relative_min);
     CHECK(offset.relative_mean < offset.relative_max);
-    // Analysed with the bare proton the head-on event lies beyond u = 1.
-    CHECK(bare.finish().counters.u_overflow == 1);
+    // Analysed with the bare proton as HP target, the HP events match
+    // neither kinematics: a wrong target mass cannot pass unnoticed.
+    CHECK(bare.finish().counters.np_kinematics_unmatched == kAngles);
+}
+
+TEST_CASE("non-HP probability is the linear ramp of the model overlap", "[check_accumulator]") {
+    CHECK_THAT(checks::nonHpElasticProbability(14.0), WithinAbs(0.0, kTolerance));
+    CHECK_THAT(checks::nonHpElasticProbability(checks::kChipsElasticMinEnergy),
+               WithinAbs(0.0, kTolerance));
+    CHECK_THAT(checks::nonHpElasticProbability(19.75), WithinAbs(0.5, kTolerance));
+    CHECK_THAT(checks::nonHpElasticProbability(checks::kHpElasticMaxEnergy),
+               WithinAbs(1.0, kTolerance));
+    CHECK_THAT(checks::nonHpElasticProbability(25.0), WithinAbs(1.0, kTolerance));
+}
+
+namespace {
+
+// Flat source across the HP/CHIPS window with the G4NDL target mass. Each
+// event goes to CHIPS (physical kinematics) with probability `ramp(En)`,
+// otherwise to HP; the proton angle is uniform below pi/2.
+template <typename Ramp> checks::CheckResults windowRun(Ramp ramp, int events) {
+    auto config = cubeConfig();
+    config.source.En_min = checks::kChipsElasticMinEnergy;
+    config.source.En_max = checks::kHpElasticMaxEnergy;
+    const double target_mass = kAwrH1 * kin::kNeutronMass;
+    checks::CheckAccumulator accumulator(
+        checks::makeCheckSetup(config, target_mass, checks::kDefaultBins, checks::kDefaultBins),
+        {model("lib", kCoefficients)});
+    std::mt19937_64 rng{kSeed};
+    std::uniform_real_distribution<double> energy{config.source.En_min, config.source.En_max};
+    std::uniform_real_distribution<double> angle{0.0, 0.45 * units::pi};
+    std::uniform_real_distribution<double> uniform{0.0, 1.0};
+    for (int i = 0; i < events; ++i) {
+        const double En = energy(rng);
+        const double theta = angle(rng);
+        auto r = npRecord(En, 0.5 * kin::maxProtonEnergy(En), 30.0);
+        r.theta_p = theta;
+        r.Ep = uniform(rng) < ramp(En) ? kin::protonEnergy(En, theta)
+                                       : checks::hpProtonEnergy(En, theta, target_mass);
+        accumulator.add(r);
+    }
+    return accumulator.finish();
+}
+
+} // namespace
+
+TEST_CASE("events across the HP/CHIPS window are split by their kinematics",
+          "[check_accumulator]") {
+    constexpr int kEvents = 20000;
+    const auto results = windowRun(checks::nonHpElasticProbability, kEvents);
+    const auto& c = results.counters;
+    CHECK(c.mustBeZeroTotal() == 0);
+    CHECK(c.np_model_ambiguous == 0);
+    const auto& mix = results.model_mix;
+    CHECK(mix.classified == kEvents);
+    CHECK(results.np_hp_events + mix.observed_non_hp == kEvents);
+    // About half of a flat window goes to CHIPS.
+    CHECK_THAT(mix.expected_non_hp, WithinRel(0.5 * kEvents, 0.02));
+    REQUIRE(mix.skipped.empty());
+    CHECK(std::abs(mix.pull) < 4.0);
+    REQUIRE(mix.chi2.has_value());
+    CHECK(mix.ndf == static_cast<int>(checks::kModelMixBins));
+    CHECK(mix.p_value > 1e-4);
+    // Both oracles hold on their own sample.
+    CHECK(mix.Ep_residuals.samples == mix.observed_non_hp);
+    CHECK(mix.Ep_residuals.max_abs < 1e-9 * checks::kHpElasticMaxEnergy);
+    CHECK(results.Ep_residuals.samples == results.np_hp_events);
+    CHECK(results.Ep_residuals.max_abs < 1e-9 * checks::kHpElasticMaxEnergy);
+    // HP events keep their offset of about m_e/m_p from the physical
+    // kinematics (its exact range depends on En, about 5.33e-4 near 20 MeV);
+    // a CHIPS event leaking into this sample would pull the minimum to zero.
+    CHECK(results.Ep_physical_offset.relative_min > 5.0e-4);
+    REQUIRE(results.legendre.moments.has_value());
+    CHECK(results.legendre.moments->samples == results.np_hp_events);
+
+    // A step at the centre of the window instead of the ramp has the same
+    // mean share but the wrong shape: the per-bin chi^2 rejects it.
+    const auto step = windowRun([](double En) { return En > 19.75 ? 1.0 : 0.0; }, kEvents);
+    REQUIRE(step.model_mix.chi2.has_value());
+    CHECK(step.model_mix.p_value < 1e-4);
+    // No CHIPS events at all: the total is off by many standard deviations.
+    const auto none = windowRun([](double) { return 0.0; }, kEvents);
+    CHECK(none.model_mix.pull < -10.0);
+}
+
+TEST_CASE("a non-HP event below the window is a violation", "[check_accumulator]") {
+    const double target_mass = kAwrH1 * kin::kNeutronMass;
+    checks::CheckAccumulator accumulator(cubeSetup(target_mass), {model("lib", kCoefficients)});
+    auto r = npRecord(kEn, 0.5 * kin::maxProtonEnergy(kEn), 30.0);
+    r.Ep = kin::protonEnergy(kEn, r.theta_p);
+    accumulator.add(r);
+    const auto results = accumulator.finish();
+    CHECK(results.counters.np_non_hp_outside_window == 1);
+    CHECK(results.counters.mustBeZeroTotal() == 1);
+    CHECK(results.np_hp_events == 0);
+    // At 14 MeV no CHIPS events are expected: nothing to compare.
+    CHECK_FALSE(results.model_mix.skipped.empty());
+    CHECK_FALSE(results.model_mix.chi2.has_value());
+    CHECK_FALSE(results.model_mix.chi2_skipped.empty());
+    CHECK(results.model_mix.edges.empty());
 }
 
 TEST_CASE("checks with too few events are skipped, not failed", "[check_accumulator]") {

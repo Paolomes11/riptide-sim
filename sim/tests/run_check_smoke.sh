@@ -51,7 +51,8 @@ rm -rf -- "${out_dir}"
 "${source_dir}/scripts/run_capped.sh" -m 5G -- "${check_exe}" \
     --data-dir "${root}" --run-id "${run_id}" --check-id "${check_id}"
 
-for f in checks.json spectrum_u.csv depth_z.csv fractions.csv legendre.csv residuals_Ep.csv; do
+for f in checks.json spectrum_u.csv depth_z.csv fractions.csv legendre.csv model_mix.csv \
+    residuals_Ep.csv; do
     [[ -s "${out_dir}/${f}" ]] || { echo "missing or empty ${out_dir}/${f}" >&2; exit 1; }
 done
 
@@ -67,10 +68,10 @@ with open(path, encoding="utf-8") as f:
 for key in ("checks_version", "run_id", "check_id", "versions", "reference_files",
             "hp_elastic_H1", "medium", "beam", "results"):
     assert key in doc, f"checks.json has no key {key}"
-assert doc["checks_version"] == 3, f"unexpected checks_version {doc['checks_version']}"
+assert doc["checks_version"] == 4, f"unexpected checks_version {doc['checks_version']}"
 results = doc["results"]
 for key in ("spectrum_u", "depth_z", "fractions", "legendre", "Ep_residuals",
-            "Ep_physical_offset", "counters"):
+            "Ep_physical_offset", "model_mix", "counters"):
     assert key in results, f"results has no key {key}"
 # The HP target mass of H-1 as G4NDL 4.7.1 gives it, in neutron masses.
 hp = doc["hp_elastic_H1"]
@@ -84,6 +85,10 @@ assert residual < 1e-9 * En_max, f"Ep residual {residual} MeV is not rounding"
 # The departure from the bare-proton kinematics is the HP convention, ~m_e/m_p.
 offset = results["Ep_physical_offset"]["relative_mean"]
 assert 5.3e-4 <= offset <= 5.5e-4, f"relative Ep offset {offset} outside [5.3e-4, 5.5e-4]"
+# A 14 MeV beam lies below the HP/CHIPS window: every n-p event is HP.
+mix = results["model_mix"]
+assert mix["observed_non_hp"] == 0, f"{mix['observed_non_hp']} non-HP n-p events at 14 MeV"
+assert results["np_hp_events"] == results["np_events"], "n-p events left out of the HP sample"
 total = results["counters"]["must_be_zero"]["total"]
 assert total == 0, f"{total} consistency violations: {results['counters']['must_be_zero']}"
 assert results["events"] > 0, "no events read"

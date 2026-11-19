@@ -105,6 +105,7 @@ $RIPTIDE_DATA_DIR/
 │   └── analysis.json         # parametri, semi dello smearing, versione dello schema letto
 ├── validation/<run_id>/<check_id>/
 │   ├── spectrum_u.csv | depth_z.csv | fractions.csv | legendre.csv | residuals_Ep.csv
+│   ├── model_mix.csv
 │   └── checks.json           # esiti numerici delle verifiche e marcatore di completamento
 └── reference/                # valutazioni nucleari di riferimento (D13), sola lettura
     ├── endfb80/              # file ENDF-6 estratti; download/ con gli originali
@@ -119,9 +120,10 @@ I `run_id` `ctest_it_1t` e `ctest_it_2t` sono riservati al test d'integrazione
 (`sim/tests/run_integration.sh`), che cancella e ricrea le loro cartelle a ogni esecuzione.
 Il `check_id` `ctest_smoke` è riservato allo smoke test di `riptide_sim_check`
 (`sim/tests/run_check_smoke.sh`), che ricrea solo `validation/ctest_it_1t/ctest_smoke`. Lo
-smoke test controlla `checks_version` = 3, i file JEFF-3.3 letti (H-1, C-0, C-13, D15) e lo
+smoke test controlla `checks_version` = 4, i file JEFF-3.3 letti (H-1, C-0, C-13, D15) e lo
 sha256 del primo, l'AWR di H-1 (0.999167, D14), il residuo di E_p all'arrotondamento, lo scarto
-dalla cinematica fisica in [5.3, 5.5]·10⁻⁴ e i contatori di coerenza a zero.
+dalla cinematica fisica in [5.3, 5.5]·10⁻⁴, i contatori di coerenza a zero e, a 14 MeV, nessun
+evento n–p con la cinematica non HP (D16).
 
 ## Valutazioni di riferimento
 
@@ -180,13 +182,17 @@ I CSV, a precisione piena (`max_digits10`):
   `FirstInteraction`;
 - `legendre.csv`: `l,value,error,expected_<lib>,pull_<lib>…` per l ≥ 1 (solo intestazione se la
   verifica è saltata);
-- `residuals_Ep.csv`: `mu,Ep_residual_MeV,Ep_physical_offset_MeV`, una riga per evento n–p.
+- `residuals_Ep.csv`: `mu,Ep_residual_MeV,Ep_physical_offset_MeV`, una riga per evento n–p
+  classificato HP (D16).
   Le colonne sono:
   - `mu`, il coseno CM da θ_p;
   - `Ep_residual_MeV`, l'E_p simulata meno la cinematica HP (arrotondamento);
   - `Ep_physical_offset_MeV`, l'E_p simulata meno la cinematica fisica n–p (convenzione HP, D14).
+- `model_mix.csv`: `En_low_MeV,En_high_MeV,classified,observed_non_hp,expected_non_hp,variance`,
+  una riga per bin di E_n nella finestra di sovrapposizione HP/CHIPS (D16) intersecata con la
+  sorgente; solo intestazione se l'intersezione è vuota.
 
-`checks.json` (versione `checks_version` = 3) si scrive per ultimo, con tmp + rename. Chiavi:
+`checks.json` (versione `checks_version` = 4) si scrive per ultimo, con tmp + rename. Chiavi:
 
 | Chiave | Contenuto |
 |---|---|
@@ -196,16 +202,38 @@ I CSV, a precisione piena (`max_digits10`):
 | `hp_elastic_H1` | `file`, `sha256`, `rep_flag`, `awr`, `frame_flag`, `target_mass_MeV` dell'intestazione G4NDL di H-1 (D14) |
 | `medium` | `material`, `density_g_cm3`, `n_H1_per_mm3`, `n_H2_per_mm3`, `n_C12_per_mm3`, `n_C13_per_mm3`, `H2_over_H1` |
 | `beam` | `L_mm` (corda del fascio nel blocco), `En_min_MeV`, `En_max_MeV`, `bins_u`, `bins_z` |
-| `results` | `events`, `np_events`, `spectrum_u`, `depth_z`, `fractions`, `legendre`, `Ep_residuals`, `Ep_physical_offset`, `counters` |
+| `results` | `events`, `np_events`, `np_hp_events`, `spectrum_u`, `depth_z`, `fractions`, `legendre`, `Ep_residuals`, `Ep_physical_offset`, `model_mix`, `counters` |
 
 In `results`, ogni verifica riporta per libreria `skipped` (`null` oppure il motivo). Se la
 verifica è stata fatta, riporta anche χ², `ndf`, `p_value` e i pull; per gli istogrammi pure i
 bin fusi (attesa < 5) da cui viene il χ². `counters.must_be_zero` raccoglie i contatori che
 solo un bug può rendere diversi da zero, con il loro `total`. Fra questi ci sono anche
 u > 1 + 10⁻⁹ e θ_p > π/2, impossibili con il bersaglio a riposo (D14). `counters.expected_rare`
-raccoglie la fisica nota, che viene riportata e non tagliata: oggi solo n–d senza protone.
+raccoglie la fisica nota, che viene riportata e non tagliata: n–d senza protone ed eventi n–p
+compatibili con entrambe le cinematiche (`np_model_ambiguous`).
 `Ep_residuals` riporta `samples`, `mean`, `rms` e `max_abs` in MeV. `Ep_physical_offset` ha le
 stesse chiavi e in più `relative_mean`, `relative_min` e `relative_max` dello scarto relativo.
+
+Ogni evento n–p con protone valido (`np_events`) è classificato dalla cinematica (D16), con
+tolleranza 10⁻¹¹·E_n su E_p:
+- HP, se E_p coincide con la cinematica HP di D14: entra in `np_hp_events`, spettro u, Legendre,
+  `Ep_residuals` e `Ep_physical_offset`;
+- non HP (CHIPS), se coincide con la cinematica fisica n–p: entra solo in `model_mix`;
+- ambiguo, se coincide con entrambe: trattato come HP e contato in `np_model_ambiguous`;
+- nessuna delle due: `must_be_zero.np_kinematics_unmatched`.
+Un evento non HP con E_n fuori dalla finestra 19.5–20 MeV va in
+`must_be_zero.np_non_hp_outside_window`.
+
+`model_mix` riporta `window_MeV`, `classified`, `observed_non_hp`, `expected_non_hp` (Σ p(E_n),
+con p la rampa lineare di D16), `variance` (Σ p(1 − p)), `skipped` e `pull` (`null` se saltato),
+`bins`, `chi2_skipped` e, se fatto, `chi2`, `ndf`, `p_value` sui bin di E_n, più `Ep_residuals`
+degli eventi non HP contro la cinematica fisica.
+
+Dalla versione 4 (2026-11-19):
+- classificazione HP/non HP degli eventi n–p e chiavi `np_hp_events` e `model_mix`;
+- `must_be_zero` ha `np_kinematics_unmatched` e `np_non_hp_outside_window`;
+- `expected_rare` ha `np_model_ambiguous`;
+- c'è `model_mix.csv`.
 
 Dalla versione 2 (2026-11-18):
 - c'è la chiave `hp_elastic_H1`;

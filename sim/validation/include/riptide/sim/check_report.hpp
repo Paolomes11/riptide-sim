@@ -25,9 +25,10 @@ inline constexpr const char* kDepthZFileName = "depth_z.csv";
 inline constexpr const char* kFractionsFileName = "fractions.csv";
 inline constexpr const char* kLegendreFileName = "legendre.csv";
 inline constexpr const char* kResidualsFileName = "residuals_Ep.csv";
+inline constexpr const char* kModelMixFileName = "model_mix.csv";
 
 // Version of the checks.json layout; bumped on any change of its keys.
-inline constexpr int kChecksVersion = 3;
+inline constexpr int kChecksVersion = 4;
 
 class ReportError : public std::runtime_error {
 public:
@@ -39,9 +40,9 @@ public:
 [[nodiscard]] std::string_view categoryName(std::int32_t code);
 
 // The "results" object of checks.json: event counts, the five checks per
-// library and the consistency counters, the must-be-zero ones apart from the
-// expected-rare ones. A skipped check carries its reason in "skipped" and no
-// chi^2; a compared one has "skipped": null.
+// library, the HP/CHIPS model mix and the consistency counters, the must-be-zero ones apart from
+// the expected-rare ones. A skipped check carries its reason in "skipped" and no chi^2; a compared
+// one has "skipped": null.
 [[nodiscard]] nlohmann::json resultsJson(const CheckResults& results);
 
 // low,high,observed,expected_<library>... one row per original bin.
@@ -50,7 +51,10 @@ void writeHistogramCsv(std::ostream& out, const HistogramResult& histogram);
 void writeFractionsCsv(std::ostream& out, const FractionResult& fractions);
 // l,value,error,expected_<library>,pull_<library>...; only the header when skipped.
 void writeLegendreCsv(std::ostream& out, const LegendreResult& legendre);
-// mu,Ep_residual_MeV,Ep_physical_offset_MeV, one row per n-p event in the
+// En_low,En_high,classified,observed_non_hp,expected_non_hp,variance, one row
+// per E_n bin of the HP/CHIPS window; only the header when the source misses it.
+void writeModelMixCsv(std::ostream& out, const ModelMixResult& mix);
+// mu,Ep_residual_MeV,Ep_physical_offset_MeV, one row per HP n-p event in the
 // order the events were read. Throws std::invalid_argument if the columns
 // differ in length.
 void writeResidualsCsv(std::ostream& out, const std::vector<double>& mu,

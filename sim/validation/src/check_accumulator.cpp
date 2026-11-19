@@ -163,6 +163,11 @@ OffsetSummary summarizeOffset(const std::vector<double>& offsets,
 
 } // namespace
 
+double nonHpElasticProbability(double En) noexcept {
+    return std::clamp(
+        (En - kChipsElasticMinEnergy) / (kHpElasticMaxEnergy - kChipsElasticMinEnergy), 0.0, 1.0);
+}
+
 Nuclide makeNuclide(Target target, std::string label, double number_density,
                     const endf::EndfMaterial& material) {
     return Nuclide{target,
@@ -240,6 +245,16 @@ CheckAccumulator::CheckAccumulator(CheckSetup setup, std::vector<ReferenceModel>
     z_observed_.assign(setup_.bins_z, 0.0);
     z_expected_.assign(n_models, std::vector<double>(setup_.bins_z, 0.0));
     coefficient_sums_.assign(n_models, {});
+
+    const double mix_low = std::max(setup_.En_min, kChipsElasticMinEnergy);
+    const double mix_high = std::min(setup_.En_max, kHpElasticMaxEnergy);
+    if (mix_high > mix_low) {
+        mix_edges_ = uniformEdges(mix_low, mix_high, kModelMixBins);
+        mix_.classified_per_bin.assign(kModelMixBins, 0.0);
+        mix_.observed_per_bin.assign(kModelMixBins, 0.0);
+        mix_.expected_per_bin.assign(kModelMixBins, 0.0);
+        mix_.variance_per_bin.assign(kModelMixBins, 0.0);
+    }
 }
 
 void CheckAccumulator::add(const TruthRecord& record) {
@@ -310,6 +325,59 @@ void CheckAccumulator::addNpEvent(const TruthRecord& record) {
     if (record.theta_p > kHalfPi) {
         ++counters_.theta_p_beyond_half_pi;
     }
+    ++np_events_;
+    const double tolerance = kModelRelTolerance * record.En;
+    const double Ep_hp = hpProtonEnergy(record.En, record.theta_p, setup_.hp_target_mass);
+    const double Ep_physical = kinematics::protonEnergy(record.En, record.theta_p);
+    const bool hp = std::abs(record.Ep - Ep_hp) <= tolerance;
+    const bool physical = std::abs(record.Ep - Ep_physical) <= tolerance;
+    if (hp && physical) {
+        // Too close to Ep = 0 to tell the models apart. Such events are too
+        // few to matter and carry no information on the model, so they stay
+        // in the HP sample and out of the model mix.
+        ++counters_.np_model_ambiguous;
+        addHpEvent(record);
+        return;
+    }
+    if (!hp && !physical) {
+        ++counters_.np_kinematics_unmatched;
+        return;
+    }
+    addModelMix(record.En, physical);
+    if (physical) {
+        if (!(nonHpElasticProbability(record.En) > 0.0)) {
+            ++counters_.np_non_hp_outside_window;
+        }
+        Ep_non_hp_residuals_.push_back(record.Ep - Ep_physical);
+        return;
+    }
+    addHpEvent(record);
+}
+
+void CheckAccumulator::addModelMix(double En, bool non_hp) {
+    const double p = nonHpElasticProbability(En);
+    ++mix_.classified;
+    if (non_hp) {
+        ++mix_.observed_non_hp;
+    }
+    mix_.expected_non_hp += p;
+    mix_.variance += p * (1.0 - p);
+    if (mix_edges_.empty() || En < mix_edges_.front()) {
+        return;
+    }
+    const double low = mix_edges_.front();
+    const std::size_t bin = binIndex(En - low, mix_edges_.back() - low, kModelMixBins);
+    mix_.classified_per_bin.at(bin) += 1.0;
+    mix_.observed_per_bin.at(bin) += non_hp ? 1.0 : 0.0;
+    mix_.expected_per_bin.at(bin) += p;
+    mix_.variance_per_bin.at(bin) += p * (1.0 - p);
+}
+
+// Every check below compares the HP final state with the evaluated data, so
+// only HP events enter it. Leaving out the non-HP ones keeps the expectations
+// exact: the model is drawn from E_n before the angle, and the expectations
+// are summed at each kept event's own E_n.
+void CheckAccumulator::addHpEvent(const TruthRecord& record) {
     const double M_T = setup_.hp_target_mass;
     // u is the CM variable of the evaluated angular data, recovered exactly
     // from Ep through the HP kinematics; it is in (0, 1] up to rounding.
@@ -343,11 +411,47 @@ void CheckAccumulator::addNpEvent(const TruthRecord& record) {
     }
 }
 
+ModelMixResult CheckAccumulator::finishModelMix() const {
+    ModelMixResult mix = mix_;
+    mix.edges = mix_edges_;
+    mix.Ep_residuals = summarize(Ep_non_hp_residuals_);
+    // The normal approximation of a sum of Bernoulli trials needs a variance
+    // of a few counts, as the chi^2 bins need kMinExpectedCount.
+    if (mix.variance < kMinExpectedCount) {
+        mix.skipped = "binomial variance of the non-HP count below the minimum expected count";
+    } else {
+        mix.pull = (static_cast<double>(mix.observed_non_hp) - mix.expected_non_hp) /
+                   std::sqrt(mix.variance);
+    }
+    if (mix_edges_.empty()) {
+        mix.chi2_skipped = "the source range does not overlap the HP/CHIPS window";
+        return mix;
+    }
+    double chi2 = 0.0;
+    for (std::size_t i = 0; i < kModelMixBins; ++i) {
+        const double variance = mix.variance_per_bin.at(i);
+        if (variance < kMinExpectedCount) {
+            mix.chi2_skipped =
+                "a window bin has a binomial variance below the minimum expected count";
+            return mix;
+        }
+        const double d = mix.observed_per_bin.at(i) - mix.expected_per_bin.at(i);
+        chi2 += d * d / variance;
+    }
+    // The bins are independent sums of trials and nothing is fitted: ndf = bins.
+    mix.ndf = static_cast<int>(kModelMixBins);
+    mix.chi2 = chi2;
+    mix.p_value = chi2SurvivalProbability(chi2, mix.ndf);
+    return mix;
+}
+
 CheckResults CheckAccumulator::finish() const {
     CheckResults results;
     results.events = events_;
-    results.np_events = mu_.size();
+    results.np_events = np_events_;
+    results.np_hp_events = mu_.size();
     results.counters = counters_;
+    results.model_mix = finishModelMix();
     results.spectrum_u = compareBinned(u_edges_, u_observed_, models_, u_expected_);
     results.depth_z = compareBinned(z_edges_, z_observed_, models_, z_expected_);
     results.Ep_residuals = summarize(Ep_residuals_);

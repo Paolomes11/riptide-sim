@@ -131,12 +131,36 @@ nlohmann::json countersJson(const ConsistencyCounters& c) {
               {"invalid_proton_energy", c.invalid_proton_energy},
               {"u_overflow", c.u_overflow},
               {"theta_p_beyond_half_pi", c.theta_p_beyond_half_pi},
+              {"np_kinematics_unmatched", c.np_kinematics_unmatched},
+              {"np_non_hp_outside_window", c.np_non_hp_outside_window},
               {"total", c.mustBeZeroTotal()}}},
-            {"expected_rare", {{"np_first_without_proton", c.np_first_without_proton}}}};
+            {"expected_rare",
+             {{"np_first_without_proton", c.np_first_without_proton},
+              {"np_model_ambiguous", c.np_model_ambiguous}}}};
 }
 
 nlohmann::json residualJson(const ResidualSummary& r) {
     return {{"samples", r.samples}, {"mean", r.mean}, {"rms", r.rms}, {"max_abs", r.max_abs}};
+}
+
+nlohmann::json modelMixJson(const ModelMixResult& mix) {
+    nlohmann::json doc;
+    doc["window_MeV"] = {kChipsElasticMinEnergy, kHpElasticMaxEnergy};
+    doc["classified"] = mix.classified;
+    doc["observed_non_hp"] = mix.observed_non_hp;
+    doc["expected_non_hp"] = mix.expected_non_hp;
+    doc["variance"] = mix.variance;
+    doc["skipped"] = skippedJson(mix.skipped);
+    doc["pull"] = mix.skipped.empty() ? nlohmann::json(mix.pull) : nlohmann::json(nullptr);
+    doc["bins"] = mix.observed_per_bin.size();
+    doc["chi2_skipped"] = skippedJson(mix.chi2_skipped);
+    if (mix.chi2) {
+        doc["chi2"] = *mix.chi2;
+        doc["ndf"] = mix.ndf;
+        doc["p_value"] = mix.p_value;
+    }
+    doc["Ep_residuals"] = residualJson(mix.Ep_residuals);
+    return doc;
 }
 
 template <typename Check> void writeLibraryHeader(std::ostream& out, const std::vector<Check>& v) {
@@ -158,6 +182,7 @@ nlohmann::json resultsJson(const CheckResults& results) {
     nlohmann::json doc;
     doc["events"] = results.events;
     doc["np_events"] = results.np_events;
+    doc["np_hp_events"] = results.np_hp_events;
     doc["spectrum_u"] = histogramJson(results.spectrum_u);
     doc["depth_z"] = histogramJson(results.depth_z);
     doc["fractions"] = fractionsJson(results.fractions);
@@ -168,6 +193,7 @@ nlohmann::json resultsJson(const CheckResults& results) {
     doc["Ep_physical_offset"]["relative_mean"] = offset.relative_mean;
     doc["Ep_physical_offset"]["relative_min"] = offset.relative_min;
     doc["Ep_physical_offset"]["relative_max"] = offset.relative_max;
+    doc["model_mix"] = modelMixJson(results.model_mix);
     doc["counters"] = countersJson(results.counters);
     return doc;
 }
@@ -218,6 +244,16 @@ void writeLegendreCsv(std::ostream& out, const LegendreResult& legendre) {
             out << ',' << check.expected.at(l) << ',' << check.pulls.at(l);
         }
         out << '\n';
+    }
+}
+
+void writeModelMixCsv(std::ostream& out, const ModelMixResult& mix) {
+    setFullPrecision(out);
+    out << "En_low_MeV,En_high_MeV,classified,observed_non_hp,expected_non_hp,variance\n";
+    for (std::size_t i = 0; i < mix.observed_per_bin.size(); ++i) {
+        out << mix.edges.at(i) << ',' << mix.edges.at(i + 1) << ',' << mix.classified_per_bin.at(i)
+            << ',' << mix.observed_per_bin.at(i) << ',' << mix.expected_per_bin.at(i) << ','
+            << mix.variance_per_bin.at(i) << '\n';
     }
 }
 
