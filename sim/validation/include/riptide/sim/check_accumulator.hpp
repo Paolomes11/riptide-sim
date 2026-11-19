@@ -228,6 +228,12 @@ struct OffsetSummary {
     double relative_mean = 0.0; // mean of offset / physical Ep
     double relative_min = 0.0;
     double relative_max = 0.0;
+    // The same extremes with the run's rounding bound R (max |Ep residual|)
+    // taken out: min of (rel + R/Ep_phys) and max of (rel - R/Ep_phys). At an
+    // Ep of a few eV a rounding residual of 1e-15 MeV alone moves the relative
+    // offset by ~1e-10, so these are the ones to compare with a predicted range.
+    double rounding_free_relative_min = 0.0;
+    double rounding_free_relative_max = 0.0;
 };
 
 // Share of n-p events handed to CHIPS against the ramp of
@@ -322,6 +328,7 @@ private:
     std::vector<double> Ep_residuals_;
     std::vector<double> Ep_physical_offsets_;
     std::vector<double> Ep_physical_relative_;
+    std::vector<double> Ep_physical_;                   // [MeV], paired with Ep_physical_relative_
     std::vector<std::vector<double>> coefficient_sums_; // per library, a_l summed over n-p events
     std::uint64_t np_events_ = 0;
     std::vector<double> Ep_non_hp_residuals_;

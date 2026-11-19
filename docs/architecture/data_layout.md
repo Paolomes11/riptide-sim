@@ -224,7 +224,11 @@ u > 1 + 10⁻⁹ e θ_p > π/2, impossibili con il bersaglio a riposo (D14). `co
 raccoglie la fisica nota, che viene riportata e non tagliata: n–d senza protone ed eventi n–p
 compatibili con entrambe le cinematiche (`np_model_ambiguous`).
 `Ep_residuals` riporta `samples`, `mean`, `rms` e `max_abs` in MeV. `Ep_physical_offset` ha le
-stesse chiavi e in più `relative_mean`, `relative_min` e `relative_max` dello scarto relativo.
+stesse chiavi e in più `relative_mean`, `relative_min` e `relative_max` dello scarto relativo,
+con `rounding_free_relative_min` e `rounding_free_relative_max`: gli stessi estremi al netto
+dell'arrotondamento, cioè min(rel + R/E_p,fis) e max(rel − R/E_p,fis) con R =
+`Ep_residuals.max_abs`. Sono questi che si confrontano con il range previsto, perché a E_p di pochi
+eV un residuo di arrotondamento di 10⁻¹⁵ MeV sposta da solo lo scarto relativo di ~10⁻¹⁰.
 
 Ogni evento n–p con protone valido (`np_events`) è classificato dalla cinematica (D16), con
 tolleranza 10⁻¹¹·E_n su E_p:
@@ -244,6 +248,7 @@ degli eventi non HP contro la cinematica fisica.
 Dalla versione 5 (2026-11-19):
 - le attese contengono H-2 dalle sezioni d'urto di G4NDL (D17): l'elastico va in n–p senza
   protone di rinculo, il break-up e la cattura in "other"; c'è la chiave `hp_deuterium`.
+- `Ep_physical_offset` ha `rounding_free_relative_min` e `rounding_free_relative_max` (D17).
 
 Dalla versione 4 (2026-11-19):
 - classificazione HP/non HP degli eventi n–p e chiavi `np_hp_events` e `model_mix`;

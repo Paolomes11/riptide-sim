@@ -193,6 +193,8 @@ nlohmann::json resultsJson(const CheckResults& results) {
     doc["Ep_physical_offset"]["relative_mean"] = offset.relative_mean;
     doc["Ep_physical_offset"]["relative_min"] = offset.relative_min;
     doc["Ep_physical_offset"]["relative_max"] = offset.relative_max;
+    doc["Ep_physical_offset"]["rounding_free_relative_min"] = offset.rounding_free_relative_min;
+    doc["Ep_physical_offset"]["rounding_free_relative_max"] = offset.rounding_free_relative_max;
     doc["model_mix"] = modelMixJson(results.model_mix);
     doc["counters"] = countersJson(results.counters);
     return doc;

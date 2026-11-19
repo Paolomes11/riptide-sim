@@ -2,8 +2,10 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <initializer_list>
 #include <iterator>
+#include <limits>
 #include <set>
 #include <stdexcept>
 #include <string>
@@ -147,8 +149,12 @@ ResidualSummary summarize(const std::vector<double>& residuals) {
     return summary;
 }
 
+// rounding_bound is the largest |Ep residual| of the run: each Ep can sit that
+// far from its exact value, so rel -+ bound/Ep_physical brackets the exact
+// relative offset of every event.
 OffsetSummary summarizeOffset(const std::vector<double>& offsets,
-                              const std::vector<double>& relative) {
+                              const std::vector<double>& relative,
+                              const std::vector<double>& Ep_physical, double rounding_bound) {
     OffsetSummary summary;
     summary.absolute = summarize(offsets);
     if (relative.empty()) {
@@ -162,6 +168,15 @@ OffsetSummary summarizeOffset(const std::vector<double>& offsets,
     const auto [low, high] = std::minmax_element(relative.begin(), relative.end());
     summary.relative_min = *low;
     summary.relative_max = *high;
+    summary.rounding_free_relative_min = std::numeric_limits<double>::infinity();
+    summary.rounding_free_relative_max = -std::numeric_limits<double>::infinity();
+    for (std::size_t i = 0; i < relative.size(); ++i) {
+        const double slack = rounding_bound / Ep_physical.at(i);
+        summary.rounding_free_relative_min =
+            std::min(summary.rounding_free_relative_min, relative.at(i) + slack);
+        summary.rounding_free_relative_max =
+            std::max(summary.rounding_free_relative_max, relative.at(i) - slack);
+    }
     return summary;
 }
 
@@ -489,6 +504,7 @@ void CheckAccumulator::addHpEvent(const TruthRecord& record) {
     Ep_physical_offsets_.push_back(record.Ep - Ep_physical);
     if (Ep_physical > 0.0) {
         Ep_physical_relative_.push_back(record.Ep / Ep_physical - 1.0);
+        Ep_physical_.push_back(Ep_physical);
     }
 }
 
@@ -536,7 +552,8 @@ CheckResults CheckAccumulator::finish() const {
     results.spectrum_u = compareBinned(u_edges_, u_observed_, models_, u_expected_);
     results.depth_z = compareBinned(z_edges_, z_observed_, models_, z_expected_);
     results.Ep_residuals = summarize(Ep_residuals_);
-    results.Ep_physical_offset = summarizeOffset(Ep_physical_offsets_, Ep_physical_relative_);
+    results.Ep_physical_offset = summarizeOffset(Ep_physical_offsets_, Ep_physical_relative_,
+                                                 Ep_physical_, results.Ep_residuals.max_abs);
 
     results.fractions.observed = category_counts_;
     std::uint64_t accepted = 0;

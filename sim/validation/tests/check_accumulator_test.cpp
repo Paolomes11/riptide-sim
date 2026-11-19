@@ -5,7 +5,9 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <initializer_list>
 #include <iterator>
+#include <limits>
 #include <random>
 #include <stdexcept>
 #include <vector>
@@ -381,6 +383,41 @@ TEST_CASE("events with the HP target mass are modelled to rounding", "[check_acc
     // Analysed with the bare proton as HP target, the HP events match
     // neither kinematics: a wrong target mass cannot pass unnoticed.
     CHECK(bare.finish().counters.np_kinematics_unmatched == kAngles);
+}
+
+TEST_CASE("the rounding-free offset extremes discount a residual at tiny Ep",
+          "[check_accumulator]") {
+    const double target_mass = kAwrH1 * kin::kNeutronMass;
+    checks::CheckAccumulator acc(cubeSetup(target_mass), {model("lib", kCoefficients)});
+    // A rounding-sized residual, harmless at MeV but ~1e-10 relative at ~14 eV.
+    constexpr double kResidual = 2e-15 * units::MeV;
+    constexpr double kForward = 0.3;      // [rad]: Ep of several MeV
+    constexpr double kNearGrazing = 1e-3; // [rad] short of pi/2: Ep of ~14 eV
+    double exact_min = std::numeric_limits<double>::infinity();
+    double exact_max = -std::numeric_limits<double>::infinity();
+    for (const double theta : {kForward, 0.5 * units::pi - kNearGrazing}) {
+        auto r = npRecord(kEn, 0.5 * kin::maxProtonEnergy(kEn), 30.0);
+        r.theta_p = theta;
+        const double Ep_hp = checks::hpProtonEnergy(kEn, theta, target_mass);
+        const double exact = Ep_hp / kin::protonEnergy(kEn, theta) - 1.0;
+        exact_min = std::min(exact_min, exact);
+        exact_max = std::max(exact_max, exact);
+        r.Ep = Ep_hp + kResidual;
+        acc.add(r);
+    }
+    const auto results = acc.finish();
+    REQUIRE(results.np_hp_events == 2);
+    CHECK(results.counters.mustBeZeroTotal() == 0);
+    const auto& offset = results.Ep_physical_offset;
+    // The raw maximum is pushed past the exact one by the residual alone...
+    CHECK(offset.relative_max > exact_max + 1e-11);
+    // ...while the rounding-free extremes bracket the exact offsets, up to
+    // the rounding of the ratio itself (a few ulp of 1).
+    constexpr double kRatioRounding = 4.0 * std::numeric_limits<double>::epsilon();
+    CHECK(offset.rounding_free_relative_max <= exact_max + kRatioRounding);
+    CHECK(offset.rounding_free_relative_min >= exact_min - kRatioRounding);
+    CHECK(offset.rounding_free_relative_max <= offset.relative_max);
+    CHECK(offset.rounding_free_relative_min >= offset.relative_min);
 }
 
 TEST_CASE("non-HP probability is the linear ramp of the model overlap", "[check_accumulator]") {
