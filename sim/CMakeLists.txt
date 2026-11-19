@@ -19,12 +19,21 @@ target_include_directories(riptide_sim PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/incl
 target_link_libraries(riptide_sim PRIVATE
     riptide::common riptide::sim_config riptide::sim_truth riptide::options riptide::warnings ${Geant4_LIBRARIES})
 
+# Inputs of the physics checks that need Geant4 (scintillator material, G4NDL
+# H-1 header) or the reference files; shared by the checks and the predictions.
+add_library(riptide_sim_check_inputs STATIC src/check_inputs.cpp)
+add_library(riptide::sim_check_inputs ALIAS riptide_sim_check_inputs)
+target_include_directories(riptide_sim_check_inputs PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_link_libraries(riptide_sim_check_inputs
+    PUBLIC riptide::common riptide::sim_validation ${Geant4_LIBRARIES}
+    PRIVATE riptide::warnings)
+
 # Physics checks of a finished run against evaluated nuclear data. Geant4 is
 # linked only for the NIST material of the scintillator and the ROOT reader.
 add_executable(riptide_sim_check apps/riptide_sim_check.cpp)
 target_include_directories(riptide_sim_check PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(riptide_sim_check PRIVATE
-    riptide::common riptide::sim_config riptide::sim_truth riptide::sim_validation
+    riptide::common riptide::sim_config riptide::sim_truth riptide::sim_check_inputs
     riptide::sim_reader riptide::options riptide::warnings ${Geant4_LIBRARIES})
 
 if(RIPTIDE_BUILD_TESTS)
