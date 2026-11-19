@@ -36,6 +36,13 @@ target_link_libraries(riptide_sim_check PRIVATE
     riptide::common riptide::sim_config riptide::sim_truth riptide::sim_check_inputs
     riptide::sim_reader riptide::options riptide::warnings ${Geant4_LIBRARIES})
 
+# Expected outcome of the checks of a planned run, from the evaluated data
+# alone; prints JSON, writes nothing.
+add_executable(riptide_sim_predict apps/riptide_sim_predict.cpp)
+target_link_libraries(riptide_sim_predict PRIVATE
+    riptide::common riptide::sim_config riptide::sim_check_inputs riptide::options
+    riptide::warnings ${Geant4_LIBRARIES})
+
 if(RIPTIDE_BUILD_TESTS)
     add_subdirectory(tests)
 endif()
