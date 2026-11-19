@@ -349,3 +349,46 @@ cancellano: se cambiano, se ne aggiunge una nuova che rimanda alla vecchia.
   a E_p alti); tagliare gli eventi a E_p piccolo (perde proprio il bordo dello spettro).
 - **Conseguenze:** l'esito della fase 1b è quello di `c2`, con `c1` riportato accanto. Il
   confronto n–p indipendente resta quello di D13; H-2 è controllato solo per coerenza con G4NDL.
+
+## D18 — Costante di Birks per lo scintillatore PVT (2026-11-19)
+
+- **Fatti:**
+  - in Geant4 11.4.1 `G4EmSaturation` applica Birks passo per passo, con kB letto da
+    `G4IonisParamMat::GetBirksConstant()`;
+  - i valori di serie esistono solo per pochi materiali (fra cui `G4_POLYSTYRENE`), non per
+    `G4_PLASTIC_SC_VINYLTOLUENE`, per cui senza un valore esplicito la luce visibile coincide con
+    l'energia depositata.
+- **Decisione:**
+  - **kB = 0.155 mm/MeV**, con incertezza ±0.005 mm/MeV (intervallo di credibilità al 68%, che
+    comprende statistica e sistematica).
+  - **Fonte:** T. Pöschl, D. Greenwald, M. J. Losekamm, S. Paul, *Measurement of ionization
+    quenching in plastic scintillators*, Nucl. Instrum. Methods Phys. Res. A 988 (2021) 164865,
+    doi:10.1016/j.nima.2020.164865 (arXiv:2007.08366), Tabella 1, riga "Birks", colonna BC-408.
+  - **Misura:** BC-408, a base di poliviniltoluene, con protoni da 30–100 MeV che si fermano in
+    fibre scintillanti; Bragg curve fino a circa 500 MeV/cm; stopping power CSDA da NIST.
+  - Gli autori dichiarano accordo con il valore BC-408 di M. Almurayshid et al., J. Appl. Clin.
+    Med. Phys. 18 (5) (2017) 210–219, doi:10.1002/acm2.12143, valore non letto direttamente qui.
+  - BC-408 ed EJ-200 sono formulazioni commerciali equivalenti; il materiale Geant4 resta
+    `G4_PLASTIC_SC_VINYLTOLUENE`.
+  - kB entra come parametro **obbligatorio** del config (`config_version` 2), con la fonte
+    registrata in `run.json`; kB = 0 resta ammesso come oracolo (luce visibile = deposito).
+- **Limiti noti** (dalla stessa fonte):
+  - per BC-408 Birks è il modello preferito fra quelli confrontati, ma nessun modello descrive bene
+    l'intero intervallo di dE/dx; le misure sullo stesso scintillatore spesso non concordano;
+  - il fit copre dE/dx fino a circa 500 MeV/cm, mentre i protoni di rinculo a fine percorso
+    superano questo valore: lì kB è un'estrapolazione;
+  - un solo kB non descrive il quenching di ioni più pesanti (carbonio di rinculo, alfa).
+- **Sistematica:** l'intervallo di variazione di kB per lo studio di sistematica si fissa nelle
+  previsioni della fase 2, prima dei run, da fonti lette direttamente. Restano da leggere:
+  - Almurayshid 2017;
+  - M. Hirschberg et al., IEEE Trans. Nucl. Sci. 39 (4) (1992) 511–514;
+  - i dati di luce dei protoni per EJ-200 a 50 keV–5 MeV di T. A. Laplace et al., Nucl. Instrum.
+    Methods Phys. Res. A 954 (2020) 161444 (arXiv:2009.07217), dati tabulati senza fit di Birks.
+- **Alternative:**
+  - il kB di `G4_POLYSTYRENE` (materiale diverso);
+  - valori da misure con elettroni o gamma, che non sondano l'alto dE/dx dei protoni;
+  - modelli a più parametri (Chou, Voltz), che `G4EmSaturation` non implementa.
+- **Conseguenze:**
+  - la luce visibile simulata dipende dal passo del protone: la funzione di passo diventa un
+    parametro registrato, con studio di convergenza nella fase 2;
+  - i PDF delle fonti restano fuori dal repo.
