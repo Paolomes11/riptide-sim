@@ -3,7 +3,7 @@
 **v0.3.0 — 2026-11-19 — Fase 1b (verifiche fisiche e prestazioni) completata.**
 
 Fase 2 in corso (branch `feat/sim-deposits`, aggiornato 2026-11-20): passi 1–5 del piano fatti,
-più i confronti con PSTAR (`checks_version` 7).
+più i confronti con PSTAR (`checks_version` 7) e la spiegazione della banda di overflow (D14).
 
 ## Fatto
 
@@ -119,16 +119,20 @@ Deposito, Birks, traccia del protone e classificazione dell'evento, vedi `roadma
 - **Regressione v7 sui run 1b (`c3`, 2026-11-20):** CSV identici byte per byte a `c2`, in
   `checks.json` cambiano solo le versioni e `check_id`, `deposits` saltata (schema 1). Dettagli
   in `validation/1b_results.md`.
+- **Banda di overflow spiegata (D14, 2026-11-20):** i 27 eventi a circa +7.5 keV sopra E_n sono
+  l'energia creata dall'offset HP in ogni urto n–p. Σε_np vale in media 7.4 keV; il resto della
+  dispersione è il neutrone termalizzato che esce dal blocco. Il bilancio per evento chiude
+  entro 4·10⁻¹⁵ MeV con un diagnostico fuori dal repo, che riproduce il run bit per bit (c).
+  La cattura n–p conserva l'energia: la previsione di +1.3 keV per cattura era sbagliata.
 - **Test:** `debug` 227/227, `ci` 211/211, zero warning, clang-format pulito.
 
 **Prossimi passi, nell'ordine:**
 
-1. Banda di overflow a +7.5 keV: verifica dell'ipotesi dell'offset di D14 sui 28 eventi.
-2. Convergenza della funzione di passo (anche sull'eccesso di luce rispetto a PSTAR) e intervallo
+1. Convergenza della funzione di passo (anche sull'eccesso di luce rispetto a PSTAR) e intervallo
    di kB: input alle previsioni. Run piccoli, col via.
-3. Previsioni `validation/2_predictions.md`, committate prima dei run.
-4. Run pilota e run della fase 2, col via e con `scripts/run_capped.sh`.
-5. Risultati `validation/2_results.md` e v0.4.0.
+2. Previsioni `validation/2_predictions.md`, committate prima dei run.
+3. Run pilota e run della fase 2, col via e con `scripts/run_capped.sh`.
+4. Risultati `validation/2_results.md` e v0.4.0.
 
 ## Punti aperti
 
@@ -146,9 +150,10 @@ Deposito, Birks, traccia del protone e classificazione dell'evento, vedi `roadma
   carbonio) va tenuto fra le sistematiche del fondo da carbonio (D15).
 - Confronto n–p indipendente da JEFF-3.3/ENDF-B-VIII.0 (D13) e verifica di H-2 contro una
   valutazione indipendente (D17): non fatti in 1b.
-- **Fase 2:** nel run d'integrazione da 1000 eventi a 14 MeV, 28 eventi hanno `det_Edep` >
-  14 MeV: neutroni termalizzati (6–74 urti n–p) e poi catturati. 27 stanno fra 14.002 e
-  14.012 MeV (circa +7.5 keV), uno a 15.6 MeV (γ di cattura in parte depositato). La banda a
-  +7.5 keV è dello stesso ordine dell'offset di D14 (7.6 keV a 14 MeV), ma l'ipotesi non è
-  verificata: va spiegata prima dei risultati.
+- **Fase 2:** a fine percorso `ionIoni` deposita più del K iniziale dello step. Riguarda 56
+  rinculi C12 su 486 e 4 Be9, con K fra 0.11 e 0.40 MeV; l'eccesso arriva al 15%, per un totale
+  di 0.74 MeV su 492 MeV di rinculi C12 (D14). La causa non è verificata. Va guardata insieme
+  alla convergenza della funzione di passo, e pesa su `det_Edep` più che sulla luce.
+- **Fase 2:** le verifiche dei depositi devono tollerare `det_Edep` − E_n fino a circa
+  6·10⁻⁴ · E_n senza un γ di cattura (D14).
 - **Fase 2:** `kBytesPerEvent` dello schema v2 è provvisorio (256 B): va misurato nel pilota.

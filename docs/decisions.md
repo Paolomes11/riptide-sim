@@ -211,6 +211,53 @@ cancellano: se cambiano, se ne aggiunge una nuova che rimanda alla vecchia.
     riportarlo come sistematica nota.
   - Un cambio di G4NDL che modifichi l'AWR di H-1 si vede in `checks.json` e nello smoke test,
     che controlla AWR = 0.999167.
+  - **Violazione del bilancio energetico (2026-11-20).** L'offset non è solo uno spostamento di
+    E_p: ogni urto n–p HP crea l'energia ε = E_p(m_p) − E_p(M_T), che finisce nel deposito.
+    Lungo una termalizzazione la somma è Σε ≈ 5.4·10⁻⁴ · ΣE_p, e ΣE_p arriva a circa E_n.
+    Questo spiega la banda di `det_Edep` a circa +7.5 keV sopra E_n, vista nel run
+    d'integrazione a 14 MeV (28 eventi su 1000 sopra E_n).
+    - **Metodo.** Un diagnostico fuori dal repo replica `riptide_sim` con le stesse azioni,
+      avvolte. Lo stesso seme, lo stesso config e lo stesso binario debug riproducono il run
+      d'integrazione bit per bit su tutte le colonne dei 1000 eventi. Per ogni step nello
+      scintillatore il diagnostico calcola dK = K_post + ΣK_sec + E_dep − K_pre. Per gli step
+      adronici calcola anche Q dalle masse nucleari di Geant4 (`G4NucleiProperties`) e ε = dK − Q.
+    - **Bilancio per evento (c).** E_n + ΣdK − E_uscita − `det_Edep` = 0 entro 4·10⁻¹⁵ MeV su
+      tutti i 1000 eventi, e il deposito ricostruito coincide con quello di `riptide_sim`.
+    - **Per urto n–p (c).** Sopra 400 kT (1017 urti), ε misurato e ε di D14 coincidono entro
+      4.5·10⁻¹³ MeV. ε/E_p vale (5.36–5.44)·10⁻⁴ per E_p > 1 keV. Sotto 1 keV i valori sono
+      dominati dall'arrotondamento: un urto a E_p = 28 eV dà 5.57·10⁻⁴. Sui 505 urti termici
+      Σε = 2·10⁻⁵ MeV, trascurabile.
+    - **I 27 eventi della banda (c), un solo run.**
+      - **Fatti:** eccesso fra 2.2 e 11.8 keV, media 6.9 keV, sd 1.8 keV; Σε_np fra 5.9 e
+        7.6 keV, media 7.43 keV, sd 0.31 keV.
+      - **Scomposizione:** eccesso = Σε_np + Σε_C − E_uscita, più (in un solo evento)
+        l'eccesso degli ioni descritto sotto. Il termine dominante è Σε_np in tutti i 27
+        eventi.
+      - **Il carbonio:** l'elastico HP sul C dà anch'esso ε > 0, ma piccolo: fino a 1.1 keV
+        per evento, 0.1 MeV in totale su 649 urti.
+      - **La dispersione** viene da E_uscita. In 26 eventi il neutrone, rallentato da 2–47 urti
+        n–p, esce dal blocco senza essere catturato, con un'energia fra 5 meV e 5.3 keV.
+      - **I due eventi con cattura nel blocco.**
+        - Evento 958, nella banda: il γ esce tutto.
+        - Evento 56, a 15.6 MeV: dei 2.224 MeV di Q restano 1.613 MeV, perché il γ esce con
+          0.611 MeV.
+    - **Previsione sbagliata:** la cattura n–p conserva l'energia. Mi aspettavo, dalla lettura
+      di `G4NeutronHPCaptureFS`, circa +1.3 keV per cattura dal rinculo del deuterone. Invece
+      K_d (1.31–1.33 keV) ed E_γ sommano a Q = m_n + M(¹H) − M(²H) entro 10⁻⁷ MeV, cioè entro
+      l'energia del neutrone termico.
+    - **Altro trovato (c):** a fine percorso `ionIoni` deposita più del K iniziale dello step.
+      - **Dove:** in 56 rinculi C12 (su 486 sopra 0.1 MeV) e in 4 Be9, con K_pre fra 0.11 e
+        0.40 MeV.
+      - **Quanto:** l'eccesso relativo va da 0.2% a 15%, mediana 4.4%. In totale fa 0.74 MeV su
+        492 MeV di rinculi C12.
+      - **Perché:** la causa non è verificata sui sorgenti (d). È dello stesso tipo del
+        G4NuclearStopping del protone in D19, ma relativamente più grande. Pesa poco sulla luce,
+        perché i rinculi di C sono fortemente spenti da Birks, ma entra in `det_Edep`.
+      - **Le conversioni γ → e⁺e⁻ e le annichilazioni** danno ±2m_e: per gli step non adronici
+        il diagnostico non calcola Q, quindi non sono violazioni.
+    - **Conseguenza:** `det_Edep` > E_n non è un errore del codice, ma il segno della convenzione
+      HP. Le verifiche dei depositi devono tollerare Σε ≲ 6·10⁻⁴ · E_n senza un γ di cattura
+      depositato.
 
 ## D15 — Carbonio HP: inelastico senza cattura e composizione isotopica (2026-11-18)
 
