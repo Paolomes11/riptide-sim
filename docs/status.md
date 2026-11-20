@@ -5,7 +5,8 @@
 Fase 2 in corso (branch `feat/sim-deposits`, aggiornato 2026-11-20): passi 1–5 del piano fatti,
 più i confronti con PSTAR (`checks_version` 7), la spiegazione della banda di overflow (D14), la
 luce continua dei protoni (D21), l'intervallo sistematico di kB (D18) e le previsioni dei run
-(`validation/2_predictions.md`, scritte prima dei run).
+(`validation/2_predictions.md`, scritte prima dei run). Il pilota ha trovato i rinculi nucleari
+del protone (D22): schema 3, `checks_version` 8, previsioni alla versione 2.
 
 ## Fatto
 
@@ -133,14 +134,22 @@ Deposito, Birks, traccia del protone e classificazione dell'evento, vedi `roadma
   totale di PSTAR. La funzione di passo resta (0.2, 0.1 mm).
 - **Intervallo di kB (D18, 2026-11-20):** [0.145, 0.165] mm/MeV, ±2σ di Pöschl, solo da quella
   fonte. Laplace 2020 letto: non dà un kB.
-- **Test:** `debug` 233/233, `ci` 217/217, zero warning nel codice del progetto, clang-format
+- **Pilota v2 (2026-11-20, non un run di validazione):** 10⁵ eventi a 1 thread in 13.0 s e
+  4·10⁵ a 8 thread in 9.6 s, circa 113 B/evento. Nel secondo un protone contenuto ha
+  `truth_p_Edep` − `truth_Ep` = −2.027 MeV: uno scattering Coulombiano singolo ha creato un
+  rinculo di C12 da 2.027 MeV (c, run ripetuto con la traccia degli step).
+- **Rinculi nucleari (D22, 2026-11-20):** colonna `truth_p_n_nuclear_recoil` (schema 3); le
+  verifiche dei depositi (`checks_version` 8) escludono quei protoni dal bilancio e da PSTAR, li
+  contano in `protons_nuclear_recoil` e saltano i run con schema < 3.
+  `validation/2_predictions.md` è alla versione 2, corretta dopo il pilota e detta tale.
+- **Test:** `debug` 235/235, `ci` 219/219, zero warning nel codice del progetto, clang-format
   pulito. In `release` restano due `-Wnull-dereference` da un header di Geant4
   (`G4NavigationHistory.icc`), presenti anche prima di D21.
 
 **Prossimi passi, nell'ordine:**
 
-1. Run pilota, tre run da 10⁷ e tre di sensibilità a kB, come in
-   `validation/2_predictions.md`, col via e con `scripts/run_capped.sh`.
+1. Pilota ripetuto con lo schema 3 (`pilot2_v3_*`), poi, col via, tre run da 10⁷ e tre di
+   sensibilità a kB, come in `validation/2_predictions.md` v2, con `scripts/run_capped.sh`.
 2. Risultati `validation/2_results.md` e v0.4.0.
 
 ## Punti aperti
@@ -168,4 +177,5 @@ Deposito, Birks, traccia del protone e classificazione dell'evento, vedi `roadma
   di Laplace 2020 la sonderebbe.
 - **Fase 2:** le verifiche dei depositi devono tollerare `det_Edep` − E_n fino a circa
   6·10⁻⁴ · E_n senza un γ di cattura (D14).
-- **Fase 2:** `kBytesPerEvent` dello schema v2 è provvisorio (256 B): va misurato nel pilota.
+- **Fase 2:** `kBytesPerEvent` è provvisorio (256 B); il pilota v2 misura circa 113 B/evento,
+  quindi resta. Il valore va confermato dal pilota v3 e registrato in `2_results.md`.

@@ -1,8 +1,13 @@
 # Previsioni della fase 2 — scritte prima dei run
 
-Versione 1 (2026-11-20). Scritte dal codice del commit `7de4fec` **prima** del pilota e dei run
-della fase 2. Questo file va committato prima di lanciarli; i risultati (`2_results.md`)
-citeranno l'hash di quel commit. Dopo i run le soglie non si toccano.
+Versione 2 (2026-11-20), **corretta dopo il pilota** e prima dei run di validazione. La
+versione 1 (commit `83b959d`) era scritta dal codice del commit `7de4fec`, prima del pilota. Il
+pilota ha fatto fallire un oracolo della §1: un protone ha perso 2.027 MeV in un rinculo nucleare
+da scattering Coulombiano (D22). Il codice è stato corretto (commit `60c37bc`, schema 3,
+`checks_version` 8), e questa versione cambia solo ciò che la sezione «Correzioni della
+versione 2» elenca. Il pilota non è un run di validazione, quindi nessuna soglia è stata
+adattata a un risultato di validazione. Questo file va committato prima dei run di produzione; i
+risultati (`2_results.md`) citeranno l'hash di quel commit. Dopo i run le soglie non si toccano.
 
 Le fonti dei numeri sono tre:
 - le attese della fase 1b (`predictions/*_v5.json`);
@@ -11,6 +16,21 @@ Le fonti dei numeri sono tre:
   cioè mono 14 MeV e piatto 10–20 MeV, seme `20260907`, 1 thread. Quei run sono cancellati e i
   loro numeri sono conservati fuori dal repo. Sono una misura (c) di questo codice, ma su un
   campione indipendente da quelli qui sotto, che hanno più eventi e più thread.
+
+## Correzioni della versione 2
+
+- §1, bilancio dei protoni contenuti: l'oracolo `contained_balance_MeV.min` ≥ −10⁻⁹ MeV vale
+  ora sui protoni senza interazioni adroniche **e senza rinculi nucleari**
+  (`truth_p_n_nuclear_recoil` = 0). Nella versione 1 l'esclusione mancava, e nel pilota a
+  8 thread il minimo era −2.027 MeV (evento 246185).
+- §1: il conteggio `deposits.protons_nuclear_recoil` ha una previsione propria; fra i run di kB
+  deve essere identico.
+- Run: schema 3 al posto di 2; i due piloti si ripetono con lo schema 3, con i `run_id`
+  `pilot2_v3_*`. I piloti v2 restano sull'SSD e non si verificano più: `checks_version` 8 salta
+  le verifiche dei depositi sui run con schema 2.
+- Nient'altro cambia: le soglie statistiche, le bande PSTAR e le attese delle §2–§7 sono quelle
+  della versione 1. Il campione PSTAR perde circa un protone su 10⁵, che non sposta le medie in
+  modo visibile (b).
 
 Etichette: **(a)** fatto stabilito (sorgenti, dati, costruzione del codice); **(b)** stima con
 ipotesi esplicite; **(c)** verificato con Monte Carlo; **(d)** ipotesi da mettere alla prova.
@@ -24,8 +44,8 @@ c1 --bins-u 50 --bins-z 50`.
 
 | Run (`run_id`) | Config | Eventi | Thread | Ruolo |
 |---|---|---|---|---|
-| `pilot2_mono_14MeV_1e5_1t` | `mono_14MeV.json` | 10⁵ | 1 | prestazioni, byte/evento |
-| `pilot2_mono_14MeV_4e5_8t` | `mono_14MeV.json` | 4·10⁵ | 8 | prestazioni, byte/evento |
+| `pilot2_v3_mono_14MeV_1e5_1t` | `mono_14MeV.json` | 10⁵ | 1 | prestazioni, byte/evento |
+| `pilot2_v3_mono_14MeV_4e5_8t` | `mono_14MeV.json` | 4·10⁵ | 8 | prestazioni, byte/evento |
 | `2_mono_14MeV_1e7` | `mono_14MeV.json` | 10⁷ | 8 | riferimento, tutto HP |
 | `2_flat_10_20MeV_1e7` | `flat_10_20MeV.json` | 10⁷ | 8 | sorgente di produzione |
 | `2_flat_19p5_20MeV_1e7` | `flat_19p5_20MeV.json` | 10⁷ | 8 | rampa HP/CHIPS (D16) |
@@ -33,7 +53,7 @@ c1 --bins-u 50 --bins-z 50`.
 | `2_mono_14MeV_kB0p155_1e6` | mono, kB = 0.155 | 10⁶ | 8 | sensibilità a kB (D18) |
 | `2_mono_14MeV_kB0p165_1e6` | mono, kB = 0.165 | 10⁶ | 8 | sensibilità a kB (D18) |
 
-Tutte le config hanno `config_version` 2, schema 2, funzione di passo del protone (0.2, 0.1 mm)
+Tutte le config hanno `config_version` 2, schema 3, funzione di passo del protone (0.2, 0.1 mm)
 (D21) e kB = 0.155 mm/MeV (D18). Fanno eccezione i due run di sensibilità a 0.145 e 0.165: le
 loro config si generano fuori dal repo da `mono_14MeV.json`, cambiando solo
 `scintillator.birks_kB_mm_per_MeV`, e la copia completa resta registrata in `run.json`. Il
@@ -54,10 +74,11 @@ Valgono per tutti i run di validazione (i tre da 10⁷ e i tre di sensibilità).
 |---|---|---|
 | `results.counters.must_be_zero.total` | = 0 | (d), solo un bug li rende ≠ 0 |
 | `results.deposits.counters.must_be_zero.total` | = 0 | (d), come sopra |
-| `deposits.skipped`, `deposits.pstar.skipped` | `null` | (a), schema 2 |
+| `deposits.skipped`, `deposits.pstar.skipped` | `null` | (a), schema 3 |
 | Σ `deposits.event_classes` | = `deposits.events` = `results.events` | (a) |
 | `deposits.contained_balance_MeV.max` | ≤ 0.01 MeV (slack di D19) | (d); scan: 1.9·10⁻⁴ MeV |
-| `deposits.contained_balance_MeV.min` | ≥ −10⁻⁹ MeV | (d); scan: −5.3·10⁻¹⁵ MeV |
+| `deposits.contained_balance_MeV.min` | ≥ −10⁻⁹ MeV, protoni senza rinculi nucleari (v2) | (d); scan: −5.3·10⁻¹⁵ MeV |
+| `deposits.protons_nuclear_recoil`, run da 10⁷ | fra 1 e 150 | (d), sotto (v2) |
 | `deposits.pstar.samples` + `below_table` | = `contained_balance_MeV.samples` | (a), stessi protoni |
 | `deposits.pstar.sha256` | `eec195fe…081b` di D20 | (a) |
 | `deposits.setup.birks_kB_mm_per_MeV` | kB della config del run | (a) |
@@ -66,6 +87,13 @@ Valgono per tutti i run di validazione (i tre da 10⁷ e i tre di sensibilità).
 `Edep_overflow` (eventi con `det_Edep` sopra E_n,max) non è un oracolo, perché `checks.json` ne
 riporta solo il conteggio e non i valori. Le catture con il loro Q e l'energia creata dall'offset
 HP (Σε ≲ 6·10⁻⁴·E_n, D14) lo rendono positivo per costruzione. L'attesa è nella §5.
+
+La banda di `protons_nuclear_recoil` viene da un solo caso, 1 su 137 806 protoni contenuti nei
+due piloti v2 a 14 MeV (D22). Il limite di Poisson al 90% su quel tasso, [0.05, 4.7] casi per
+1.38·10⁵ protoni, e i circa 2.7·10⁶ protoni contenuti di un run da 10⁷ (scan, §5) danno da 1 a
+circa 95 casi. Il limite alto è portato a 150 perché la sorgente piatta arriva a 20 MeV, dove il
+cammino del protone è più lungo (b). Non è un oracolo esatto: fuori banda è una previsione
+fallita, non un bug.
 
 ### Run di sensibilità a kB: stessi eventi
 
@@ -76,7 +104,7 @@ verifica `det_Edep` identico bit per bit (a). Quindi, fra i tre run `2_mono_14Me
 | Verifica | Soglia | Etichetta |
 |---|---|---|
 | colonna `Edep` di `deposit_spectra.csv`, tutto `proton_exits.csv` | identici byte per byte | (d), atteso per costruzione |
-| `event_classes`, `contained_balance_MeV`, `pstar.range_mm`, `Edep_overflow` | identici | (d), come sopra |
+| `event_classes`, `contained_balance_MeV`, `protons_nuclear_recoil` (v2), `pstar.range_mm`, `Edep_overflow` | identici | (d), come sopra |
 | `pstar.light_MeV.relative_residual` a 0.145 e a 0.165, meno quello a 0.155 | \|Δ\| < 0.01% (assoluto) | (b), sotto |
 
 L'ultima soglia vale perché il residuo contro PSTAR viene dalla differenza fra lo S di Geant4 e
