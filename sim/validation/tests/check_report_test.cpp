@@ -1,8 +1,10 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 
+#include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -342,4 +344,58 @@ TEST_CASE("deposit CSVs have one row per bin", "[check_report]") {
     writeProtonExitsCsv(exits, sampleDeposits());
     CHECK(lines(exits.str()) ==
           std::vector<std::string>{"Ep_low,Ep_high,protons,exiting", "0,10,1,0", "10,20,3,1"});
+}
+
+namespace {
+
+// Two bins: the first with two protons, the second empty.
+PstarResults samplePstar() {
+    PstarResults r;
+    r.samples = 2;
+    r.below_table = 1;
+    r.edges = {0.0, 10.0, 20.0};
+    r.range_bins.assign(2, {});
+    r.light_bins.assign(2, {});
+    for (const double d : {0.25, -0.75}) {
+        r.range_bins.at(0).add(2.0 + d, 2.0);
+        r.light_bins.at(0).add(4.0 - d, 4.0);
+        r.range.add(2.0 + d, 2.0);
+        r.light.add(4.0 - d, 4.0);
+    }
+    return r;
+}
+
+} // namespace
+
+TEST_CASE("pstarJson reports the residuals, null where undefined", "[check_report]") {
+    const nlohmann::json doc = pstarJson(samplePstar());
+    CHECK(doc["samples"] == 2);
+    CHECK(doc["below_table"] == 1);
+    CHECK(doc["range_mm"]["samples"] == 2);
+    CHECK_THAT(doc["range_mm"]["residual_mean"].get<double>(), WithinULP(-0.25, 0));
+    CHECK_THAT(doc["light_MeV"]["residual_mean"].get<double>(), WithinULP(0.25, 0));
+    CHECK_THAT(doc["range_mm"]["relative_residual"].get<double>(), WithinULP(-0.125, 0));
+    CHECK(doc["range_mm"]["residual_sd"].is_number());
+    REQUIRE(doc["bins"].size() == 2);
+    CHECK_THAT(doc["bins"][1]["Ep_low_MeV"].get<double>(), WithinULP(10.0, 0));
+    const auto& empty = doc["bins"][1]["light_MeV"];
+    CHECK(empty["samples"] == 0);
+    CHECK(empty["residual_mean"].is_null());
+    CHECK(empty["residual_sd"].is_null());
+    CHECK(empty["relative_residual"].is_null());
+}
+
+TEST_CASE("the PSTAR CSV has one row per bin, empty fields where undefined", "[check_report]") {
+    std::ostringstream out;
+    writePstarComparisonCsv(out, samplePstar());
+    // d = +0.25, -0.75: mean -0.25, sample sd sqrt(0.5).
+    std::ostringstream sd;
+    sd.precision(std::numeric_limits<double>::max_digits10);
+    sd << std::sqrt(0.5);
+    CHECK(lines(out.str()) ==
+          std::vector<std::string>{"Ep_low,Ep_high,protons,length_mean,R_csda_mean,"
+                                   "length_residual_mean,length_residual_sd,Evis_mean,L_mean,"
+                                   "Evis_residual_mean,Evis_residual_sd",
+                                   "0,10,2,1.75,2,-0.25," + sd.str() + ",4.25,4,0.25," + sd.str(),
+                                   "10,20,0,,,,,,,,"});
 }

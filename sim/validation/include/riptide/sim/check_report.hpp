@@ -18,6 +18,7 @@
 
 #include "riptide/sim/check_accumulator.hpp"
 #include "riptide/sim/deposit_checks.hpp"
+#include "riptide/sim/pstar_checks.hpp"
 
 namespace riptide::sim::checks {
 
@@ -30,10 +31,11 @@ inline constexpr const char* kResidualsFileName = "residuals_Ep.csv";
 inline constexpr const char* kModelMixFileName = "model_mix.csv";
 inline constexpr const char* kDepositSpectraFileName = "deposit_spectra.csv";
 inline constexpr const char* kProtonExitsFileName = "proton_exits.csv";
+inline constexpr const char* kPstarComparisonFileName = "pstar_comparison.csv";
 
 // Version of the checks.json layout; bumped on any change of its keys.
-// Version 6 added results.deposits.
-inline constexpr int kChecksVersion = 6;
+// Version 6 added results.deposits, version 7 results.deposits.pstar.
+inline constexpr int kChecksVersion = 7;
 
 class ReportError : public std::runtime_error {
 public:
@@ -58,12 +60,24 @@ public:
 [[nodiscard]] nlohmann::json depositsJson(const DepositSetup& setup, const DepositResults& results);
 [[nodiscard]] nlohmann::json depositsSkippedJson(const std::string& reason);
 
+// The comparison with PSTAR: the compared and below-table protons, the
+// range (mm) and light (MeV) residuals over all bins and per bin of truth_Ep.
+// Undefined statistics (fewer than two protons) are null. The caller adds the
+// source of the table.
+[[nodiscard]] nlohmann::json pstarJson(const PstarResults& results);
+
 // low,high,Edep,Evis: events per bin of det_Edep and det_Evis; the overflow
 // above En_max is only in the JSON.
 void writeDepositSpectraCsv(std::ostream& out, const DepositResults& results);
 // Ep_low,Ep_high,protons,exiting: recoil protons by truth_Ep and how many left
 // the scintillator.
 void writeProtonExitsCsv(std::ostream& out, const DepositResults& results);
+
+// Ep_low,Ep_high,protons,length_mean,R_csda_mean,length_residual_mean,
+// length_residual_sd,Evis_mean,L_mean,Evis_residual_mean,Evis_residual_sd:
+// one row per bin of truth_Ep; the means are empty without protons, the
+// standard deviations with fewer than two.
+void writePstarComparisonCsv(std::ostream& out, const PstarResults& results);
 
 // low,high,observed,expected_<library>... one row per original bin.
 void writeHistogramCsv(std::ostream& out, const HistogramResult& histogram);

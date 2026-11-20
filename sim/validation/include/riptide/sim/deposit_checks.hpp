@@ -3,8 +3,8 @@
 // Checks of the deposit, visible-energy and recoil-proton columns of a schema
 // v2 run, accumulated one event at a time. Like check_accumulator.hpp it has no
 // I/O, Geant4 or ROOT: the app reads the rows and hands in the records, and the
-// synthetic unit tests drive the same code. Comparisons with external tables
-// of range and light yield are not here; these are the deterministic oracles
+// synthetic unit tests drive the same code. The comparison with the PSTAR tables
+// of range and stopping power is in pstar_checks.hpp; these are the deterministic oracles
 // and the distributions reported without a threshold.
 
 #include <array>

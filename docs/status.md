@@ -2,7 +2,8 @@
 
 **v0.3.0 — 2026-11-19 — Fase 1b (verifiche fisiche e prestazioni) completata.**
 
-Fase 2 in corso (branch `feat/sim-deposits`, 2026-11-19): passi 1–5 del piano fatti.
+Fase 2 in corso (branch `feat/sim-deposits`, aggiornato 2026-11-20): passi 1–5 del piano fatti,
+più i confronti con PSTAR (`checks_version` 7).
 
 ## Fatto
 
@@ -107,17 +108,26 @@ Deposito, Birks, traccia del protone e classificazione dell'evento, vedi `roadma
 - **Smoke test** (1000 eventi a 14 MeV): contatori che devono essere zero tutti a zero; 292
   protoni contenuti con bilancio massimo 1.9·10⁻⁴ MeV e nessun bilancio negativo. Solo
   controllo del funzionamento, non un risultato.
-- **Test:** `debug` 204/204, `ci` 188/188, zero warning, clang-format pulito.
+- **PSTAR (D20, 2026-11-20):** tabella NIST del plastico vinil-toluenico sull'SSD con sha256,
+  lettore in `sim/validation` (S e R_CSDA interpolati log-log, L(E_p; kB) con Simpson su S
+  totale) e sezione `deposits.pstar` di `checks.json` (`checks_version` 7) con
+  `pstar_comparison.csv`: residui di `truth_p_length` contro R_CSDA e di `truth_p_Evis` contro
+  L, per bin di E_p, per i protoni contenuti senza interazioni adroniche.
+- **Osservazione (d) dello smoke test** (292 protoni, solo funzionamento, non un risultato):
+  range relativo −1.1·10⁻⁴ ± 9·10⁻⁴; luce relativa +0.57% ± 0.04% sopra L di PSTAR. Da
+  rimisurare nella convergenza della funzione di passo, prima delle previsioni.
+- **Test:** `debug` 227/227, `ci` 211/211, zero warning, clang-format pulito.
 
 **Prossimi passi, nell'ordine:**
 
-1. Confronti (c) con PSTAR (range CSDA, resa di luce L(E_p)): tabella NIST sull'SSD con
-   sha256. Da decidere se prima o dopo le previsioni.
-2. Regressione di `riptide_sim_check` sui dati 1b (schema v1): stessi numeri e `deposits`
+1. Regressione di `riptide_sim_check` (v7) sui dati 1b (schema v1): stessi numeri e `deposits`
    `skipped`. Solo col via.
-3. Previsioni `validation/2_predictions.md`, committate prima dei run.
-4. Run pilota e run della fase 2, col via e con `scripts/run_capped.sh`.
-5. Risultati `validation/2_results.md` e v0.4.0.
+2. Banda di overflow a +7.5 keV: verifica dell'ipotesi dell'offset di D14 sui 28 eventi.
+3. Convergenza della funzione di passo (anche sull'eccesso di luce rispetto a PSTAR) e intervallo
+   di kB: input alle previsioni. Run piccoli, col via.
+4. Previsioni `validation/2_predictions.md`, committate prima dei run.
+5. Run pilota e run della fase 2, col via e con `scripts/run_capped.sh`.
+6. Risultati `validation/2_results.md` e v0.4.0.
 
 ## Punti aperti
 

@@ -107,6 +107,7 @@ $RIPTIDE_DATA_DIR/
 │   ├── spectrum_u.csv | depth_z.csv | fractions.csv | legendre.csv | residuals_Ep.csv
 │   ├── model_mix.csv
 │   ├── deposit_spectra.csv | proton_exits.csv   # solo per run con schema ≥ 2
+│   ├── pstar_comparison.csv  # solo per run con schema ≥ 2
 │   └── checks.json           # esiti numerici delle verifiche e marcatore di completamento
 └── reference/                # dati di riferimento, sola lettura
     ├── endfb80/              # file ENDF-6 estratti (D13); download/ con gli originali
@@ -125,11 +126,14 @@ il reader controlla `det_Evis` = `det_Edep` evento per evento entro 10⁻⁹ MeV
 identico, bit per bit, a quello di `ctest_it_1t`, perché kB entra solo nella luce visibile.
 Il `check_id` `ctest_smoke` è riservato allo smoke test di `riptide_sim_check`
 (`sim/tests/run_check_smoke.sh`), che ricrea solo `validation/ctest_it_1t/ctest_smoke`. Lo
-smoke test controlla `checks_version` = 6, i file JEFF-3.3 letti (H-1, C-0, C-13, D15) e lo
+smoke test controlla `checks_version` = 7, i file JEFF-3.3 letti (H-1, C-0, C-13, D15) e lo
 sha256 del primo, l'AWR di H-1 (0.999167, D14), il residuo di E_p all'arrotondamento, lo scarto
 dalla cinematica fisica in [5.3, 5.5]·10⁻⁴, i contatori di coerenza a zero e, a 14 MeV, nessun
 evento n–p con la cinematica non HP (D16). Controlla anche la sezione `deposits`: fatta, con kB
-nominale, con le classi che sommano agli eventi e con `must_be_zero.total` = 0.
+nominale, con le classi che sommano agli eventi e con `must_be_zero.total` = 0, e la sezione
+`deposits.pstar`: fatta, con lo sha256 di `pstar/pstar_216.txt` uguale a quello di `sha256sum`,
+con `samples` + `below_table` uguale ai protoni di `contained_balance_MeV` e con un bin per bin
+dei depositi. Nessuna soglia fisica: quelle stanno nelle previsioni.
 
 ## Valutazioni di riferimento
 
@@ -232,8 +236,14 @@ I CSV, a precisione piena (`max_digits10`):
   contatori di overflow di `checks.json`, non nell'ultimo bin.
 - `proton_exits.csv`: `Ep_low,Ep_high,protons,exiting`, protoni di rinculo validi e quelli che
   escono dal blocco, per bin di `truth_Ep` con gli stessi bordi.
+- `pstar_comparison.csv`: `Ep_low,Ep_high,protons,length_mean,R_csda_mean,length_residual_mean,
+  length_residual_sd,Evis_mean,L_mean,Evis_residual_mean,Evis_residual_sd`, per bin di
+  `truth_Ep` con gli stessi bordi: medie di `truth_p_length` [mm] e di R_CSDA(E_p), di
+  `truth_p_Evis` [MeV] e di L(E_p; kB), e media e deviazione standard campionaria dei residui
+  (osservato − atteso). Campo vuoto per le medie di un bin senza protoni e per le deviazioni
+  con meno di due protoni.
 
-`checks.json` (versione `checks_version` = 6) si scrive per ultimo, con tmp + rename. Chiavi:
+`checks.json` (versione `checks_version` = 7) si scrive per ultimo, con tmp + rename. Chiavi:
 
 | Chiave | Contenuto |
 |---|---|
@@ -294,7 +304,21 @@ invariate. Altrimenti ha `skipped` = `null` e:
   contata, uscita con punto finale fuori dalla superficie, punto finale fuori dal blocco,
   Evis ≠ Edep con kB = 0, e `total`;
 - `counters.expected_rare`: `p_Edep_above_Ep` (entro lo slack, G4NuclearStopping a fine range)
-  e `contained_end_on_surface`.
+  e `contained_end_on_surface`;
+- `pstar`: confronto con la tabella PSTAR (D20) degli stessi protoni di
+  `contained_balance_MeV`. Per ciascuno l'attesa è calcolata alla sua `truth_Ep`, non al centro
+  del bin: R_CSDA(E_p) interpolato log-log per `truth_p_length`, e L(E_p; kB) = ∫ dE / (1 + kB·S),
+  con S totale della tabella e kB del run, per `truth_p_Evis`. Chiavi: `skipped` (`null`),
+  `file`, `sha256`, `density_g_cm3` (quella della tabella; se la densità del mezzo Geant4 ne
+  differisce oltre 10⁻¹² in relativo, il programma si ferma), `samples` (protoni confrontati),
+  `below_table` (contenuti con E_p sotto la prima riga, 1 keV, esclusi), `range_mm` e
+  `light_MeV` su tutti i bin e `bins` (per bin: `Ep_low_MeV`, `Ep_high_MeV`, `range_mm`,
+  `light_MeV`). Ogni riassunto ha `samples`, `observed_mean`, `expected_mean`, `residual_mean`,
+  `residual_sd`, `residual_sem`, `relative_residual` (Σd / Σatteso) e `relative_sem`; `null`
+  quando non è definito (medie senza protoni, deviazioni ed errori con meno di due).
+
+Dalla versione 7 (2026-11-20): c'è `results.deposits.pstar` e c'è `pstar_comparison.csv`; il
+programma richiede `reference/pstar/pstar_216.txt` per i run con schema ≥ 2.
 
 Dalla versione 6 (2026-11-19): c'è `results.deposits` e ci sono `deposit_spectra.csv` e
 `proton_exits.csv`.
