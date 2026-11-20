@@ -116,18 +116,19 @@ Deposito, Birks, traccia del protone e classificazione dell'evento, vedi `roadma
 - **Osservazione (d) dello smoke test** (292 protoni, solo funzionamento, non un risultato):
   range relativo −1.1·10⁻⁴ ± 9·10⁻⁴; luce relativa +0.57% ± 0.04% sopra L di PSTAR. Da
   rimisurare nella convergenza della funzione di passo, prima delle previsioni.
+- **Regressione v7 sui run 1b (`c3`, 2026-11-20):** CSV identici byte per byte a `c2`, in
+  `checks.json` cambiano solo le versioni e `check_id`, `deposits` saltata (schema 1). Dettagli
+  in `validation/1b_results.md`.
 - **Test:** `debug` 227/227, `ci` 211/211, zero warning, clang-format pulito.
 
 **Prossimi passi, nell'ordine:**
 
-1. Regressione di `riptide_sim_check` (v7) sui dati 1b (schema v1): stessi numeri e `deposits`
-   `skipped`. Solo col via.
-2. Banda di overflow a +7.5 keV: verifica dell'ipotesi dell'offset di D14 sui 28 eventi.
-3. Convergenza della funzione di passo (anche sull'eccesso di luce rispetto a PSTAR) e intervallo
+1. Banda di overflow a +7.5 keV: verifica dell'ipotesi dell'offset di D14 sui 28 eventi.
+2. Convergenza della funzione di passo (anche sull'eccesso di luce rispetto a PSTAR) e intervallo
    di kB: input alle previsioni. Run piccoli, col via.
-4. Previsioni `validation/2_predictions.md`, committate prima dei run.
-5. Run pilota e run della fase 2, col via e con `scripts/run_capped.sh`.
-6. Risultati `validation/2_results.md` e v0.4.0.
+3. Previsioni `validation/2_predictions.md`, committate prima dei run.
+4. Run pilota e run della fase 2, col via e con `scripts/run_capped.sh`.
+5. Risultati `validation/2_results.md` e v0.4.0.
 
 ## Punti aperti
 

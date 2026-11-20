@@ -248,7 +248,7 @@ I CSV, a precisione piena (`max_digits10`):
 | Chiave | Contenuto |
 |---|---|
 | `checks_version`, `run_id`, `check_id` | identificazione |
-| `versions` | `riptide`, `git`, `geant4`, `schema`, `run_record` (del run letto) |
+| `versions` | `riptide`, `git`, `geant4`, `schema` del programma di verifica (`kSchemaVersion` compilato, non lo schema del run: quello è in `run.json`), `run_record` del run letto |
 | `reference_files` | per file: `library`, `nuclide`, `path`, `sha256` |
 | `hp_elastic_H1` | `file`, `sha256`, `rep_flag`, `awr`, `frame_flag`, `target_mass_MeV` dell'intestazione G4NDL di H-1 (D14) |
 | `hp_deuterium` | per file: `file`, `sha256` delle sezioni d'urto G4NDL di H-2 (elastica, anelastica, cattura; D17) |

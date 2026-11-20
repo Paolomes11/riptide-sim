@@ -97,6 +97,27 @@ differenza media: il resto è la fluttuazione comune con `jeff33` (a₃ = −1.8
 Si conferma il limite di D13: a 10⁷ eventi la simulazione non distingue le due revisioni di
 H-1, e la fase 1b verifica l'implementazione, non i dati n–p.
 
+## Regressione delle verifiche v7 (`c3`, 2026-11-20)
+
+`riptide_sim_check` al commit `09bef22` (`checks_version` 7, build `release`) sugli stessi tre
+run, con `--check-id c3 --bins-u 50 --bins-z 50` e `scripts/run_capped.sh -m 5G`. Previsione
+scritta prima: stessi numeri di `c2`, `deposits` saltata perché i run hanno schema 1.
+
+**Esito: nessuna regressione.** Per tutti e tre i run (a):
+- i sei CSV (`spectrum_u`, `depth_z`, `fractions`, `legendre`, `model_mix`, `residuals_Ep`)
+  sono identici byte per byte a quelli di `c2`;
+- in `checks.json` gli unici campi diversi sono `check_id`, `checks_version` (5 → 7),
+  `versions.git`, `versions.riptide` (0.2.0 → 0.3.0) e `versions.schema` (1 → 2). Inoltre
+  compare `results.deposits` = `{"skipped": "schema version 1 has no deposit columns"}`;
+- nessun CSV di fase 2 è stato scritto.
+
+`versions.schema` non era nella previsione. È il `kSchemaVersion` compilato nel programma di
+verifica, non lo schema del run letto, e vale 2 da D19. Lo schema del run è quello di
+`run.json`, e qui è 1, come mostra `deposits.skipped`. La descrizione in `data_layout.md` è
+stata corretta.
+
+Tempo 33–47 s, RSS massimo 164 MiB (c), come in `c2`.
+
 ## Punti aperti
 
 - **Confronto n–p indipendente** (D13): JEFF-3.3 ed ENDF/B-VIII.0 per H-1 sono la stessa
