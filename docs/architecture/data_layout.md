@@ -400,12 +400,12 @@ Albero `events`: le 19 colonne della v1, poi le 18 della v2, in quest'ordine. Ci
 | `truth_n_np_scatters` | Int32 | numero di scattering elastici su H del neutrone primario |
 | `truth_Ep`, `truth_p_dir_{x,y,z}`, `truth_theta_p` | Double | protone di rinculo del **primo** n–p: energia [MeV], direzione, angolo [rad] rispetto a Ω_n del fascio |
 | `truth_valid_np` | Int32 | 1 se le colonne del protone sono riempite |
-| `det_Edep`, `det_Evis` | Double | energia depositata nello scintillatore da tutte le particelle e luce visibile con Birks [MeV] (v2) |
+| `det_Edep`, `det_Evis` | Double | energia depositata nello scintillatore da tutte le particelle e luce visibile con Birks [MeV] (v2); per i protoni la luce continua L(K_pre) − L(K_pre − E_dep), per le altre particelle `G4EmSaturation` (D21, dal commit 3af4c3a) |
 | `truth_np_vertex_{x,y,z}` | Double | vertice del primo n–p [mm] (v2) |
 | `truth_p_end_{x,y,z}` | Double | punto finale del protone di rinculo nello scintillatore [mm] (v2) |
 | `truth_p_length` | Double | cammino del protone nello scintillatore [mm] (v2) |
 | `truth_p_exits` | Int32 | 1 se il protone esce dallo scintillatore (v2) |
-| `truth_p_Edep`, `truth_p_Evis` | Double | deposito e luce visibile della sola traccia del protone [MeV] (v2) |
+| `truth_p_Edep`, `truth_p_Evis` | Double | deposito e luce visibile della sola traccia del protone [MeV] (v2); la luce è continua, L(E_p) per un protone che si ferma (D21) |
 | `truth_p_n_hadronic` | Int32 | interazioni adroniche del protone nello scintillatore (v2) |
 | `truth_n_nC_elastic`, `truth_n_nC_inelastic`, `truth_n_other` | Int32 | interazioni n–C elastiche, n–C anelastiche e altre del neutrone primario (v2) |
 | `truth_n_secondary_n_hadronic` | Int32 | interazioni adroniche dei neutroni non primari nello scintillatore (v2) |

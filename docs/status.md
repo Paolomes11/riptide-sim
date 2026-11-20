@@ -3,7 +3,8 @@
 **v0.3.0 — 2026-11-19 — Fase 1b (verifiche fisiche e prestazioni) completata.**
 
 Fase 2 in corso (branch `feat/sim-deposits`, aggiornato 2026-11-20): passi 1–5 del piano fatti,
-più i confronti con PSTAR (`checks_version` 7) e la spiegazione della banda di overflow (D14).
+più i confronti con PSTAR (`checks_version` 7), la spiegazione della banda di overflow (D14), la
+luce continua dei protoni (D21) e l'intervallo sistematico di kB (D18).
 
 ## Fatto
 
@@ -114,8 +115,8 @@ Deposito, Birks, traccia del protone e classificazione dell'evento, vedi `roadma
   `pstar_comparison.csv`: residui di `truth_p_length` contro R_CSDA e di `truth_p_Evis` contro
   L, per bin di E_p, per i protoni contenuti senza interazioni adroniche.
 - **Osservazione (d) dello smoke test** (292 protoni, solo funzionamento, non un risultato):
-  range relativo −1.1·10⁻⁴ ± 9·10⁻⁴; luce relativa +0.57% ± 0.04% sopra L di PSTAR. Da
-  rimisurare nella convergenza della funzione di passo, prima delle previsioni.
+  range relativo −1.1·10⁻⁴ ± 9·10⁻⁴; luce relativa +0.57% ± 0.04% sopra L di PSTAR. Spiegata e
+  rimossa da D21.
 - **Regressione v7 sui run 1b (`c3`, 2026-11-20):** CSV identici byte per byte a `c2`, in
   `checks.json` cambiano solo le versioni e `check_id`, `deposits` saltata (schema 1). Dettagli
   in `validation/1b_results.md`.
@@ -124,15 +125,22 @@ Deposito, Birks, traccia del protone e classificazione dell'evento, vedi `roadma
   dispersione è il neutrone termalizzato che esce dal blocco. Il bilancio per evento chiude
   entro 4·10⁻¹⁵ MeV con un diagnostico fuori dal repo, che riproduce il run bit per bit (c).
   La cattura n–p conserva l'energia: la previsione di +1.3 keV per cattura era sbagliata.
-- **Test:** `debug` 227/227, `ci` 211/211, zero warning, clang-format pulito.
+- **Luce continua dei protoni (D21, 2026-11-20):** Birks per step dipendeva dalla funzione di
+  passo, da +0.51% a −0.39% sulla griglia, senza limite (c). Ora per i protoni la luce di uno step
+  è L(K_pre) − L(K_pre − E_dep) dallo S elettronico di Geant4. Sullo stesso scan il residuo contro
+  PSTAR vale −0.062% ± 0.001% per tutte le config (c): è la differenza fra lo S di Geant4 e lo S
+  totale di PSTAR. La funzione di passo resta (0.2, 0.1 mm).
+- **Intervallo di kB (D18, 2026-11-20):** [0.145, 0.165] mm/MeV, ±2σ di Pöschl, solo da quella
+  fonte. Laplace 2020 letto: non dà un kB.
+- **Test:** `debug` 233/233, `ci` 217/217, zero warning nel codice del progetto, clang-format
+  pulito. In `release` restano due `-Wnull-dereference` da un header di Geant4
+  (`G4NavigationHistory.icc`), presenti anche prima di D21.
 
 **Prossimi passi, nell'ordine:**
 
-1. Convergenza della funzione di passo (anche sull'eccesso di luce rispetto a PSTAR) e intervallo
-   di kB: input alle previsioni. Run piccoli, col via.
-2. Previsioni `validation/2_predictions.md`, committate prima dei run.
-3. Run pilota e run della fase 2, col via e con `scripts/run_capped.sh`.
-4. Risultati `validation/2_results.md` e v0.4.0.
+1. Previsioni `validation/2_predictions.md`, committate prima dei run.
+2. Run pilota e run della fase 2, col via e con `scripts/run_capped.sh`.
+3. Risultati `validation/2_results.md` e v0.4.0.
 
 ## Punti aperti
 
@@ -152,8 +160,11 @@ Deposito, Birks, traccia del protone e classificazione dell'evento, vedi `roadma
   valutazione indipendente (D17): non fatti in 1b.
 - **Fase 2:** a fine percorso `ionIoni` deposita più del K iniziale dello step. Riguarda 56
   rinculi C12 su 486 e 4 Be9, con K fra 0.11 e 0.40 MeV; l'eccesso arriva al 15%, per un totale
-  di 0.74 MeV su 492 MeV di rinculi C12 (D14). La causa non è verificata. Va guardata insieme
-  alla convergenza della funzione di passo, e pesa su `det_Edep` più che sulla luce.
+  di 0.74 MeV su 492 MeV di rinculi C12 (D14). La causa non è verificata; non dipende dalla
+  funzione di passo del protone (D21, P4). Pesa su `det_Edep` più che sulla luce.
+- **Fase 2:** kB è misurato fino a 500 MeV/cm; la fine del range dei protoni va oltre, quindi lì
+  la luce è un'estrapolazione non coperta dall'intervallo di D18. Un fit di Birks sui dati EJ-200
+  di Laplace 2020 la sonderebbe.
 - **Fase 2:** le verifiche dei depositi devono tollerare `det_Edep` − E_n fino a circa
   6·10⁻⁴ · E_n senza un γ di cattura (D14).
 - **Fase 2:** `kBytesPerEvent` dello schema v2 è provvisorio (256 B): va misurato nel pilota.

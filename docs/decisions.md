@@ -425,19 +425,28 @@ cancellano: se cambiano, se ne aggiunge una nuova che rimanda alla vecchia.
   - il fit copre dE/dx fino a circa 500 MeV/cm, mentre i protoni di rinculo a fine percorso
     superano questo valore: lì kB è un'estrapolazione;
   - un solo kB non descrive il quenching di ioni più pesanti (carbonio di rinculo, alfa).
-- **Sistematica:** l'intervallo di variazione di kB per lo studio di sistematica si fissa nelle
-  previsioni della fase 2, prima dei run, da fonti lette direttamente. Restano da leggere:
-  - Almurayshid 2017;
-  - M. Hirschberg et al., IEEE Trans. Nucl. Sci. 39 (4) (1992) 511–514;
-  - i dati di luce dei protoni per EJ-200 a 50 keV–5 MeV di T. A. Laplace et al., Nucl. Instrum.
-    Methods Phys. Res. A 954 (2020) 161444 (arXiv:2009.07217), dati tabulati senza fit di Birks.
+- **Sistematica** (fissata il 2026-11-20, prima delle previsioni della fase 2):
+  - **intervallo kB ∈ [0.145, 0.165] mm/MeV**, ±2σ del valore Birks di Pöschl (Tabella 1,
+    BC-408, 0.155 ± 0.005, 68% di credibilità con statistica e sistematica insieme, fra cui un
+    prior del 4% sullo stopping NIST). Viene **solo** da Pöschl;
+  - nella stessa Tabella 1 il modello di Chou dà per BC-408 kB = 0.151 ± 0.04 mm/MeV con C
+    compatibile con 0: dentro l'intervallo, ma con un errore otto volte più largo;
+  - T. A. Laplace et al. (2020), letto il 2026-11-20 (arXiv:2009.07217): misura la resa luminosa
+    dei protoni in EJ-200, EJ-204 ed EJ-208 relativa a un elettrone da 477 keV, **senza** fit di
+    Birks né valori di kB. Un fit proprio su quei dati sonderebbe proprio la zona oltre
+    500 MeV/cm; non è fatto;
+  - non letti: Almurayshid 2017 (citato da Pöschl come in accordo, valore non riportato) e
+    Hirschberg 1992;
+  - punto aperto: l'intervallo non copre l'estrapolazione oltre 500 MeV/cm, dove arriva la fine
+    del range di ogni protone.
 - **Alternative:**
   - il kB di `G4_POLYSTYRENE` (materiale diverso);
   - valori da misure con elettroni o gamma, che non sondano l'alto dE/dx dei protoni;
   - modelli a più parametri (Chou, Voltz), che `G4EmSaturation` non implementa.
 - **Conseguenze:**
   - la luce visibile simulata dipende dal passo del protone: la funzione di passo diventa un
-    parametro registrato, con studio di convergenza nella fase 2;
+    parametro registrato, con studio di convergenza nella fase 2 (superato da D21: per i protoni la
+    luce non dipende più dal passo);
   - i PDF delle fonti restano fuori dal repo.
 
 ## D19 — Schema v2: depositi, traccia del protone e classe dell'evento (2026-11-19)
@@ -542,3 +551,79 @@ cancellano: se cambiano, se ne aggiunge una nuova che rimanda alla vecchia.
 - **Conseguenze:**
   - nuovo lettore della tabella in `sim/validation` (senza Geant4, compilato anche in `ci`);
   - la sezione `pstar` delle verifiche arriva con `checks_version` 7.
+
+## D21 — Luce dei protoni continua e funzione di passo (2026-11-20)
+
+- **Problema:** con `G4EmSaturation` Birks si applica step per step, eloss/(1 + kB·eloss/ℓ). La
+  luce di un protone che si ferma dipende allora dalla funzione di passo. Il confronto PSTAR
+  (D20) sullo smoke test dava +0.57% ± 0.04% di luce sopra L(E_p; kB).
+- **Scan** (fuori dal repo, mono 14 MeV, 10⁴ eventi, 1 thread, seme 20260907, circa 2770 protoni
+  contenuti senza interazioni adroniche per run; config uguali a `config/mono_14MeV.json` salvo
+  `proton_step_function`). Residuo relativo medio di `truth_p_Evis` contro L di PSTAR e di
+  `truth_p_length` contro R_CSDA, (c):
+
+  | (dRoverRange, finalRange) | luce, Birks per step | luce, L continua (questa decisione) | range |
+  |---|---|---|---|
+  | (0.2, 0.1 mm) | +0.511% ± 0.012% | −0.062% ± 0.001% | −0.101% ± 0.029% |
+  | (0.1, 0.1 mm) | +0.471% | −0.062% | −0.100% |
+  | (0.05, 0.1 mm) | +0.447% | −0.062% | −0.103% |
+  | (0.02, 0.1 mm) | +0.442% | −0.062% | −0.099% |
+  | (0.01, 0.1 mm) | +0.439% | −0.062% | −0.099% |
+  | (0.01, 0.01 mm) | −0.167% | −0.062% | −0.183% |
+  | (0.01, 1 µm) | −0.392% ± 0.016% | −0.062% ± 0.001% | +0.065% ± 0.032% |
+  | piatto 10–20 MeV, (0.2, 0.1 mm) | +0.495% | −0.060% | −0.066% |
+  | piatto 10–20 MeV, (0.01, 1 µm) | −0.377% | −0.060% | +0.108% |
+
+  Il range non dipende dalla definizione della luce: i due scan danno gli stessi valori, perché il
+  trasporto è lo stesso evento per evento.
+- **Diagnosi** (c), con le fluttuazioni di perdita spente in un binario di prova fuori dal repo:
+  (0.2, 0.1 mm) +0.481%, (0.01, 1 µm) +0.068%. Gli effetti sono due, di segno opposto, entrambi
+  da concavità di S/(1 + kB·S):
+  - step lunghi: la media di S sullo step dà più luce dell'integrale (+);
+  - step corti con perdite fluttuanti: la luce media per step cala (−).
+
+  Birks per step con fluttuazioni non ha quindi un limite per step → 0.
+- **Previsioni scritte prima dello scan, ed esito:**
+  - P1 (luce monotona verso 0 al calare di dRoverRange, |·| < 0.05% al passo più fine):
+    **fallita**, plateau +0.44% e cambio di segno con finalRange;
+  - P2 (range insensibile al passo entro 2·10⁻⁴): **fallita**, si sposta fino a circa 0.25%,
+    soprattutto sotto 2 MeV (+0.78% → +0.34% fra il passo più grosso e il più fine);
+  - P3 (finalRange sotto 0.1 mm cambia la luce di meno di 0.05%): **fallita**, −0.83 punti;
+  - P4 (eccesso a fine range di `ionIoni` invariato dalla config MuHad): **passata**; gli ioni
+    hanno già finalRange 1 µm da `G4EmStandardPhysics_option4`;
+  - P5 (costo circa 1/dRoverRange): **fallita**, 2.0–2.8 s per 10⁴ eventi su tutta la griglia,
+    RSS < 92 MiB.
+- **Decisione:**
+  - per i **protoni** la luce di uno step è L(K_pre) − L(K_pre − E_dep), con
+    L(K) = ∫₀^K dE / (1 + kB·S(E)) e S lo stopping elettronico medio delle tabelle di
+    ionizzazione del protone in Geant4 (`G4EmCalculator::GetDEDX`), su una griglia logaritmica
+    da 1 keV a 100 MeV con 50 punti per decade, interpolata log-log, con Simpson a 8 pannelli per
+    intervallo (`sim/truth`, senza Geant4, con test). La luce di un protone che si ferma è L(E_p)
+    qualunque siano gli step, che è la definizione con cui kB è misurato (D18: fit su stopping
+    NIST); il deposito tiene le sue fluttuazioni;
+  - un deposito oltre K_pre (stopping nucleare a fine range, deposito locale di un'interazione
+    adronica) ha l'eccesso quenchato come le energie più basse della tabella; con kB = 0 la luce
+    è esattamente il deposito;
+  - le **altre particelle** restano su `G4EmSaturation`: per gli elettroni kB·S è piccolo, per
+    gli ioni un solo kB non vale comunque (D18);
+  - la funzione di passo resta **(0.2, 0.1 mm)**: la luce non ne dipende più e il costo del passo
+    più fine non serve a nulla.
+- **Residuo che resta** (−0.062%, uguale per tutte le config): differenza fra lo S di Geant4 e lo
+  S totale di PSTAR del checker.
+  - Sotto 2 MeV +0.13%: lo stopping nucleare (`G4NuclearStopping`, attivo sotto 1 MeV) deposita ma
+    non è nella tabella del protone. Su PSTAR stesso L_elec/L_tot − 1 vale +0.17% a 1 MeV e
+    +0.03% a 13 MeV (c, calcolo fuori dal repo).
+  - Sopra 2 MeV circa −0.07%, quindi circa −0.1% al netto della parte nucleare: lo S di Bethe di
+    Geant4 un po' sopra PSTAR (d), da non correggere; vale 1/8 della σ_Ep relativa attesa a
+    10 MeV.
+- **Alternative:**
+  - Birks per step con passo più fine: escluso, non converge;
+  - stopping totale nella tabella: richiederebbe `ComputeNuclearDEDX`, che spegne le
+    fluttuazioni del modello condiviso e cambierebbe la simulazione;
+  - luce calcolata in analisi da `truth_Ep`: perde la luce dei protoni che escono o interagiscono.
+- **Conseguenze:**
+  - stesso schema (v2) e stesse colonne: cambia il significato di `det_Evis` e `truth_p_Evis` per
+    i run dal commit 3af4c3a in poi. I run precedenti con kB > 0 erano solo di prova;
+  - la funzione di passo resta un parametro registrato, ma non è più una sistematica della luce dei
+    protoni;
+  - D18, "Conseguenze": la frase sulla dipendenza dal passo è superata da questa decisione.
