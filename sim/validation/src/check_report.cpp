@@ -280,6 +280,7 @@ nlohmann::json depositsJson(const DepositSetup& setup, const DepositResults& res
     doc["event_classes"] = classes;
     doc["events_secondary_n_hadronic"] = results.events_secondary_n_hadronic;
     doc["protons_hadronic"] = results.protons_hadronic;
+    doc["protons_nuclear_recoil"] = results.protons_nuclear_recoil;
     doc["protons_exiting"] = results.protons_exiting;
     const BalanceSummary& b = results.contained_balance;
     doc["contained_balance_MeV"] = {{"samples", b.samples},   {"mean", b.mean},

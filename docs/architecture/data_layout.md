@@ -106,8 +106,8 @@ $RIPTIDE_DATA_DIR/
 ├── validation/<run_id>/<check_id>/
 │   ├── spectrum_u.csv | depth_z.csv | fractions.csv | legendre.csv | residuals_Ep.csv
 │   ├── model_mix.csv
-│   ├── deposit_spectra.csv | proton_exits.csv   # solo per run con schema ≥ 2
-│   ├── pstar_comparison.csv  # solo per run con schema ≥ 2
+│   ├── deposit_spectra.csv | proton_exits.csv   # solo per run con schema ≥ 3
+│   ├── pstar_comparison.csv  # solo per run con schema ≥ 3
 │   └── checks.json           # esiti numerici delle verifiche e marcatore di completamento
 └── reference/                # dati di riferimento, sola lettura
     ├── endfb80/              # file ENDF-6 estratti (D13); download/ con gli originali
@@ -126,7 +126,7 @@ il reader controlla `det_Evis` = `det_Edep` evento per evento entro 10⁻⁹ MeV
 identico, bit per bit, a quello di `ctest_it_1t`, perché kB entra solo nella luce visibile.
 Il `check_id` `ctest_smoke` è riservato allo smoke test di `riptide_sim_check`
 (`sim/tests/run_check_smoke.sh`), che ricrea solo `validation/ctest_it_1t/ctest_smoke`. Lo
-smoke test controlla `checks_version` = 7, i file JEFF-3.3 letti (H-1, C-0, C-13, D15) e lo
+smoke test controlla `checks_version` = 8, i file JEFF-3.3 letti (H-1, C-0, C-13, D15) e lo
 sha256 del primo, l'AWR di H-1 (0.999167, D14), il residuo di E_p all'arrotondamento, lo scarto
 dalla cinematica fisica in [5.3, 5.5]·10⁻⁴, i contatori di coerenza a zero e, a 14 MeV, nessun
 evento n–p con la cinematica non HP (D16). Controlla anche la sezione `deposits`: fatta, con kB
@@ -243,7 +243,7 @@ I CSV, a precisione piena (`max_digits10`):
   (osservato − atteso). Campo vuoto per le medie di un bin senza protoni e per le deviazioni
   con meno di due protoni.
 
-`checks.json` (versione `checks_version` = 7) si scrive per ultimo, con tmp + rename. Chiavi:
+`checks.json` (versione `checks_version` = 8) si scrive per ultimo, con tmp + rename. Chiavi:
 
 | Chiave | Contenuto |
 |---|---|
@@ -285,16 +285,19 @@ con p la rampa lineare di D16), `variance` (Σ p(1 − p)), `skipped` e `pull` (
 `bins`, `chi2_skipped` e, se fatto, `chi2`, `ndf`, `p_value` sui bin di E_n, più `Ep_residuals`
 degli eventi non HP contro la cinematica fisica.
 
-`deposits` riguarda le colonne v2 (fase 2). Per un run con schema 1 vale solo
-`{"skipped": "schema version 1 has no deposit columns"}`, e le altre verifiche restano
-invariate. Altrimenti ha `skipped` = `null` e:
+`deposits` riguarda le colonne v2 e v3 (fase 2). Per un run con schema 1 o 2 vale solo
+`{"skipped": "schema version N is older than 3, the first these checks read"}`, e le altre
+verifiche restano invariate. Lo schema 2 è escluso perché il lettore darebbe 0 a
+`truth_p_n_nuclear_recoil` e metterebbe nel bilancio i protoni con un rinculo nucleare (D22). Altrimenti ha `skipped` = `null` e:
 - `setup`: `half_size_mm`, `En_max_MeV`, `birks_kB_mm_per_MeV`, `bins` e le tolleranze
   `deposit_sum_tolerance_MeV` (10⁻⁹), `nuclear_stopping_slack_MeV` (0.01, D19),
   `surface_tolerance_mm` (10⁻⁶);
 - `events`, `np_events`, `event_classes` (conteggi per nome della classe, D19),
-  `events_secondary_n_hadronic`, `protons_hadronic`, `protons_exiting`;
+  `events_secondary_n_hadronic`, `protons_hadronic`, `protons_nuclear_recoil` (protoni con
+  `truth_p_n_nuclear_recoil` > 0, D22), `protons_exiting`;
 - `contained_balance_MeV`: `samples`, `mean`, `min`, `max`, `positive`, `negative` di
-  `truth_p_Edep` − `truth_Ep` per i protoni contenuti senza interazioni adroniche;
+  `truth_p_Edep` − `truth_Ep` per i protoni contenuti senza interazioni adroniche e senza
+  rinculi nucleari (D22);
 - `kB_zero_max_abs_difference_MeV`: max |`det_Evis` − `det_Edep`| su tutti gli eventi (con kB = 0
   è l'oracolo, altrimenti misura il quenching);
 - `Edep_overflow`, `Evis_overflow`;
@@ -316,6 +319,10 @@ invariate. Altrimenti ha `skipped` = `null` e:
   `light_MeV`). Ogni riassunto ha `samples`, `observed_mean`, `expected_mean`, `residual_mean`,
   `residual_sd`, `residual_sem`, `relative_residual` (Σd / Σatteso) e `relative_sem`; `null`
   quando non è definito (medie senza protoni, deviazioni ed errori con meno di due).
+
+Dalla versione 8 (2026-11-20): c'è `results.deposits.protons_nuclear_recoil`; i protoni con un
+rinculo nucleare sono esclusi da `contained_balance_MeV` e da `pstar` (D22); le verifiche dei
+depositi richiedono lo schema 3.
 
 Dalla versione 7 (2026-11-20): c'è `results.deposits.pstar` e c'è `pstar_comparison.csv`; il
 programma richiede `reference/pstar/pstar_216.txt` per i run con schema ≥ 2.
@@ -385,9 +392,9 @@ Chiavi (versione 1 del formato):
 `git_describe` viene rigenerato a ogni build (`cmake/RiptideGitDescribe.cmake`) e descrive i
 sorgenti al momento della build, non al momento del run.
 
-## Schema degli eventi (v2)
+## Schema degli eventi (v3)
 
-Albero `events`: le 19 colonne della v1, poi le 18 della v2, in quest'ordine. Ci sono solo due tipi, `Int32` (`Int_t`) e `Double`
+Albero `events`: le 19 colonne della v1, le 18 della v2, poi quella della v3, in quest'ordine. Ci sono solo due tipi, `Int32` (`Int_t`) e `Double`
 (`Double_t`), perché il writer di Geant4 non ha colonne intere a 64 bit.
 
 | Colonne | Tipo | Contenuto |
@@ -410,6 +417,7 @@ Albero `events`: le 19 colonne della v1, poi le 18 della v2, in quest'ordine. Ci
 | `truth_n_nC_elastic`, `truth_n_nC_inelastic`, `truth_n_other` | Int32 | interazioni n–C elastiche, n–C anelastiche e altre del neutrone primario (v2) |
 | `truth_n_secondary_n_hadronic` | Int32 | interazioni adroniche dei neutroni non primari nello scintillatore (v2) |
 | `truth_event_class` | Int32 | codice `EventClass` (D19): 0 nessuna, 1 singolo n–p, 2 n–p multiplo, 3 solo n–C elastico, 4 n–C anelastico senza n–p, 5 misto, 6 altro (v2) |
+| `truth_p_n_nuclear_recoil` | Int32 | step non adronici del protone di rinculo che hanno creato un rinculo nucleare, cioè un secondario con numero barionico > 0 (scattering Coulombiano singolo, D22) (v3) |
 
 Unità: MeV, mm, ns, rad. Nomi, unità e descrizioni stanno in `event_schema.hpp`, che è l'unica
 fonte: la riga scritta dalla sim (`sim/truth/.../event_row.hpp`) è verificata colonna per colonna
@@ -426,4 +434,4 @@ dettagli e il margine di `G4NuclearStopping` su `truth_p_Edep` stanno in D19.
 
 Le versioni successive aggiungono colonne solo in coda e non cambiano quelle esistenti. Il
 lettore (`sim/reader`) accetta le versioni da 1 a quella della build e collega solo le colonne
-presenti nel file. Le altre restano a zero, quindi in un file v1 le colonne v2 valgono 0.
+presenti nel file. Le altre restano a zero, quindi in un file v1 le colonne v2 valgono 0 e in un file v2 `truth_p_n_nuclear_recoil` vale 0.

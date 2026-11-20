@@ -73,7 +73,7 @@ with open(path, encoding="utf-8") as f:
 for key in ("checks_version", "run_id", "check_id", "versions", "reference_files",
             "hp_elastic_H1", "hp_deuterium", "medium", "beam", "results"):
     assert key in doc, f"checks.json has no key {key}"
-assert doc["checks_version"] == 7, f"unexpected checks_version {doc['checks_version']}"
+assert doc["checks_version"] == 8, f"unexpected checks_version {doc['checks_version']}"
 results = doc["results"]
 for key in ("spectrum_u", "depth_z", "fractions", "legendre", "Ep_residuals",
             "Ep_physical_offset", "model_mix", "counters", "deposits"):
@@ -106,7 +106,7 @@ assert recorded.get(ref_path) == ref_sha, f"sha256 of {ref_path}: {recorded.get(
 h2 = [f["file"].split("/")[-3] for f in doc["hp_deuterium"]
       if f["file"].endswith("/CrossSection/1_2_Hydrogen.z") and len(f["sha256"]) == 64]
 assert h2 == ["Elastic", "Inelastic", "Capture"], f"unexpected H-2 files {doc['hp_deuterium']}"
-# The integration run is schema v2 with the nominal kB: the deposit checks run.
+# The integration run is schema v3 with the nominal kB: the deposit checks run.
 deposits = results["deposits"]
 assert deposits["skipped"] is None, f"deposit checks skipped: {deposits['skipped']}"
 assert deposits["events"] == results["events"], "deposit checks saw a different event count"

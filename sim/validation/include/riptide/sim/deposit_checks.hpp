@@ -1,7 +1,7 @@
 #pragma once
 
 // Checks of the deposit, visible-energy and recoil-proton columns of a schema
-// v2 run, accumulated one event at a time. Like check_accumulator.hpp it has no
+// v3 run, accumulated one event at a time. Like check_accumulator.hpp it has no
 // I/O, Geant4 or ROOT: the app reads the rows and hands in the records, and the
 // synthetic unit tests drive the same code. The comparison with the PSTAR tables
 // of range and stopping power is in pstar_checks.hpp; these are the deterministic oracles
@@ -21,8 +21,11 @@ namespace riptide::sim::checks {
 
 inline constexpr std::size_t kEventClasses = 7; // EventClass codes 0 ... 6
 
-// First event schema with the deposit columns; older runs skip these checks.
-inline constexpr std::int32_t kFirstDepositSchemaVersion = 2;
+// First event schema these checks accept; older runs skip them. The deposit
+// columns came with v2, but without truth_p_n_nuclear_recoil (v3) a v2 file
+// reads 0 there, and the balance and the PSTAR comparison would silently take
+// in protons that lost energy to a Coulomb-scattering recoil (D22).
+inline constexpr std::int32_t kFirstDepositSchemaVersion = 3;
 
 // Tolerance [MeV] on sums of per-step deposits compared with each other: each
 // side sums at most a few thousand doubles of order 1 MeV, so rounding stays
@@ -90,7 +93,7 @@ struct DepositCounters {
 };
 
 // truth_p_Edep - truth_Ep of recoil protons that stop inside the scintillator
-// without a hadronic interaction: the whole creation energy should be
+// without a hadronic interaction and without a nuclear recoil: the whole creation energy should be
 // deposited by the track, up to the G4NuclearStopping excess (positive) and
 // energy carried off by secondaries above the production cut (negative).
 struct BalanceSummary {
@@ -108,6 +111,9 @@ struct DepositResults {
     std::array<std::uint64_t, kEventClasses> classes{};
     std::uint64_t events_secondary_n_hadronic = 0; // truth_n_secondary_n_hadronic > 0
     std::uint64_t protons_hadronic = 0;            // truth_p_n_hadronic > 0
+    // truth_p_n_nuclear_recoil > 0: left out of the balance like the hadronic
+    // ones, since the recoil nucleus takes its energy off the proton track.
+    std::uint64_t protons_nuclear_recoil = 0;
     std::uint64_t protons_exiting = 0;
     BalanceSummary contained_balance;
     double kB_zero_max_abs_difference = 0.0; // max |det_Evis - det_Edep| [MeV], all events

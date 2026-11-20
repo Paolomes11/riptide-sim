@@ -287,6 +287,8 @@ DepositResults sampleDeposits() {
     r.np_events = 4;
     r.classes = {5, 3, 1, 0, 1, 0, 0};
     r.protons_exiting = 1;
+    r.protons_hadronic = 2;
+    r.protons_nuclear_recoil = 3;
     r.contained_balance.samples = 2;
     r.contained_balance.max = kResidualA;
     r.contained_balance.positive = 1;
@@ -319,6 +321,8 @@ TEST_CASE("depositsJson reports setup, classes and counters", "[check_report]") 
     CHECK(doc["event_classes"]["single_np"] == 3);
     CHECK(doc["event_classes"]["nc_inelastic_no_np"] == 1);
     CHECK(doc["protons_exiting"] == 1);
+    CHECK(doc["protons_hadronic"] == 2);
+    CHECK(doc["protons_nuclear_recoil"] == 3);
     CHECK(doc["contained_balance_MeV"]["positive"] == 1);
     CHECK(doc["Edep_overflow"] == 1);
     const auto& must = doc["counters"]["must_be_zero"];

@@ -225,7 +225,8 @@ TEST_CASE("known physics is counted as expected-rare, not as a failure", "[depos
     }
 }
 
-TEST_CASE("exiting and interacting protons leave the energy balance", "[deposit_checks]") {
+TEST_CASE("exiting, interacting and recoiling protons leave the energy balance",
+          "[deposit_checks]") {
     const double Ep = 15.5 * units::MeV;
     checks::DepositAccumulator acc(setup());
 
@@ -244,12 +245,21 @@ TEST_CASE("exiting and interacting protons leave the energy balance", "[deposit_
     interacting.deposit.proton.Evis = 7.0;
     acc.add(interacting.truth, interacting.deposit, code(EventClass::SingleNp));
 
+    // The 2.03 MeV C-12 Coulomb recoil seen in the phase 2 pilot: the proton
+    // stops inside without a hadronic interaction, yet misses that energy.
+    NpEvent recoiling = containedProton(Ep);
+    recoiling.deposit.proton.n_nuclear_recoil = 1;
+    recoiling.deposit.proton.Edep = Ep - 2.03;
+    acc.add(recoiling.truth, recoiling.deposit, code(EventClass::SingleNp));
+
     const checks::DepositResults r = acc.finish();
     CHECK(r.counters.mustBeZeroTotal() == 0);
     CHECK(r.contained_balance.samples == 0);
+    CHECK(r.contained_balance.negative == 0);
     CHECK(r.protons_exiting == 1);
     CHECK(r.protons_hadronic == 1);
-    CHECK(r.protons_per_Ep.at(15) == 2);
+    CHECK(r.protons_nuclear_recoil == 1);
+    CHECK(r.protons_per_Ep.at(15) == 3);
     CHECK(r.exiting_per_Ep.at(15) == 1);
 }
 

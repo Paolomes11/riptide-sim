@@ -14,6 +14,9 @@
 // v2: adds kV2Branches (deposits, recoil-proton track, event class). The v1
 //     columns keep name, type and meaning, so a v1 file is read as the first
 //     kV1Columns columns of a v2 row.
+// v3: adds kV3Branches (nuclear recoils made by the recoil proton through
+//     electromagnetic Coulomb scattering). As for v2, older files are read as
+//     the leading columns of a v3 row.
 
 #include <array>
 #include <cstddef>
@@ -22,7 +25,7 @@
 
 namespace riptide::schema {
 
-inline constexpr std::int32_t kSchemaVersion = 2;
+inline constexpr std::int32_t kSchemaVersion = 3;
 // Oldest version a reader of this build still accepts.
 inline constexpr std::int32_t kOldestReadableSchemaVersion = 1;
 inline constexpr std::string_view kEventTreeName = "events";
@@ -122,5 +125,17 @@ inline constexpr std::array<BranchSpec, 18> kV2Branches{{
 }};
 
 inline constexpr std::size_t kV2Columns = kV1Columns + kV2Branches.size();
+
+// Columns added in v3. Single Coulomb scattering of the recoil proton is an
+// electromagnetic process, so truth_p_n_hadronic does not count it, yet it can
+// give a nucleus (or a hydrogen proton) a recoil above threshold, which then
+// carries energy away from the proton track. Like the other truth_p_* columns,
+// filled only when truth_valid_np is 1.
+inline constexpr std::array<BranchSpec, 1> kV3Branches{{
+    {"truth_p_n_nuclear_recoil", ColumnType::Int32, "1",
+     "non-hadronic steps of the recoil proton that made a nuclear recoil"},
+}};
+
+inline constexpr std::size_t kV3Columns = kV2Columns + kV3Branches.size();
 
 } // namespace riptide::schema

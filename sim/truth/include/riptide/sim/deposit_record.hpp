@@ -28,6 +28,9 @@ struct DepositStep {
     bool leaves_volume = false;
     // The step ended in a hadronic interaction of this track.
     bool hadronic = false;
+    // A non-hadronic step (Coulomb scattering) whose secondaries include a
+    // nucleus or a hydrogen proton: that recoil takes energy off the track.
+    bool nuclear_recoil = false;
 };
 
 // Track of the recoil proton inside the scintillator.
@@ -40,6 +43,7 @@ struct ProtonTrack {
     double Evis = 0.0;           // [MeV]
     bool exits = false;          // left the scintillator before stopping
     std::int32_t n_hadronic = 0; // its own hadronic interactions (diagnostic)
+    std::int32_t n_nuclear_recoil = 0; // its steps with DepositStep::nuclear_recoil
 };
 
 struct DepositRecord {

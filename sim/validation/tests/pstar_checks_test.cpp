@@ -95,15 +95,19 @@ TEST_CASE("protons on the table leave zero residuals", "[pstar_checks]") {
     CHECK_THAT(*r.light.relativeResidual(), WithinAbs(0.0, kTolerance));
 }
 
-TEST_CASE("only contained protons without hadronic interactions are compared", "[pstar_checks]") {
+TEST_CASE("only contained protons without hadronic interactions or nuclear recoils are compared",
+          "[pstar_checks]") {
     Proton exits = onTable(10.0);
     exits.deposit.proton.exits = true;
     Proton hadronic = onTable(10.0);
     hadronic.deposit.proton.n_hadronic = 1;
+    Proton recoil = onTable(10.0);
+    recoil.deposit.proton.n_nuclear_recoil = 1;
     Proton invalid = onTable(10.0);
     invalid.truth.valid_np = false;
     const Proton below = proton(0.0005, 1e-6, 0.0004);
-    const checks::PstarResults r = compare({exits, hadronic, invalid, below, onTable(10.0)});
+    const checks::PstarResults r =
+        compare({exits, hadronic, recoil, invalid, below, onTable(10.0)});
     CHECK(r.samples == 1);
     CHECK(r.below_table == 1);
     CHECK(r.range.samples() == 1);

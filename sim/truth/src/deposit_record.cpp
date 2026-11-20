@@ -29,6 +29,9 @@ void DepositRecorder::onStep(const DepositStep& step) {
     if (step.hadronic) {
         ++p.n_hadronic;
     }
+    if (step.nuclear_recoil) {
+        ++p.n_nuclear_recoil;
+    }
 }
 
 } // namespace riptide::sim

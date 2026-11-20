@@ -172,6 +172,7 @@ TEST_CASE("deposit and proton-track columns are consistent", "[integration]") {
         } else {
             CHECK(intAt(row, "truth_p_exits") == 0);
             CHECK(intAt(row, "truth_p_n_hadronic") == 0);
+            CHECK(intAt(row, "truth_p_n_nuclear_recoil") == 0);
         }
     }
 }

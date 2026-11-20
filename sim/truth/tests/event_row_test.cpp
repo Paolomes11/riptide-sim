@@ -63,6 +63,7 @@ DepositRecord knownDeposit() {
     d.proton.Edep = 5.0 * u::MeV;
     d.proton.Evis = 3.5 * u::MeV;
     d.proton.n_hadronic = 1;
+    d.proton.n_nuclear_recoil = 2;
     return d;
 }
 
@@ -136,6 +137,7 @@ TEST_CASE("event row: values land in the column of the same name", "[row]") {
     CHECK(asInt(row, "truth_n_nC_inelastic") == 0);
     CHECK(asInt(row, "truth_n_other") == 0);
     CHECK(asInt(row, "truth_n_secondary_n_hadronic") == 3);
+    CHECK(asInt(row, "truth_p_n_nuclear_recoil") == 2);
     // Two n-p and one n-C elastic.
     CHECK(asInt(row, "truth_event_class") == static_cast<std::int32_t>(EventClass::Mixed));
 }
@@ -153,17 +155,21 @@ TEST_CASE("event row: proton columns are 0 unless valid_np", "[row]") {
     }
     CHECK(asInt(row, "truth_p_exits") == 0);
     CHECK(asInt(row, "truth_p_n_hadronic") == 0);
+    CHECK(asInt(row, "truth_p_n_nuclear_recoil") == 0);
     // Event totals do not depend on the proton.
     CHECK_THAT(asDouble(row, "det_Edep"), WithinAbs(7.5, kExact));
     CHECK_THAT(asDouble(row, "det_Evis"), WithinAbs(4.25, kExact));
 }
 
-TEST_CASE("event row: a v1 file is the leading block of a v2 row", "[row]") {
+TEST_CASE("event row: older files are leading blocks of a v3 row", "[row]") {
     using namespace riptide::schema;
     CHECK(columnCount(1) == kV1Columns);
-    CHECK(columnCount(2) == kEventColumns);
+    CHECK(columnCount(2) == kV2Columns);
+    CHECK(columnCount(3) == kEventColumns);
     CHECK(columnSpec(kV1Columns - 1).name == "truth_valid_np");
     CHECK(columnSpec(kV1Columns).name == "det_Edep");
+    CHECK(columnSpec(kV2Columns - 1).name == "truth_event_class");
+    CHECK(columnSpec(kV2Columns).name == "truth_p_n_nuclear_recoil");
     CHECK_THROWS_AS(columnCount(0), std::out_of_range);
     CHECK_THROWS_AS(columnCount(kSchemaVersion + 1), std::out_of_range);
 }
@@ -219,6 +225,7 @@ TEST_CASE("deposit record: reading a row back gives the written record", "[row]"
     CHECK_THAT(out.proton.Edep, WithinAbs(in.proton.Edep, kExact));
     CHECK_THAT(out.proton.Evis, WithinAbs(in.proton.Evis, kExact));
     CHECK(out.proton.n_hadronic == in.proton.n_hadronic);
+    CHECK(out.proton.n_nuclear_recoil == in.proton.n_nuclear_recoil);
 }
 
 TEST_CASE("truth record: every first-interaction code is read back", "[row]") {

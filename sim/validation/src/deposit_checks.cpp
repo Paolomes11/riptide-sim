@@ -172,6 +172,9 @@ void DepositAccumulator::addProton(const TruthRecord& truth, const DepositRecord
     if (p.n_hadronic > 0) {
         ++results_.protons_hadronic;
     }
+    if (p.n_nuclear_recoil > 0) {
+        ++results_.protons_nuclear_recoil;
+    }
     const std::size_t bin = binIndex(std::max(truth.Ep, 0.0), setup_.En_max, setup_.bins);
     ++results_.protons_per_Ep.at(bin);
     if (p.exits) {
@@ -179,7 +182,7 @@ void DepositAccumulator::addProton(const TruthRecord& truth, const DepositRecord
         ++results_.exiting_per_Ep.at(bin);
     }
 
-    if (!p.exits && p.n_hadronic == 0) {
+    if (!p.exits && p.n_hadronic == 0 && p.n_nuclear_recoil == 0) {
         BalanceSummary& b = results_.contained_balance;
         b.min = b.samples == 0 ? excess : std::min(b.min, excess);
         b.max = b.samples == 0 ? excess : std::max(b.max, excess);

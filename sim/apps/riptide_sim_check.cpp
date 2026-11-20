@@ -127,8 +127,10 @@ int runChecks(const checks::CheckCliOptions& opts) {
     checks::CheckAccumulator acc(
         checks::makeCheckSetup(config, hp.target_mass, opts.bins_u, opts.bins_z),
         checks::referenceModels(refs, densities, deuterium));
-    // Runs of schema 1 (phase 1b) have no deposit columns: their checks are
-    // skipped, and the truth checks above still reproduce the phase 1b numbers.
+    // Runs of schema 1 (phase 1b) have no deposit columns, and runs of schema
+    // 2 would read the nuclear-recoil counter as 0 and put those protons in
+    // the balance: their deposit checks are skipped, and the truth checks
+    // above still reproduce the phase 1b numbers.
     const auto schema_version = record.at("schema_version").get<std::int32_t>();
     std::optional<checks::DepositAccumulator> deposits;
     std::optional<PstarInput> pstar_input;
@@ -208,7 +210,9 @@ int runChecks(const checks::CheckCliOptions& opts) {
         deposit_results
             ? checks::depositsJson(deposits->setup(), *deposit_results)
             : checks::depositsSkippedJson("schema version " + std::to_string(schema_version) +
-                                          " has no deposit columns");
+                                          " is older than " +
+                                          std::to_string(checks::kFirstDepositSchemaVersion) +
+                                          ", the first these checks read");
     if (pstar_results) {
         nlohmann::json p = checks::pstarJson(*pstar_results);
         p["skipped"] = nullptr;

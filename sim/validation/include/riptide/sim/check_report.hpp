@@ -34,8 +34,9 @@ inline constexpr const char* kProtonExitsFileName = "proton_exits.csv";
 inline constexpr const char* kPstarComparisonFileName = "pstar_comparison.csv";
 
 // Version of the checks.json layout; bumped on any change of its keys.
-// Version 6 added results.deposits, version 7 results.deposits.pstar.
-inline constexpr int kChecksVersion = 7;
+// Version 6 added results.deposits, version 7 results.deposits.pstar, version 8
+// results.deposits.protons_nuclear_recoil (and those protons left the balance and PSTAR samples).
+inline constexpr int kChecksVersion = 8;
 
 class ReportError : public std::runtime_error {
 public:

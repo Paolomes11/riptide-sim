@@ -39,6 +39,7 @@ TEST_CASE("deposit: empty event", "[deposit]") {
     CHECK_FALSE(r.proton.seen);
     CHECK_FALSE(r.proton.exits);
     CHECK(r.proton.n_hadronic == 0);
+    CHECK(r.proton.n_nuclear_recoil == 0);
 }
 
 TEST_CASE("deposit: totals sum every track, the proton only its own", "[deposit]") {
@@ -85,6 +86,21 @@ TEST_CASE("deposit: hadronic interactions of the proton are counted", "[deposit]
     s.role = TrackRole::Other;
     rec.onStep(s);
     CHECK(rec.record().proton.n_hadronic == 1);
+}
+
+TEST_CASE("deposit: nuclear recoils of the proton are counted", "[deposit]") {
+    DepositRecorder rec;
+    rec.beginEvent();
+    auto s = step(TrackRole::RecoilProton, 1.0 * u::MeV, 0.5 * u::MeV, {}, {}, 1.0 * u::mm);
+    s.nuclear_recoil = true;
+    rec.onStep(s);
+    rec.onStep(s);
+    s.role = TrackRole::Other;
+    rec.onStep(s);
+    CHECK(rec.record().proton.n_nuclear_recoil == 2);
+    CHECK(rec.record().proton.n_hadronic == 0);
+    rec.beginEvent();
+    CHECK(rec.record().proton.n_nuclear_recoil == 0);
 }
 
 TEST_CASE("deposit: new event starts clean", "[deposit]") {

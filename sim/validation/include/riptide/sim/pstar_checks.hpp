@@ -1,10 +1,10 @@
 #pragma once
 
-// Comparison of the recoil protons of a schema v2 run with the NIST PSTAR
+// Comparison of the recoil protons of a schema v3 run with the NIST PSTAR
 // table: the path length against the CSDA range and the visible energy
 // against Birks' law integrated over the tabulated stopping power, at the
 // kB of the run. Only protons that stop inside the scintillator without a
-// hadronic interaction enter, the sample of the contained energy balance:
+// hadronic interaction or nuclear recoil enter, the sample of the contained energy balance:
 // for them the whole track is in the columns. The expectation is computed at
 // each proton's own energy, so the width of the Ep bins does not enter.
 //
@@ -78,7 +78,8 @@ public:
     // PstarError for an invalid table or kB, or En_max above the table.
     PstarComparison(const DepositSetup& setup, PstarTable table);
 
-    // Selects the proton itself: valid_np, not exiting, no hadronic interaction.
+    // Selects the proton itself: valid_np, not exiting, no hadronic interaction,
+    // no nuclear recoil.
     void add(const TruthRecord& truth, const DepositRecord& deposit);
 
     [[nodiscard]] PstarResults finish() const {

@@ -1,9 +1,9 @@
 #pragma once
 
 // One ntuple row of an event, in the column order of event_schema.hpp (meta
-// columns, truth columns, then the v2 columns). Geant4-free, so the mapping from the in-memory
-// record to the schema is unit-tested on its own; the Geant4 writer only
-// iterates over the row.
+// columns, truth columns, then the v2 and v3 columns). Geant4-free, so the mapping from the
+// in-memory record to the schema is unit-tested on its own; the Geant4 writer only iterates over
+// the row.
 
 #include <array>
 #include <cstddef>
@@ -20,7 +20,7 @@ namespace riptide::sim {
 // Value of one column; the alternative matches schema::ColumnType (Int32 first).
 using ColumnValue = std::variant<std::int32_t, double>;
 
-inline constexpr std::size_t kEventColumns = schema::kV2Columns;
+inline constexpr std::size_t kEventColumns = schema::kV3Columns;
 
 using EventRow = std::array<ColumnValue, kEventColumns>;
 
@@ -53,7 +53,9 @@ using EventRow = std::array<ColumnValue, kEventColumns>;
 
 // Inverse of eventRow for the deposit part. proton.seen is not a column: it is
 // rebuilt from truth_valid_np, the condition under which the proton columns
-// are filled. Throws std::out_of_range for a flag other than 0 and 1.
+// are filled. In a file older than v3, proton.n_nuclear_recoil reads as 0 because
+// the column is missing, not because there were none. Throws std::out_of_range for
+// a flag other than 0 and 1.
 [[nodiscard]] DepositRecord depositRecord(const EventRow& row);
 
 } // namespace riptide::sim

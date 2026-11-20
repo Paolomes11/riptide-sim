@@ -67,7 +67,9 @@ PstarComparison::PstarComparison(const DepositSetup& setup, PstarTable table)
 
 void PstarComparison::add(const TruthRecord& truth, const DepositRecord& deposit) {
     const ProtonTrack& p = deposit.proton;
-    if (!truth.valid_np || p.exits || p.n_hadronic != 0) {
+    // A nuclear recoil shortens the track and takes its energy off the light,
+    // so such a proton is not the pure electronic slowing-down PSTAR describes.
+    if (!truth.valid_np || p.exits || p.n_hadronic != 0 || p.n_nuclear_recoil != 0) {
         return;
     }
     const double Ep = truth.Ep;

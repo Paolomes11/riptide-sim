@@ -10,6 +10,7 @@
 #include <G4Material.hh>
 #include <G4Neutron.hh>
 #include <G4Nucleus.hh>
+#include <G4ParticleDefinition.hh>
 #include <G4Proton.hh>
 #include <G4Step.hh>
 #include <G4StepPoint.hh>
@@ -86,6 +87,19 @@ ProtonLightTable buildProtonLightTable(const G4Material& material) {
     return {std::move(K), std::move(S), material.GetIonisation()->GetBirksConstant()};
 }
 
+// A Coulomb-scattering recoil above threshold is created as the ion of the
+// target (G4IonTable::GetIon), which for hydrogen is the G4Proton itself:
+// both, and only they among the secondaries of a non-hadronic step, carry
+// baryon number. Electrons and photons carry none.
+bool makesNuclearRecoil(const G4Step& step) {
+    for (const auto* secondary : *step.GetSecondaryInCurrentStep()) {
+        if (secondary->GetDefinition()->GetBaryonNumber() > 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
 TrackRole trackRole(const G4Track& track) {
     return dynamic_cast<const RecoilProtonInfo*>(track.GetUserInformation()) != nullptr
                ? TrackRole::RecoilProton
@@ -154,6 +168,9 @@ void SteppingAction::recordDeposit(const G4Step* step, bool hadronic) {
     // geometric boundary ends on its surface and the track goes on outside.
     d.leaves_volume = post->GetStepStatus() == fGeomBoundary;
     d.hadronic = hadronic;
+    // Only the followed proton needs it, and a hadronic step is already
+    // counted as such, so the two counters never share a step.
+    d.nuclear_recoil = d.role == TrackRole::RecoilProton && !hadronic && makesNuclearRecoil(*step);
     deposits_->onStep(d);
 }
 
