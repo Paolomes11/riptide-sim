@@ -627,3 +627,40 @@ cancellano: se cambiano, se ne aggiunge una nuova che rimanda alla vecchia.
   - la funzione di passo resta un parametro registrato, ma non è più una sistematica della luce dei
     protoni;
   - D18, "Conseguenze": la frase sulla dipendenza dal passo è superata da questa decisione.
+
+## D22 — Rinculi nucleari del protone nello scattering Coulombiano (2026-11-20)
+
+- **Problema:** nel pilota della fase 2 (`pilot2_mono_14MeV_4e5_8t`) un protone contenuto e senza
+  interazioni adroniche ha `truth_p_Edep` − `truth_Ep` = −2.027 MeV (evento 246185, E_p =
+  13.617 MeV). La previsione del bilancio (minimo ≥ −10⁻⁹ MeV) è fallita. Il run ripetuto con la
+  traccia degli step dimostra la causa: uno step `CoulombScat` (scattering Coulombiano singolo,
+  `G4eCoulombScatteringModel`, processo EM e non adronico) ha creato un rinculo di C12 da
+  2.027 MeV. Sopra la soglia di rinculo il modello crea il nucleo bersaglio come secondario
+  (`G4IonTable::GetIon`). Quell'energia lascia la traccia del protone, che per D19 non comprende i
+  secondari, e finisce in `det_Edep` come deposito di uno ione.
+- **Frequenza (d):** 1 caso su 137 806 protoni contenuti nei due piloti a 14 MeV; nessun altro
+  caso fra −10⁻⁹ e −2 MeV.
+- **Decisione:**
+  - nuova colonna `truth_p_n_nuclear_recoil` (schema 3): il numero di step non adronici del
+    protone seguito che hanno fra i secondari una particella con numero barionico > 0. Per un
+    rinculo su H il modello crea un G4Proton, per un rinculo su C uno ione: hanno tutti e due
+    numero barionico 1 o più. Elettroni e fotoni hanno 0. Uno step adronico è già contato in
+    `truth_p_n_hadronic`, quindi i due contatori non contano mai lo stesso step;
+  - le verifiche dei depositi (`checks_version` 8) escludono questi protoni da
+    `contained_balance_MeV` e dal confronto PSTAR, e li contano a parte in
+    `deposits.protons_nuclear_recoil`. Il loro range e la loro luce non sono quelli di un protone
+    che rallenta solo per ionizzazione;
+  - le verifiche dei depositi richiedono lo schema 3. Un file v2 darebbe 0 alla colonna nuova e
+    rimetterebbe questi protoni nel bilancio. Gli unici run v2 sono i due piloti, che non sono run
+    di validazione.
+- **Alternative:**
+  - sommare l'energia del rinculo al deposito del protone: cambierebbe la definizione di D19, e la
+    luce dello ione segue `G4EmSaturation`, non la luce continua dei protoni (D21);
+  - spegnere lo scattering Coulombiano singolo: cambierebbe la fisica di `G4EmStandardPhysics_option4`;
+  - allargare la tolleranza del bilancio: nasconderebbe il caso invece di contarlo.
+- **Conseguenze:**
+  - `docs/validation/2_predictions.md` passa alla versione 2, corretta dopo il pilota e detta tale:
+    l'oracolo del bilancio vale sui protoni senza rinculi nucleari, e il loro conteggio ha una
+    previsione propria;
+  - i piloti vanno ripetuti con lo schema 3 prima della produzione;
+  - `det_Edep` e `det_Evis` non cambiano: il rinculo deposita comunque nello scintillatore.
