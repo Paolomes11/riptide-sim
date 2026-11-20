@@ -1,8 +1,10 @@
-# Monte Carlo truth bookkeeping of riptide_sim. Geant4-free on purpose, like
-# sim/config: it is added from the top level and tested in every preset.
+# Monte Carlo truth bookkeeping and the proton light model of riptide_sim.
+# Geant4-free on purpose, like sim/config: it is added from the top level and
+# tested in every preset.
 add_library(riptide_sim_truth STATIC
     src/deposit_record.cpp
     src/event_row.cpp
+    src/proton_light.cpp
     src/truth_record.cpp)
 add_library(riptide::sim_truth ALIAS riptide_sim_truth)
 target_include_directories(riptide_sim_truth PUBLIC
