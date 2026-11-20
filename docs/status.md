@@ -142,15 +142,24 @@ Deposito, Birks, traccia del protone e classificazione dell'evento, vedi `roadma
   verifiche dei depositi (`checks_version` 8) escludono quei protoni dal bilancio e da PSTAR, li
   contano in `protons_nuclear_recoil` e saltano i run con schema < 3.
   `validation/2_predictions.md` è alla versione 2, corretta dopo il pilota e detta tale.
+- **Pilota v3 (2026-11-20, non un run di validazione):** `pilot2_v3_mono_14MeV_1e5_1t` in
+  13.3 s, 89 MiB, 114 B/evento; `pilot2_v3_mono_14MeV_4e5_8t` in 9.5 s, 145 MiB, 115 B/evento.
+  Verifica c1: contatori che devono essere zero a 0 in tutti e due; `protons_nuclear_recoil` 0 e
+  1 (lo stesso evento del pilota v2, che riproduce evento per evento); minimo del bilancio
+  −5.3·10⁻¹⁵ MeV; luce contro PSTAR −0.062%, range −0.107% e −0.103%. Stima per la produzione
+  (b): circa 4 minuti e 1.15 GB per ogni run da 10⁷ a 8 thread.
 - **Test:** `debug` 235/235, `ci` 219/219, zero warning nel codice del progetto, clang-format
   pulito. In `release` restano due `-Wnull-dereference` da un header di Geant4
-  (`G4NavigationHistory.icc`), presenti anche prima di D21.
+  (`G4NavigationHistory.icc`), presenti anche prima di D21, e quattro `-Warray-bounds` da
+  nlohmann/GCC 13 in `sim/tests/integration_reader.cpp`, presenti anche con il file di
+  `83b959d`.
 
 **Prossimi passi, nell'ordine:**
 
-1. Pilota ripetuto con lo schema 3 (`pilot2_v3_*`), poi, col via, tre run da 10⁷ e tre di
-   sensibilità a kB, come in `validation/2_predictions.md` v2, con `scripts/run_capped.sh`.
-2. Risultati `validation/2_results.md` e v0.4.0.
+1. Col via: tre run da 10⁷ e tre di sensibilità a kB, come in `validation/2_predictions.md` v2,
+   uno alla volta con `scripts/run_capped.sh -m 5G`, ciascuno con la verifica c1.
+2. Risultati `validation/2_results.md` (con i piloti, l'oracolo della v1 fallito e D22) e
+   v0.4.0.
 
 ## Punti aperti
 
@@ -177,5 +186,8 @@ Deposito, Birks, traccia del protone e classificazione dell'evento, vedi `roadma
   di Laplace 2020 la sonderebbe.
 - **Fase 2:** le verifiche dei depositi devono tollerare `det_Edep` − E_n fino a circa
   6·10⁻⁴ · E_n senza un γ di cattura (D14).
-- **Fase 2:** `kBytesPerEvent` è provvisorio (256 B); il pilota v2 misura circa 113 B/evento,
-  quindi resta. Il valore va confermato dal pilota v3 e registrato in `2_results.md`.
+- **Fase 2:** `kBytesPerEvent` (256 B) resta: i piloti v3 misurano 114–115 B/evento; il valore
+  va registrato in `2_results.md`.
+- Sull'SSD aspettano l'OK per la cancellazione: `sim/scratch_trace_246185` e i piloti v2
+  `sim/pilot2_mono_14MeV_{1e5_1t,4e5_8t}` con le loro cartelle in `validation/` (schema 2, le
+  verifiche dei depositi non li leggono più).
