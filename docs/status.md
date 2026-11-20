@@ -4,7 +4,8 @@
 
 Fase 2 in corso (branch `feat/sim-deposits`, aggiornato 2026-11-20): passi 1–5 del piano fatti,
 più i confronti con PSTAR (`checks_version` 7), la spiegazione della banda di overflow (D14), la
-luce continua dei protoni (D21) e l'intervallo sistematico di kB (D18).
+luce continua dei protoni (D21), l'intervallo sistematico di kB (D18) e le previsioni dei run
+(`validation/2_predictions.md`, scritte prima dei run).
 
 ## Fatto
 
@@ -138,9 +139,9 @@ Deposito, Birks, traccia del protone e classificazione dell'evento, vedi `roadma
 
 **Prossimi passi, nell'ordine:**
 
-1. Previsioni `validation/2_predictions.md`, committate prima dei run.
-2. Run pilota e run della fase 2, col via e con `scripts/run_capped.sh`.
-3. Risultati `validation/2_results.md` e v0.4.0.
+1. Run pilota, tre run da 10⁷ e tre di sensibilità a kB, come in
+   `validation/2_predictions.md`, col via e con `scripts/run_capped.sh`.
+2. Risultati `validation/2_results.md` e v0.4.0.
 
 ## Punti aperti
 
