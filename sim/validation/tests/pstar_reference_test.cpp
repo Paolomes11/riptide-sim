@@ -76,3 +76,14 @@ TEST_CASE("PSTAR light: the default Simpson panels have converged on the real ta
             WithinRel(checks::visibleEnergy(t, Ep, kB, 2 * checks::kBirksPanels), kConvergence));
     }
 }
+
+TEST_CASE("PSTAR light: BirksLightTable matches visibleEnergy on the real table",
+          "[reference][pstar]") {
+    constexpr double kSameSum = 1e-12;
+    const checks::PstarTable t = readOrSkip();
+    const checks::BirksLightTable table(t, kB);
+    for (const double Ep : {0.0005, 0.37, 2.0, 10.0, 13.7, 14.0, 20.0}) {
+        CAPTURE(Ep);
+        CHECK_THAT(table.light(Ep), WithinRel(checks::visibleEnergy(t, Ep, kB), kSameSum));
+    }
+}

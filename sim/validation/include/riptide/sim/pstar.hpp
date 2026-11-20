@@ -66,4 +66,30 @@ inline constexpr int kBirksPanels = 16;
 [[nodiscard]] double visibleEnergy(const PstarTable& table, double Ep, double kB,
                                    int panels = kBirksPanels);
 
+// The same light for many protons at one kB. visibleEnergy integrates from 0
+// at every call (tens of microseconds on the NIST table, minutes over 1e7
+// events); this table keeps L at the tabulated energies, summed exactly as
+// visibleEnergy sums them, and integrates only the last, partial interval, so
+// both give the same number to rounding. Same validation and exceptions.
+class BirksLightTable {
+public:
+    BirksLightTable(PstarTable table, double kB, int panels = kBirksPanels);
+
+    // L(Ep) [MeV]; throws PstarError for Ep negative, not finite or above the table.
+    [[nodiscard]] double light(double Ep) const;
+
+    [[nodiscard]] const PstarTable& table() const {
+        return table_;
+    }
+    [[nodiscard]] double kB() const {
+        return kB_;
+    }
+
+private:
+    PstarTable table_;
+    double kB_;
+    int panels_;
+    std::vector<double> cumulative_; // L at each tabulated energy
+};
+
 } // namespace riptide::sim::checks

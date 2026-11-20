@@ -183,3 +183,28 @@ TEST_CASE("visibleEnergy refuses invalid arguments", "[pstar]") {
     CHECK_THROWS_AS(visibleEnergy(PstarTable{}, 1.0, kB), PstarError);
     CHECK_THAT(visibleEnergy(t, 0.0, kB), WithinAbs(0.0, 0.0));
 }
+
+TEST_CASE("BirksLightTable gives the light of visibleEnergy", "[pstar]") {
+    // The same sums in the same order: equal to rounding.
+    constexpr double kSameSum = 1.0e-12;
+    const PstarTable t = fallingTable();
+    const BirksLightTable table(t, kB);
+    CHECK_THAT(table.kB(), WithinAbs(kB, 0.0));
+    // Below, on and between the tabulated energies, and at both ends.
+    for (const double Ep : {0.0, 0.0005, 0.001, 0.002, 0.003, 0.37, 2.048, 9.9, 14.0, 20.0}) {
+        CAPTURE(Ep);
+        CHECK_THAT(table.light(Ep), WithinRel(visibleEnergy(t, Ep, kB), kSameSum));
+    }
+    const BirksLightTable unquenched(t, 0.0);
+    CHECK_THAT(unquenched.light(14.0), WithinRel(14.0, kRel));
+}
+
+TEST_CASE("BirksLightTable refuses invalid arguments", "[pstar]") {
+    const PstarTable t = fallingTable();
+    CHECK_THROWS_AS(BirksLightTable(PstarTable{}, kB), PstarError);
+    CHECK_THROWS_AS(BirksLightTable(t, -0.1), PstarError);
+    CHECK_THROWS_AS(BirksLightTable(t, kB, 0), PstarError);
+    const BirksLightTable table(t, kB);
+    CHECK_THROWS_AS(table.light(-1.0), PstarError);
+    CHECK_THROWS_AS(table.light(21.0), PstarError);
+}

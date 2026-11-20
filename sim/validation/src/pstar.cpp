@@ -7,6 +7,7 @@
 #include <iterator>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "riptide/common/units.hpp"
@@ -134,13 +135,11 @@ double csdaRange(const PstarTable& table, double Ep) {
     return interpolate(table.Ep, table.csda_range, Ep, "CSDA range");
 }
 
-double visibleEnergy(const PstarTable& table, double Ep, double kB, int panels) {
+namespace {
+
+void checkLightArguments(const PstarTable& table, double kB, int panels) {
     if (table.Ep.empty()) {
         throw PstarError("PSTAR light: empty table");
-    }
-    if (!(Ep >= 0.0) || !(Ep <= table.Ep.back())) {
-        throw PstarError("PSTAR light: energy " + std::to_string(Ep) +
-                         " MeV negative or above the table");
     }
     if (!(kB >= 0.0) || !std::isfinite(kB)) {
         throw PstarError("PSTAR light: kB must be finite and not negative");
@@ -148,35 +147,79 @@ double visibleEnergy(const PstarTable& table, double Ep, double kB, int panels) 
     if (panels < 1) {
         throw PstarError("PSTAR light: at least one Simpson panel per interval");
     }
-    const auto quench = [kB](double S) { return 1.0 / (1.0 + kB * S); };
+}
 
-    // Below the table the stopping power is unknown: S is held at its first
-    // value, an error bounded by the first energy itself.
+void checkLightEnergy(const PstarTable& table, double Ep) {
+    if (!(Ep >= 0.0) || !(Ep <= table.Ep.back())) {
+        throw PstarError("PSTAR light: energy " + std::to_string(Ep) +
+                         " MeV negative or above the table");
+    }
+}
+
+double quench(double kB, double S) {
+    return 1.0 / (1.0 + kB * S);
+}
+
+// Light below the first tabulated energy, where the stopping power is
+// unknown: S is held at its first value, an error bounded by that energy.
+double lightBelowTable(const PstarTable& table, double Ep, double kB) {
+    return Ep * quench(kB, table.S_tot.front());
+}
+
+// Simpson's rule from Ep[i] to `upper` <= Ep[i+1], with S log-log between
+// the ends of the interval, so the integrand is smooth inside every panel.
+double intervalLight(const PstarTable& table, std::size_t i, double upper, double kB, int panels) {
+    const double e0 = table.Ep[i];
+    const double e1 = table.Ep[i + 1];
+    const double s0 = table.S_tot[i];
+    const double s1 = table.S_tot[i + 1];
+    const auto integrand = [&](double E) { return quench(kB, logLog(e0, s0, e1, s1, E)); };
+    const double width = (upper - e0) / panels;
+    double sum = 0.0;
+    for (int k = 0; k < panels; ++k) {
+        const double a = e0 + k * width;
+        const double b = (k + 1 == panels) ? upper : a + width;
+        sum += (b - a) * (integrand(a) + 4.0 * integrand(0.5 * (a + b)) + integrand(b));
+    }
+    return sum / 6.0;
+}
+
+} // namespace
+
+double visibleEnergy(const PstarTable& table, double Ep, double kB, int panels) {
+    checkLightArguments(table, kB, panels);
+    checkLightEnergy(table, Ep);
     const double first = table.Ep.front();
     if (!(Ep > first)) {
-        return Ep * quench(table.S_tot.front());
+        return lightBelowTable(table, Ep, kB);
     }
-    double light = first * quench(table.S_tot.front());
-
-    // Simpson's rule on each table interval, with S log-log between its
-    // ends, so the integrand is smooth inside every panel.
+    double light = lightBelowTable(table, first, kB);
     for (std::size_t i = 0; i + 1 < table.Ep.size() && table.Ep[i] < Ep; ++i) {
-        const double e0 = table.Ep[i];
-        const double e1 = table.Ep[i + 1];
-        const double s0 = table.S_tot[i];
-        const double s1 = table.S_tot[i + 1];
-        const auto integrand = [&](double E) { return quench(logLog(e0, s0, e1, s1, E)); };
-        const double upper = std::min(e1, Ep);
-        const double width = (upper - e0) / panels;
-        double sum = 0.0;
-        for (int k = 0; k < panels; ++k) {
-            const double a = e0 + k * width;
-            const double b = (k + 1 == panels) ? upper : a + width;
-            sum += (b - a) * (integrand(a) + 4.0 * integrand(0.5 * (a + b)) + integrand(b));
-        }
-        light += sum / 6.0;
+        light += intervalLight(table, i, std::min(table.Ep[i + 1], Ep), kB, panels);
     }
     return light;
+}
+
+BirksLightTable::BirksLightTable(PstarTable table, double kB, int panels)
+    : table_(std::move(table)), kB_(kB), panels_(panels) {
+    checkLightArguments(table_, kB_, panels_);
+    cumulative_.reserve(table_.Ep.size());
+    cumulative_.push_back(lightBelowTable(table_, table_.Ep.front(), kB_));
+    for (std::size_t i = 0; i + 1 < table_.Ep.size(); ++i) {
+        cumulative_.push_back(cumulative_.back() +
+                              intervalLight(table_, i, table_.Ep[i + 1], kB_, panels_));
+    }
+}
+
+double BirksLightTable::light(double Ep) const {
+    checkLightEnergy(table_, Ep);
+    if (!(Ep > table_.Ep.front())) {
+        return lightBelowTable(table_, Ep, kB_);
+    }
+    // Ep in (Ep[lo], Ep[lo+1]]: the full intervals below lo are in the sum.
+    const auto upper = std::lower_bound(table_.Ep.begin(), table_.Ep.end(), Ep);
+    const auto lo = static_cast<std::size_t>(std::distance(table_.Ep.begin(), upper)) - 1;
+    return cumulative_[lo] + intervalLight(table_, lo, Ep, kB_, panels_);
 }
 
 } // namespace riptide::sim::checks
