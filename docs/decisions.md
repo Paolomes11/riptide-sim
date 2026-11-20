@@ -442,3 +442,56 @@ cancellano: se cambiano, se ne aggiunge una nuova che rimanda alla vecchia.
     tracce: rimandato finché il contatore non mostra che serve.
 - **Conseguenze:** lo schema passa alla versione 2 (18 colonne in coda); il lettore accetta
   ancora la versione 1, quindi `riptide_sim_check` legge i run della fase 1b.
+
+## D20 — Riferimento PSTAR per range e luce dei protoni (2026-11-20)
+
+- **Dati:** tabella PSTAR del NIST per il materiale 216, "PLASTIC SCINTILLATOR
+  (vinyltoluene-based)": stopping power elettronico, nucleare e totale, range CSDA e proiettato,
+  132 energie da 1 keV a 10 GeV. Scaricata il 2026-11-20 da
+  https://physics.nist.gov/cgi-bin/Star/apdata.pl (formato testo) e salvata in
+  `reference/pstar/`, sola lettura, con origine e sha256 in `architecture/data_layout.md`.
+- **Materiale a confronto:**
+
+  | | PSTAR 216 | `G4_PLASTIC_SC_VINYLTOLUENE` (Geant4 11.4.1) |
+  |---|---|---|
+  | densità | 1.032 g/cm³ | 1.032 g/cm³ |
+  | I | 64.7 eV | 64.7 eV |
+  | composizione | H 0.085000, C 0.915000 in peso | C9H10 per numero di atomi |
+
+  C9H10 con le masse atomiche standard dà circa 0.0853 di H in peso. Il sorgente di
+  `G4NistMaterialBuilder.cc` lascia commentate le frazioni NIST e annota che non corrispondono al
+  PVT puro: la differenza è nota a Geant4 e qui si dichiara, senza stimarne l'effetto a occhio.
+- **Fatti** (sorgente di Geant4 11.4.1, `QGSP_BIC_HP` con `G4EmStandardPhysics_option4`):
+  - per il protone `G4hIonisation` usa `G4BraggModel` sotto 2 MeV e `G4BetheBlochModel` sopra;
+  - `G4BraggModel` legge `G4PSTARStopping`, e per questo materiale la tabella (60 punti da 1 keV
+    a 2 MeV) coincide **valore per valore** con lo stopping elettronico della tabella scaricata;
+  - `G4BetheBlochModel` calcola la formula di Bethe con correzione di densità, di shell e le
+    correzioni di ordine superiore di `G4EmCorrections` (Barkas, Bloch, Mott), con la stessa I;
+    i dati ICRU90 non si applicano (coprono solo acqua, aria e grafite);
+  - nella tabella di dE/dx, `G4EmModelManager::FillDEDXVector` moltiplica il modello alto per
+    1 + (S_Bragg(E_lim)/S_BB(E_lim) − 1)·E_lim/E, con E_lim = 2 MeV: sopra 2 MeV Geant4 resta agganciato a
+    PSTAR, con un peso che decresce come 1/E;
+  - lo stopping nucleare viene da un processo separato (`G4NuclearStopping`), non da PSTAR.
+- **Decisione:**
+  - PSTAR è il riferimento (c) per il range CSDA e per la luce attesa da Birks dei protoni
+    contenuti senza interazioni adroniche:
+    - ⟨`truth_p_length`⟩ contro R_CSDA(E_p);
+    - ⟨`truth_p_Evis`⟩ contro L(E_p) = ∫₀^E_p dE / (1 + kB·S(E)), con S totale e kB di D18;
+  - in entrambi si usa lo stopping **totale** (elettronico + nucleare), perché la simulazione
+    deposita anche la perdita nucleare;
+  - tra i punti della tabella si interpola in log-log;
+  - le soglie di accordo si fissano nelle previsioni della fase 2, prima dei run.
+- **Limite di indipendenza:**
+  - sotto 2 MeV il confronto verifica solo l'implementazione (interpolazione, passo, raccordo fra
+    i modelli), non la fisica: Geant4 usa la stessa tabella;
+  - sopra 2 MeV il confronto è indipendente solo in parte: stessa I, correzioni implementate in
+    modo diverso, aggancio a PSTAR a 2 MeV;
+  - un accordo dice quindi che la simulazione trasporta il protone come previsto da questi dati,
+    non che i dati descrivono bene il PVT reale.
+- **Alternative:**
+  - tabelle ICRU49 lette direttamente (stessa origine di PSTAR);
+  - SRIM, con un modello diverso, ma senza una tabella pubblica con origine fissata come PSTAR;
+  - il solo `G4EmCalculator`, che confronterebbe Geant4 con sé stesso.
+- **Conseguenze:**
+  - nuovo lettore della tabella in `sim/validation` (senza Geant4, compilato anche in `ci`);
+  - la sezione `pstar` delle verifiche arriva con `checks_version` 7.

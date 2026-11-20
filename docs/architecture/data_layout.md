@@ -108,9 +108,10 @@ $RIPTIDE_DATA_DIR/
 │   ├── model_mix.csv
 │   ├── deposit_spectra.csv | proton_exits.csv   # solo per run con schema ≥ 2
 │   └── checks.json           # esiti numerici delle verifiche e marcatore di completamento
-└── reference/                # valutazioni nucleari di riferimento (D13), sola lettura
-    ├── endfb80/              # file ENDF-6 estratti; download/ con gli originali
-    └── jeff33/
+└── reference/                # dati di riferimento, sola lettura
+    ├── endfb80/              # file ENDF-6 estratti (D13); download/ con gli originali
+    ├── jeff33/
+    └── pstar/                # stopping power e range dei protoni nel PVT (D20)
 ```
 
 Nel repository, ignorata da git: `outputs/figures/<analysis_id>/` (figure da risultati ridotti).
@@ -171,6 +172,24 @@ riproduce.
 | `Elastic/CrossSection/1_2_Hydrogen.z` | `ad1e901e2545bd67792d78a2bfb013daca24d47d006d95690e882ef692fde004` |
 | `Inelastic/CrossSection/1_2_Hydrogen.z` | `ebe306167a4dca0a8c5aca39f7b17deeb79c396b286bd0625fb134175290bd1d` |
 | `Capture/CrossSection/1_2_Hydrogen.z` | `e40c5a72fedd83643107c3de866be1538b5048c0d84ddca366e5bdd48422f786` |
+
+## Stopping power dei protoni (PSTAR)
+
+Tabella PSTAR del NIST per il materiale 216, "PLASTIC SCINTILLATOR (vinyltoluene-based)" (D20),
+scaricata il 2026-11-20 in `reference/pstar/`. La tabella in testo si ottiene con un POST a
+https://physics.nist.gov/cgi-bin/Star/apdata.pl con `prog=PSTAR`, `matno=216`,
+`ShowDefault=on`, `NumofEnergies=0`, `character=space` e tutte le colonne attive (`electronic`,
+`nuclear`, `total`, `csda`, `project`, `detour`).
+
+| File | Origine | sha256 |
+|---|---|---|
+| `pstar_216.txt` | apdata.pl, tabella in testo (9308 byte) | `eec195fe1257334039598db5d24e6040c91689200e1731c05f24301a0f3c081b` |
+| `download/ap_table_216.html` | https://physics.nist.gov/cgi-bin/Star/ap_table.pl, stessa tabella in HTML (36078 byte) | `a01d863fc2d1cba1fffa72e2ccd010ad9e8302222d2cb06936b54488c47aa4e8` |
+| `download/compos_ap216.html` | https://physics.nist.gov/cgi-bin/Star/compos.pl?ap216, composizione, densità e I (7014 byte) | `49c5ca730f42e3d77c8db3d6622432d763b961e91d030634d62f5a33b8321416` |
+
+`pstar_216.txt` ha un'intestazione di 8 righe e 132 righe di dati con 7 colonne: E [MeV],
+stopping elettronico, nucleare e totale [MeV cm²/g], range CSDA e proiettato [g/cm²], fattore
+di detour. Il lettore converte in MeV/mm e mm con la densità 1.032 g/cm³.
 
 ## Verifiche fisiche (`riptide_sim_check`)
 
