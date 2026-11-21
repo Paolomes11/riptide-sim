@@ -664,3 +664,34 @@ cancellano: se cambiano, se ne aggiunge una nuova che rimanda alla vecchia.
     previsione propria;
   - i piloti vanno ripetuti con lo schema 3 prima della produzione;
   - `det_Edep` e `det_Evis` non cambiano: il rinculo deposita comunque nello scintillatore.
+
+## D23 — Lettura delle righe in ordine di `event_id` (2026-11-21)
+
+- **Problema:** nei run di sensibilità a kB (`2_mono_14MeV_kB0p{145,155,165}_1e6`, verifiche `c1`)
+  quattro verifiche di identità della §1 di `2_predictions.md` v2 sono fallite:
+  `contained_balance_MeV.mean` e `pstar.range_mm` differiscono fra run che hanno gli stessi eventi.
+  Tutti gli interi sono identici, i float differiscono di al più 1.3·10⁻¹² relativo. Causa: in MT
+  Geant4 assegna gli eventi ai thread dinamicamente, quindi la divisione fra i file
+  `events_t<k>.root` cambia da run a run. Il checker leggeva i file uno dopo l'altro e sommava i
+  double in un ordine che dipendeva da quella divisione.
+- **Decisione:**
+  - il reader (`forEachEventRow`) fonde i file per thread in ordine crescente di `event_id`
+    (`mergeByEventId`, k-way merge). Ogni worker elabora id crescenti, quindi ogni file è già
+    ordinato; il merge rifiuta (`RunReadError`) un file che non sia strettamente crescente, perché
+    l'ordine tornerebbe a dipendere dalla divisione;
+  - un `event_id` presente in due file (run rotto) si visita due volte, nell'ordine dei file, così
+    `row_count` di `loadRun` continua a rivelarlo;
+  - `checks_version` passa a 9. Nuovo oracolo nello smoke test: lo stesso run a 1 e a 2 thread dà
+    CSV identici byte per byte e `checks.json` identico a meno di `run_id`.
+- **Alternative:**
+  - somma compensata (Kahan) o in precisione estesa: riduce la differenza ma non la annulla, e
+    l'identità resterebbe un'approssimazione;
+  - tolleranza relativa sulle verifiche di identità: cambierebbe una soglia dopo il run, cosa
+    esclusa; e nasconderebbe un'eventuale differenza vera;
+  - un solo thread per i run di sensibilità: lento, e non risolve il problema per gli altri run.
+- **Conseguenze:**
+  - le soglie di `2_predictions.md` v2 non cambiano. Il fallimento delle verifiche `c1` resta scritto
+    in `2_results.md`; le verifiche si ripetono come `c2` sugli stessi run, senza nuovi run di
+    simulazione;
+  - il merge legge tutti i file in parallelo (un cursore di riga per ntupla nel reader di Geant4);
+    la memoria resta quella di una riga per file.
