@@ -33,10 +33,14 @@ inline constexpr const char* kDepositSpectraFileName = "deposit_spectra.csv";
 inline constexpr const char* kProtonExitsFileName = "proton_exits.csv";
 inline constexpr const char* kPstarComparisonFileName = "pstar_comparison.csv";
 
-// Version of the checks.json layout; bumped on any change of its keys.
-// Version 6 added results.deposits, version 7 results.deposits.pstar, version 8
-// results.deposits.protons_nuclear_recoil (and those protons left the balance and PSTAR samples).
-inline constexpr int kChecksVersion = 8;
+// Version of the checks.json layout and of how its numbers are formed; bumped
+// on any change of its keys or of their meaning. Version 6 added
+// results.deposits, version 7 results.deposits.pstar, version 8
+// results.deposits.protons_nuclear_recoil (and those protons left the balance
+// and PSTAR samples). Version 9 reads the rows in ascending event_id, so every
+// sum, and every output byte, no longer depends on how the run's events were
+// spread over the worker threads.
+inline constexpr int kChecksVersion = 9;
 
 class ReportError : public std::runtime_error {
 public:

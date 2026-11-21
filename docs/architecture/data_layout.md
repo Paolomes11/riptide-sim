@@ -125,8 +125,10 @@ I `run_id` `ctest_it_1t`, `ctest_it_2t` e `ctest_it_kB0` sono riservati al test 
 il reader controlla `det_Evis` = `det_Edep` evento per evento entro 10⁻⁹ MeV e `det_Edep`
 identico, bit per bit, a quello di `ctest_it_1t`, perché kB entra solo nella luce visibile.
 Il `check_id` `ctest_smoke` è riservato allo smoke test di `riptide_sim_check`
-(`sim/tests/run_check_smoke.sh`), che ricrea solo `validation/ctest_it_1t/ctest_smoke`. Lo
-smoke test controlla `checks_version` = 8, i file JEFF-3.3 letti (H-1, C-0, C-13, D15) e lo
+(`sim/tests/run_check_smoke.sh`), che ricrea solo `validation/ctest_it_1t/ctest_smoke` e
+`validation/ctest_it_2t/ctest_smoke`. I due run contengono gli stessi eventi, divisi in uno e in
+due file: i CSV devono essere identici byte per byte e `checks.json` identico a meno di `run_id`
+(D23). Lo smoke test controlla `checks_version` = 9, i file JEFF-3.3 letti (H-1, C-0, C-13, D15) e lo
 sha256 del primo, l'AWR di H-1 (0.999167, D14), il residuo di E_p all'arrotondamento, lo scarto
 dalla cinematica fisica in [5.3, 5.5]·10⁻⁴, i contatori di coerenza a zero e, a 14 MeV, nessun
 evento n–p con la cinematica non HP (D16). Controlla anche la sezione `deposits`: fatta, con kB
@@ -243,7 +245,11 @@ I CSV, a precisione piena (`max_digits10`):
   (osservato − atteso). Campo vuoto per le medie di un bin senza protoni e per le deviazioni
   con meno di due protoni.
 
-`checks.json` (versione `checks_version` = 8) si scrive per ultimo, con tmp + rename. Chiavi:
+Il checker legge le righe dei file per thread fuse in ordine crescente di `event_id`
+(`mergeByEventId`, D23): ogni somma, e quindi ogni output, dipende solo dagli eventi e non da come
+Geant4 li ha divisi fra i thread.
+
+`checks.json` (versione `checks_version` = 9) si scrive per ultimo, con tmp + rename. Chiavi:
 
 | Chiave | Contenuto |
 |---|---|
