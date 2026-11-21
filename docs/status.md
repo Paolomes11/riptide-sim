@@ -1,11 +1,11 @@
 # Stato
 
-**v0.4.0 — 2026-11-21 — Fase 2 (deposito di energia e quenching di Birks) completata.**
+**v0.4.0 — 2026-11-21 — Fase 3 (geometria reale) in corso.**
 
-Unita a `master` con il tag `v0.4.0`. Schema 3, `checks_version` 9. Sei run di validazione con
-tutte le soglie passate (`validation/2_results.md`). Decisi l'offset HP (D24), il bordo a 20 MeV
-(D25) e l'eccesso di `ionIoni` (D26); la correzione di E_p è pronta in `common`, unita a
-`master`. Prossimo: i prerequisiti della fase 3.
+`master` è a v0.4.0 (fase 2 completata, tag `v0.4.0`). La fase 3 è sul branch
+`feat/sim-geometry`, non ancora unito: blocco 60 × 20 × 20 mm e sorgente a campo lontano (D27),
+config v3, schema 4, `checks_version` 10. Le previsioni sono committate prima dei run
+(`validation/3_predictions.md` v2). Prossimo: i tre run di validazione da 10⁷ eventi.
 
 ## Fatto
 
@@ -178,15 +178,61 @@ Deposito, Birks, traccia del protone e classificazione dell'evento, vedi `roadma
   nlohmann/GCC 13 in `sim/tests/integration_reader.cpp`, presenti anche con il file di
   `83b959d`.
 
+### Fase 3 (in corso, branch `feat/sim-geometry`, `checks_version` 10)
+
+Geometria reale e sorgente a campo lontano, vedi `roadmap.md`.
+
+- **D27:**
+  - blocco di BC-408 da 60 × 20 × 20 mm centrato nell'origine, lato lungo su X, mondo nel vuoto
+    senza supporti;
+  - sorgente a campo lontano: direzione fissa o isotropa, punto di partenza uniforme su un disco
+    ⟂ Ω_n fuori dal blocco;
+  - il fascio a matita resta per la regressione.
+- **Config v3:** `source.beam` `"pencil"` o `"far_field"` (con `direction` vettore o
+  `"isotropic"` e `margin_mm`). I config v2 si leggono come pencil. Nuovi config
+  `3_ff_mono_14MeV_x`, `3_ff_mono_14MeV_isotropic`, `3_ff_flat_10_19p5MeV_isotropic`.
+- **Generatore:** posizione e direzione campionate per evento con l'RNG seminato per evento
+  (D11), quindi l'output non dipende dal numero di thread. Funzioni pure di campionamento con
+  test di direzione, disco, accettanza e corda media di Cauchy.
+- **Schema 4:** colonne `truth_n_start_{x,y,z}` (mm), il punto di partenza del neutrone.
+- **Verifiche (`checks_version` 10):**
+  - corda L_i per evento, con frazioni di prima interazione e profondità s = z/L_i calcolate su
+    quella corda;
+  - nuova sezione `geometric_acceptance`: pull binomiale dell'accettanza e pull della corda
+    media;
+  - nuovi contatori che devono essere zero, `start_not_on_source` e `interaction_off_chord`;
+  - la previsione media le attese sulla distribuzione delle corde (10⁸ raggi);
+  - **oracolo di regressione (c):** su `2_mono_14MeV_kB0p155_1e6` (`c4`, 50 bin) e
+    `2_flat_10_20MeV_1e7` (`c3`), v10 ridà i numeri di v9 a parte le chiavi nuove e i bordi
+    della profondità divisi per L.
+- **Previsioni (`validation/3_predictions.md`):**
+  - v1 a `8429cc3`, v2 a `ff6f837` con i riferimenti PSTAR per bin nel repo
+    (`predictions/3_pstar_light_reference_*.csv`);
+  - attese `jeff33` in `predictions/3_ff_*_1e7.json`;
+  - soglie Bonferroni |pull| < 3.29 (+X) e < 3.32 (isotropi).
+- **Piloti da 10⁵ eventi a 1 thread (non run di validazione):** `pilot3_*_1e5_1t/c1` sull'SSD.
+  - Contatori che devono essere zero a 0.
+  - Frazione di protoni che escono 3.35% / 3.98% / 4.85% (+X / isotropa mono / isotropa
+    piatta), contro lo 0.47% del cubo della fase 2.
+  - 7–8 s per 10⁵ eventi, 91 MB, 110–119 B/evento. Stima (b) per un run da 10⁷ a 8 thread:
+    2–6 minuti, circa 1.2 GB.
+- **Test:** `debug` 266/266, `ci` 247/247, clang-format pulito.
+
 **Prossimi passi, nell'ordine:**
 
-1. Fase 3: dimensioni definitive dello scintillatore e distanza della sorgente dal progetto di
-   ottimizzazione.
+1. Fase 3, solo con il via dell'utente: i tre run da 10⁷ eventi con i comandi di
+   `validation/3_predictions.md` (§«Run previsti»), uno alla volta, dopo
+   `scripts/data_root.sh check`, sotto `scripts/run_capped.sh -m 5G`, con la build `release` di
+   HEAD; poi le verifiche `c1`.
+2. Valutazione contro le soglie già committate e `validation/3_results.md`, con le etichette
+   (a)–(d).
+3. Stato v0.5.0, roadmap e `build: versione 0.5.0`; merge e tag solo su richiesta.
 
 ## Punti aperti
 
-- Dimensioni dello scintillatore: cubo di 10 cm provvisorio nei config; definitive prima della
-  fase 3.
+- **Fase 3, deciso (D27):** blocco 60 × 20 × 20 mm, mondo nel vuoto senza supporti né
+  materiali attorno. Se una geometria più realistica li aggiungerà, andranno rivisti fondo e
+  accettanza.
 - SSD esterno montato su `/mnt/external_ssd`, ma non in modo permanente: prima di ogni run
   `scripts/data_root.sh check` (procedura in `architecture/data_layout.md`).
 - **Fase 2, deciso (D25):** sopra 19.5 MeV lo stato finale elastico è in parte CHIPS (D16):

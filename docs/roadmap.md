@@ -69,10 +69,15 @@ progetto ricostruisce il neutrone incidente da ciò che interagisce nello scinti
 
 ## Fase 3 — Geometria reale
 
-- Solo il blocco scintillatore (dimensioni e posizione dal progetto di ottimizzazione, nessun
-  componente ottico), sorgente a distanza finita.
-- **Punto aperto:** lì lo scintillatore non è un volume GDML e i parametri differiscono fra config
-  e test ⇒ prima di questa fase servono le dimensioni definitive.
+- Solo il blocco scintillatore, senza componenti ottici: 60 × 20 × 20 mm di BC-408, lato lungo
+  su X, l'unico volume 3D del progetto di ottimizzazione (D27).
+- Sorgente a campo lontano (D27): direzione fissa (Caso A) o isotropa (Casi B–C), punto di
+  partenza uniforme su un disco ⟂ Ω_n. Il fascio a matita resta per la regressione.
+- Config v3, schema 4 (`truth_n_start_{x,y,z}`), verifiche per evento con la corda L_i,
+  accettanza geometrica e corda media di Cauchy (`checks_version` 10).
+- Run di validazione: tre da 10⁷ eventi (mono 14 MeV lungo +X, mono 14 MeV isotropo, piatto
+  10–19.5 MeV isotropo), con previsioni in `validation/3_predictions.md`.
+- Risultati: `validation/3_results.md`, con l'effetto dei bordi sui protoni che escono.
 
 ## Fase 4 — I/O dell'analisi
 
