@@ -7,7 +7,9 @@
 // and a check of the same run agree up to the statistics of the sample. The
 // spectrum average is a quadrature in E_n: one node for a monoenergetic
 // source, the midpoint rule for a flat one, with its error measured by
-// doubling the nodes (predictionShift).
+// doubling the nodes (predictionShift). A far-field source gives each event
+// its own chord: the per-chord probabilities are averaged as well, over the
+// chord distribution of the source (ChordDistribution).
 //
 // Pure functions, no I/O, Geant4 or ROOT: the app hands in the reference
 // models and writes the JSON.
@@ -68,9 +70,44 @@ struct LibraryPrediction {
     std::vector<double> u_probabilities; // per bin of u over [0, 1], HP n-p events
 };
 
+// Distribution of the chord of an event through the box. Pencil: the one
+// beam chord with weight 1. Far-field: the chords of `samples` rays drawn
+// from the source with `seed`, grouped in bins of kChordBinWidth, each bin
+// at the mean length of its rays. The weights of the hit chords sum to the
+// closed-form acceptance and miss_weight is its complement, so the sample
+// only shapes the chord distribution and the miss fraction carries no
+// sampling error.
+struct ChordDistribution {
+    bool far_field = false;
+    std::vector<double> lengths; // [mm], ascending
+    std::vector<double> weights;
+    double miss_weight = 0.0;
+    std::uint64_t samples = 0;
+    std::uint64_t seed = 0;
+    std::uint64_t sample_hits = 0;
+    double sample_mean = 0.0; // mean chord of the sampled hits [mm]
+    double sample_sd = 0.0;   // their sample standard deviation [mm]
+    double acceptance = 1.0;  // closed form, as in CheckSetup
+    double expected_mean_chord = 0.0;
+};
+
+// Width [mm] of the chord bins. Inside a bin exp(-Sigma L) is replaced by its
+// value at the bin mean, a relative error of order (Sigma w)^2 / 24: far below
+// 1e-8 for Sigma of a few 1e-2 / mm.
+inline constexpr double kChordBinWidth = 1.0e-2;
+
+// The pencil chord of setup. Throws std::invalid_argument for a far-field setup.
+[[nodiscard]] ChordDistribution pencilChord(const CheckSetup& setup);
+
+// Far-field chords sampled from the source of setup with a seeded
+// std::mt19937_64. Throws std::invalid_argument for a pencil setup, 0
+// samples or a sample with no ray crossing the box.
+[[nodiscard]] ChordDistribution farFieldChords(const CheckSetup& setup, std::uint64_t samples,
+                                               std::uint64_t seed);
+
 struct RunPrediction {
     std::uint64_t events = 0;
-    double L = 0.0; // beam path in the scintillator [mm]
+    ChordDistribution chords;
     double En_min = 0.0;
     double En_max = 0.0;
     std::size_t energy_nodes = 0;
@@ -83,8 +120,14 @@ struct RunPrediction {
     std::vector<LibraryPrediction> libraries; // in the order of the models
 };
 
-// Throws std::invalid_argument for no models, 0 events, 0 energy nodes or
-// a source without HP n-p events.
+// Throws std::invalid_argument for no models, 0 events, 0 energy nodes, an
+// empty chord distribution or a source without HP n-p events.
+[[nodiscard]] RunPrediction predictRun(const CheckSetup& setup,
+                                       const std::vector<ReferenceModel>& models,
+                                       const ChordDistribution& chords, std::uint64_t events,
+                                       std::size_t energy_nodes);
+
+// The same along the pencil chord of setup (throws for a far-field setup).
 [[nodiscard]] RunPrediction predictRun(const CheckSetup& setup,
                                        const std::vector<ReferenceModel>& models,
                                        std::uint64_t events, std::size_t energy_nodes);
@@ -116,8 +159,10 @@ struct PredictionShift {
                                               const ExpectedErrors& errors, std::uint64_t events);
 
 // Statistical acceptance tests of a run against one library: the chi^2 of
-// u, depth and fractions, one pull per Legendre degree and, when the source
-// reaches the overlap window, the model-mix pull and chi^2. The family-wise
+// u, depth and fractions, one pull per Legendre degree, when the source
+// reaches the overlap window the model-mix pull and chi^2 and, for a
+// far-field source, the acceptance pull and the mean-chord pull (the latter
+// only when the chords have a spread). The family-wise
 // false-alarm probability is split evenly (Bonferroni), which stays
 // conservative for the correlated Legendre pulls.
 struct TestPlan {
@@ -135,5 +180,10 @@ struct TestPlan {
 // library from the first and the test plan.
 [[nodiscard]] nlohmann::json
 predictionJson(const RunPrediction& run, const PredictionShift& quadrature, const TestPlan& plan);
+
+// The "chords" object of the prediction: mode, closed-form acceptance and
+// mean chord and, for a far-field source, the sample that shaped the
+// distribution.
+[[nodiscard]] nlohmann::json chordsJson(const ChordDistribution& chords);
 
 } // namespace riptide::sim::checks

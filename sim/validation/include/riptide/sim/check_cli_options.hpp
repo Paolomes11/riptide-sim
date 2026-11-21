@@ -49,6 +49,16 @@ inline constexpr std::size_t kDefaultEnergyNodes = 4096;
 // Guard against typos, like kMaxBins.
 inline constexpr std::size_t kMaxEnergyNodes = 100000;
 
+// Default number of rays sampled for the chord distribution of a far-field
+// source. The sample enters only through the chord shape, with a relative
+// error on the mean interaction probability of order sqrt(N_run / samples)
+// statistical sigma of an N_run-event run: about 0.3 sigma at 10^7 rays and
+// 0.1 sigma at 10^8 for a 10^7-event run. The prediction measures it against
+// a second, independent sample; 10^8 rays cost a few seconds.
+inline constexpr std::uint64_t kDefaultChordSamples = 100'000'000;
+// Guard against typos, like kMaxBins.
+inline constexpr std::uint64_t kMaxChordSamples = 10'000'000'000;
+
 struct PredictCliOptions {
     bool show_help = false;
     bool show_version = false;
@@ -58,6 +68,7 @@ struct PredictCliOptions {
     std::size_t bins_u = kDefaultBins;
     std::size_t bins_z = kDefaultBins;
     std::size_t energy_nodes = kDefaultEnergyNodes;
+    std::uint64_t chord_samples = kDefaultChordSamples;
 };
 
 // `args` excludes the program name. Throws CliError on unknown options,

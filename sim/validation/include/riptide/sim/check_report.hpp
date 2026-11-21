@@ -39,8 +39,12 @@ inline constexpr const char* kPstarComparisonFileName = "pstar_comparison.csv";
 // results.deposits.protons_nuclear_recoil (and those protons left the balance
 // and PSTAR samples). Version 9 reads the rows in ascending event_id, so every
 // sum, and every output byte, no longer depends on how the run's events were
-// spread over the worker threads.
-inline constexpr int kChecksVersion = 9;
+// spread over the worker threads. Version 10 traces each event's own ray,
+// for the far-field source of D27: depth_z is binned in the fraction of the
+// event's chord, results.geometric_acceptance and the counters
+// start_not_on_source and interaction_off_chord are new, and the beam object
+// describes the source. On a pencil run every other number is that of 9.
+inline constexpr int kChecksVersion = 10;
 
 class ReportError : public std::runtime_error {
 public:
@@ -56,6 +60,11 @@ public:
 // the expected-rare ones. A skipped check carries its reason in "skipped" and no chi^2; a compared
 // one has "skipped": null.
 [[nodiscard]] nlohmann::json resultsJson(const CheckResults& results);
+
+// The "beam" object of checks.json: source mode, energy range and binning;
+// for a pencil beam its chord L_mm, for a far-field source the direction (or
+// "isotropic"), the start disk, the expected acceptance and mean chord.
+[[nodiscard]] nlohmann::json beamJson(const CheckSetup& setup);
 
 // The "deposits" object of checks.json for a run with deposit columns: the
 // setup, the event classes, the proton counts, the energy balance of the

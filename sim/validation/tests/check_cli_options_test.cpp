@@ -96,6 +96,7 @@ TEST_CASE("predict cli: required options alone give the defaults", "[check_cli]"
     CHECK(o.bins_u == kDefaultBins);
     CHECK(o.bins_z == kDefaultBins);
     CHECK(o.energy_nodes == riptide::sim::checks::kDefaultEnergyNodes);
+    CHECK(o.chord_samples == riptide::sim::checks::kDefaultChordSamples);
     CHECK_FALSE(o.data_dir.has_value());
 }
 
@@ -113,6 +114,11 @@ TEST_CASE("predict cli: optional options are read and bounded", "[check_cli]") {
         with(base, {"--nodes", std::to_string(riptide::sim::checks::kMaxEnergyNodes + 1)}),
         "--nodes");
     requirePredictError(with(base, {"--bins-u", "0"}), "--bins-u");
+    CHECK(parsePredictCommandLine(with(base, {"--chord-samples", "1000"})).chord_samples == 1000);
+    requirePredictError(with(base, {"--chord-samples", "0"}), "--chord-samples");
+    requirePredictError(
+        with(base, {"--chord-samples", std::to_string(riptide::sim::checks::kMaxChordSamples + 1)}),
+        "--chord-samples");
 }
 
 TEST_CASE("predict cli: config and a positive event count are required", "[check_cli]") {

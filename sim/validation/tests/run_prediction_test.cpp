@@ -21,6 +21,7 @@ namespace kin = riptide::kinematics;
 namespace units = riptide::units;
 using Catch::Matchers::WithinAbs;
 using Catch::Matchers::WithinRel;
+using Catch::Matchers::WithinULP;
 using riptide::schema::FirstInteraction;
 
 namespace {
@@ -70,6 +71,19 @@ checks::CheckSetup cubeSetup(double En_min, double En_max, double target_mass = 
     config.source.direction = {0.0, 0.0, 1.0};
     config.source.position = {0.0, 0.0, -100.0};
     return checks::makeCheckSetup(config, target_mass, checks::kDefaultBins, checks::kDefaultBins);
+}
+
+// Far-field source on the 60 x 20 x 20 mm block of D27, long side on x.
+checks::CheckSetup blockSetup(bool isotropic) {
+    riptide::sim::RunConfig config;
+    config.geometry.scint_size = {60.0, 20.0, 20.0};
+    config.source.beam = riptide::sim::BeamMode::FarField;
+    config.source.En_min = kEn;
+    config.source.En_max = kEn;
+    config.source.isotropic = isotropic;
+    config.source.direction = {1.0, 0.0, 0.0};
+    return checks::makeCheckSetup(config, kin::kProtonMass, checks::kDefaultBins,
+                                  checks::kDefaultBins);
 }
 
 std::size_t index(FirstInteraction c) {
@@ -147,7 +161,8 @@ TEST_CASE("predictRun of a monoenergetic source equals the single-energy formula
     const auto run = checks::predictRun(setup, {m}, kEvents, 8);
     CHECK(run.energy_nodes == 1);
     CHECK_FALSE(run.overlaps_model_window);
-    CHECK_THAT(run.L, WithinRel(100.0, kTolerance));
+    CHECK_THAT(run.chords.lengths.front(), WithinRel(100.0, kTolerance));
+    CHECK_FALSE(run.chords.far_field);
     REQUIRE(run.libraries.size() == 1);
     const auto& lib = run.libraries.front();
 
@@ -331,4 +346,120 @@ TEST_CASE("predictionJson carries the run, the plan and the library shifts", "[r
     CHECK(doc.at("libraries").at(1).at("shift_from_first_in_sigma").at("legendre").get<double>() >
           0.0);
     CHECK(doc.at("libraries").at(0).at("probabilities").contains("np_elastic"));
+}
+
+TEST_CASE("pencilChord is the beam chord with weight 1", "[run_prediction]") {
+    const auto chords = checks::pencilChord(cubeSetup(kEn, kEn));
+    CHECK_FALSE(chords.far_field);
+    REQUIRE(chords.lengths.size() == 1);
+    CHECK_THAT(chords.lengths.front(), WithinRel(100.0, kTolerance));
+    CHECK_THAT(chords.weights.front(), WithinRel(1.0, kTolerance));
+    CHECK_THAT(chords.miss_weight, WithinAbs(0.0, 0.0));
+    CHECK_THROWS_AS(checks::pencilChord(blockSetup(true)), std::invalid_argument);
+}
+
+TEST_CASE("predictRun averages the first interaction over the chords", "[run_prediction]") {
+    // A mixture of two chords and a miss: every category must be the weighted
+    // mix of the single-chord probabilities, the miss a certain Unknown.
+    const auto setup = cubeSetup(kEn, kEn);
+    const auto m = model("lib", kCoefficients);
+    checks::ChordDistribution chords;
+    chords.far_field = true;
+    chords.lengths = {10.0, 40.0};
+    chords.weights = {0.25, 0.45};
+    chords.miss_weight = 0.3;
+    const auto run = checks::predictRun(setup, {m}, chords, kEvents, 1);
+    const auto& lib = run.libraries.front();
+    const auto short_chord = checks::firstInteraction(m.mediumAt(kEn), 10.0);
+    const auto long_chord = checks::firstInteraction(m.mediumAt(kEn), 40.0);
+    double total = 0.0;
+    for (std::size_t c = 0; c < checks::kFirstInteractionCategories; ++c) {
+        const double miss = c == index(FirstInteraction::Unknown) ? 0.3 : 0.0;
+        const double mix =
+            0.25 * short_chord.unconditional.at(c) + 0.45 * long_chord.unconditional.at(c) + miss;
+        CHECK_THAT(lib.probabilities.at(c), WithinRel(mix, 1e-12));
+        total += lib.probabilities.at(c);
+    }
+    CHECK_THAT(total, WithinRel(1.0, 1e-12));
+    CHECK_THAT(
+        lib.hp_np_probability,
+        WithinRel(0.25 * short_chord.protium_elastic + 0.45 * long_chord.protium_elastic, 1e-12));
+
+    // The pencil overload is the one-chord distribution, bit for bit.
+    const auto pencil = checks::predictRun(setup, {m}, kEvents, 1);
+    const auto explicit_pencil =
+        checks::predictRun(setup, {m}, checks::pencilChord(setup), kEvents, 1);
+    for (std::size_t c = 0; c < checks::kFirstInteractionCategories; ++c) {
+        CHECK_THAT(explicit_pencil.libraries.front().probabilities.at(c),
+                   WithinULP(pencil.libraries.front().probabilities.at(c), 0));
+    }
+    checks::ChordDistribution empty;
+    CHECK_THROWS_AS(checks::predictRun(setup, {m}, empty, kEvents, 1), std::invalid_argument);
+}
+
+TEST_CASE("farFieldChords: weights, bins and the Cauchy mean chord", "[run_prediction]") {
+    // Prediction before the run: the sample acceptance and mean chord are
+    // within 5 sigma of 2800 / (pi 2200) and 4V/S = 120 / 7 mm.
+    const auto setup = blockSetup(true);
+    constexpr std::uint64_t kSamples = 1'000'000;
+    const auto chords = checks::farFieldChords(setup, kSamples, 20260907);
+    CHECK(chords.far_field);
+    CHECK(chords.samples == kSamples);
+    double weights = 0.0;
+    for (std::size_t k = 0; k < chords.lengths.size(); ++k) {
+        weights += chords.weights.at(k);
+        if (k > 0) {
+            CHECK(chords.lengths.at(k) > chords.lengths.at(k - 1));
+        }
+    }
+    CHECK_THAT(weights, WithinRel(setup.acceptance, 1e-9));
+    CHECK_THAT(chords.miss_weight, WithinRel(1.0 - setup.acceptance, 1e-12));
+    const double p = setup.acceptance;
+    const double n = static_cast<double>(kSamples);
+    const double acceptance_pull =
+        (static_cast<double>(chords.sample_hits) - n * p) / std::sqrt(n * p * (1.0 - p));
+    CHECK(std::abs(acceptance_pull) < 5.0);
+    const double mean_sigma = chords.sample_sd / std::sqrt(static_cast<double>(chords.sample_hits));
+    CHECK(std::abs(chords.sample_mean - 120.0 / 7.0) < 5.0 * mean_sigma);
+    // The same seed gives the same distribution.
+    const auto again = checks::farFieldChords(setup, kSamples, 20260907);
+    CHECK(again.lengths == chords.lengths);
+
+    // A fixed direction has the one chord of 60 mm, with no spread.
+    const auto fixed = checks::farFieldChords(blockSetup(false), 10'000, 1);
+    REQUIRE(fixed.lengths.size() == 1);
+    CHECK_THAT(fixed.lengths.front(), WithinRel(60.0, 1e-12));
+    CHECK_THAT(fixed.sample_sd, WithinAbs(0.0, 1e-12));
+    CHECK_THAT(fixed.weights.front(), WithinRel(2.0 / units::pi, 1e-12));
+
+    CHECK_THROWS_AS(checks::farFieldChords(cubeSetup(kEn, kEn), kSamples, 1),
+                    std::invalid_argument);
+    CHECK_THROWS_AS(checks::farFieldChords(setup, 0, 1), std::invalid_argument);
+}
+
+TEST_CASE("testPlan and the JSON of a far-field prediction", "[run_prediction]") {
+    const auto m = model("lib", kCoefficients);
+    const auto iso_setup = blockSetup(true);
+    const auto iso = checks::predictRun(iso_setup, {m},
+                                        checks::farFieldChords(iso_setup, 10'000, 1), kEvents, 1);
+    // Two Legendre pulls, the acceptance and the mean chord.
+    CHECK(checks::testPlan(iso, 0.01).pull_tests == 4);
+    const auto fixed_setup = blockSetup(false);
+    const auto fixed = checks::predictRun(
+        fixed_setup, {m}, checks::farFieldChords(fixed_setup, 10'000, 1), kEvents, 1);
+    // A single chord has no mean-chord pull.
+    CHECK(checks::testPlan(fixed, 0.01).pull_tests == 3);
+
+    const auto doc = checks::chordsJson(iso.chords);
+    CHECK(doc.at("mode").get<std::string>() == "far_field");
+    CHECK(doc.at("samples").get<std::uint64_t>() == 10'000);
+    CHECK(doc.contains("sample_acceptance_pull"));
+    CHECK_FALSE(doc.contains("L_mm"));
+    const auto pencil = checks::chordsJson(checks::pencilChord(cubeSetup(kEn, kEn)));
+    CHECK(pencil.at("mode").get<std::string>() == "pencil");
+    CHECK_THAT(pencil.at("L_mm").get<double>(), WithinRel(100.0, kTolerance));
+    CHECK_FALSE(pencil.contains("samples"));
+    const auto full =
+        checks::predictionJson(iso, checks::PredictionShift{}, checks::testPlan(iso, 0.01));
+    CHECK(full.at("chords").at("mode").get<std::string>() == "far_field");
 }

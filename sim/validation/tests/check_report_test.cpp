@@ -403,3 +403,48 @@ TEST_CASE("the PSTAR CSV has one row per bin, empty fields where undefined", "[c
                                    "0,10,2,1.75,2,-0.25," + sd.str() + ",4.25,4,0.25," + sd.str(),
                                    "10,20,0,,,,,,,,"});
 }
+
+TEST_CASE("resultsJson reports the geometric acceptance", "[check_report]") {
+    auto r = sampleResults();
+    r.acceptance.chords = ChordSummary{100, 40, 17.0, 10.0, 0.1, 60.0};
+    r.acceptance.expected_fraction = 0.4;
+    r.acceptance.pull = 0.0;
+    r.acceptance.expected_mean_chord = 17.5;
+    r.acceptance.mean_chord_pull = -0.3;
+    const auto doc = resultsJson(r);
+    const auto& a = doc.at("geometric_acceptance");
+    CHECK(a.at("rays").get<std::uint64_t>() == 100);
+    CHECK(a.at("hits").get<std::uint64_t>() == 40);
+    CHECK_THAT(a.at("chord_mm").at("expected_mean").get<double>(), WithinULP(17.5, 0));
+    CHECK_THAT(a.at("mean_chord_pull").get<double>(), WithinULP(-0.3, 0));
+
+    r.acceptance.skipped = "pencil beam: every ray crosses the box";
+    r.acceptance.mean_chord_skipped = "pencil beam: one chord";
+    const auto pencil = resultsJson(r).at("geometric_acceptance");
+    CHECK(pencil.at("skipped").get<std::string>() == r.acceptance.skipped);
+    CHECK(pencil.at("pull").is_null());
+    CHECK(pencil.at("mean_chord_pull").is_null());
+}
+
+TEST_CASE("beamJson records the source mode and its geometry", "[check_report]") {
+    riptide::sim::RunConfig config;
+    config.geometry.scint_size = {60.0, 20.0, 20.0};
+    config.source.En_min = 14.0;
+    config.source.En_max = 14.0;
+    config.source.direction = {1.0, 0.0, 0.0};
+    config.source.position = {-100.0, 0.0, 0.0};
+    const auto pencil = beamJson(makeCheckSetup(config, 1.0, kDefaultBins, kDefaultBins));
+    CHECK(pencil.at("mode").get<std::string>() == "pencil");
+    CHECK_THAT(pencil.at("L_mm").get<double>(), WithinULP(60.0, 2));
+    CHECK_FALSE(pencil.contains("disk_radius_mm"));
+
+    config.source.beam = riptide::sim::BeamMode::FarField;
+    config.source.isotropic = true;
+    const auto far = beamJson(makeCheckSetup(config, 1.0, kDefaultBins, kDefaultBins));
+    CHECK(far.at("mode").get<std::string>() == "far_field");
+    CHECK(far.at("direction").get<std::string>() == "isotropic");
+    CHECK(far.contains("disk_radius_mm"));
+    CHECK(far.contains("expected_acceptance"));
+    CHECK(far.contains("expected_mean_chord_mm"));
+    CHECK_FALSE(far.contains("L_mm"));
+}

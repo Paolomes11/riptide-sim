@@ -105,11 +105,18 @@ with open(path, encoding="utf-8") as f:
 for key in ("checks_version", "run_id", "check_id", "versions", "reference_files",
             "hp_elastic_H1", "hp_deuterium", "medium", "beam", "results"):
     assert key in doc, f"checks.json has no key {key}"
-assert doc["checks_version"] == 9, f"unexpected checks_version {doc['checks_version']}"
+assert doc["checks_version"] == 10, f"unexpected checks_version {doc['checks_version']}"
 results = doc["results"]
 for key in ("spectrum_u", "depth_z", "fractions", "legendre", "Ep_residuals",
-            "Ep_physical_offset", "model_mix", "counters", "deposits"):
+            "Ep_physical_offset", "model_mix", "counters", "deposits",
+            "geometric_acceptance"):
     assert key in results, f"results has no key {key}"
+beam = doc["beam"]
+assert beam["mode"] in ("pencil", "far_field"), f"unexpected beam mode {beam['mode']}"
+acceptance = results["geometric_acceptance"]
+assert acceptance["hits"] <= acceptance["rays"] == results["events"], "rays are not the events"
+if beam["mode"] == "pencil":
+    assert acceptance["hits"] == acceptance["rays"], "a pencil ray missed the box"
 # The HP target mass of H-1 as G4NDL 4.7.1 gives it, in neutron masses.
 hp = doc["hp_elastic_H1"]
 assert abs(hp["awr"] - 0.999167) < 1e-12, f"unexpected H-1 AWR {hp['awr']}"

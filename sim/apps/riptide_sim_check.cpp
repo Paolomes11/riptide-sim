@@ -132,6 +132,14 @@ int runChecks(const checks::CheckCliOptions& opts) {
     // the balance: their deposit checks are skipped, and the truth checks
     // above still reproduce the phase 1b numbers.
     const auto schema_version = record.at("schema_version").get<std::int32_t>();
+    // A far-field ray is traced from the recorded start point, which older
+    // schemas do not have: their rows would read it as the origin.
+    if (checks::isFarField(acc.setup()) && schema_version < checks::kFirstStartPointSchemaVersion) {
+        throw std::runtime_error("run " + opts.run_id + ": a far-field run needs schema " +
+                                 std::to_string(checks::kFirstStartPointSchemaVersion) +
+                                 " or later for the neutron start point, it has schema " +
+                                 std::to_string(schema_version));
+    }
     std::optional<checks::DepositAccumulator> deposits;
     std::optional<PstarInput> pstar_input;
     std::optional<checks::PstarComparison> pstar;
@@ -200,11 +208,7 @@ int runChecks(const checks::CheckCliOptions& opts) {
     doc["hp_elastic_H1"] = checks::hpJson(hp);
     doc["hp_deuterium"] = checks::hpDeuteriumJson(deuterium);
     doc["medium"] = checks::densitiesJson(densities);
-    doc["beam"] = {{"L_mm", acc.setup().chord.length()},
-                   {"En_min_MeV", acc.setup().En_min},
-                   {"En_max_MeV", acc.setup().En_max},
-                   {"bins_u", opts.bins_u},
-                   {"bins_z", opts.bins_z}};
+    doc["beam"] = checks::beamJson(acc.setup());
     doc["results"] = checks::resultsJson(results);
     doc["results"]["deposits"] =
         deposit_results

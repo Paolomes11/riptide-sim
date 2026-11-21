@@ -14,6 +14,7 @@
 #include <nlohmann/json.hpp>
 
 #include <cstddef>
+#include <cstdint>
 #include <exception>
 #include <filesystem>
 #include <iostream>
@@ -27,6 +28,7 @@
 #include "riptide/sim/check_cli_options.hpp"
 #include "riptide/sim/check_inputs.hpp"
 #include "riptide/sim/check_report.hpp"
+#include "riptide/sim/cli_options.hpp"
 #include "riptide/sim/run_config.hpp"
 #include "riptide/sim/run_prediction.hpp"
 
@@ -47,6 +49,11 @@ constexpr double kAlphaFamily = 0.01;
 
 // The quadrature error is estimated against twice the nodes.
 constexpr std::size_t kNodeRefinement = 2;
+
+// Seeds of the far-field chord samples: the project seed for the prediction,
+// the next one for the independent sample that measures its sampling error.
+constexpr std::uint64_t kChordSeed = riptide::sim::kDefaultSeed;
+constexpr std::uint64_t kChordCheckSeed = kChordSeed + 1;
 
 // Output of nlohmann::json::dump, for a diff-friendly committed file.
 constexpr int kJsonIndent = 2;
@@ -71,16 +78,35 @@ int predict(const checks::PredictCliOptions& opts) {
     const checks::CheckSetup setup =
         checks::makeCheckSetup(config, hp.target_mass, opts.bins_u, opts.bins_z);
 
+    const bool far_field = checks::isFarField(setup);
+    const checks::ChordDistribution chords =
+        far_field ? checks::farFieldChords(setup, opts.chord_samples, kChordSeed)
+                  : checks::pencilChord(setup);
     const checks::RunPrediction run =
-        checks::predictRun(setup, models, opts.events, opts.energy_nodes);
+        checks::predictRun(setup, models, chords, opts.events, opts.energy_nodes);
     const checks::RunPrediction refined =
-        checks::predictRun(setup, models, opts.events, kNodeRefinement * opts.energy_nodes);
+        checks::predictRun(setup, models, chords, opts.events, kNodeRefinement * opts.energy_nodes);
     // The coarse rule against the refined one, in units of the expected errors
     // of the first library: what the quadrature adds to every comparison.
     const checks::PredictionShift quadrature =
         checks::predictionShift(refined.libraries.front(), run.libraries.front(),
                                 checks::expectedErrors(refined, 0), opts.events);
     const checks::TestPlan plan = checks::testPlan(run, kAlphaFamily);
+    // A second chord sample with another seed against the first, in units of
+    // the expected errors: what the finite sample adds to every comparison.
+    nlohmann::json chord_shift = "pencil beam: one chord, no sampling";
+    if (far_field) {
+        const checks::RunPrediction resampled = checks::predictRun(
+            setup, models, checks::farFieldChords(setup, opts.chord_samples, kChordCheckSeed),
+            opts.events, opts.energy_nodes);
+        const checks::PredictionShift shift =
+            checks::predictionShift(run.libraries.front(), resampled.libraries.front(),
+                                    checks::expectedErrors(run, 0), opts.events);
+        chord_shift = {{"seed", kChordCheckSeed},
+                       {"fractions_in_sigma", shift.fractions},
+                       {"legendre_in_sigma", shift.legendre},
+                       {"u_noncentrality", shift.u_noncentrality}};
+    }
 
     nlohmann::json doc;
     doc["checks_version"] = checks::kChecksVersion;
@@ -95,6 +121,7 @@ int predict(const checks::PredictCliOptions& opts) {
     doc["bins_u"] = opts.bins_u;
     doc["bins_z"] = opts.bins_z;
     doc["prediction"] = checks::predictionJson(run, quadrature, plan);
+    doc["prediction"]["chord_sample_shift"] = chord_shift;
     std::cout << doc.dump(kJsonIndent) << '\n';
     return kExitOk;
 }

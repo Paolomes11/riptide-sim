@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <map>
+#include <random>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -13,6 +15,7 @@
 #include "riptide/common/units.hpp"
 #include "riptide/sim/check_report.hpp"
 #include "riptide/sim/hp_recoil.hpp"
+#include "riptide/sim/source_sampling.hpp"
 
 namespace riptide::sim::checks {
 
@@ -80,9 +83,35 @@ void offsetRange(const CheckSetup& setup, const std::vector<double>& energies, R
     run.offset_relative_max = high;
 }
 
+// First-interaction probabilities averaged over the chords. Given an
+// interaction, the category does not depend on the chord, so every
+// non-Unknown entry scales with <P(interact)> / P(interact | L_ref); a ray
+// that misses the box adds to Unknown only. For a single chord of weight 1
+// the scale is x / x = 1 and the result is the single-chord one bit for bit.
+FirstInteractionProbabilities chordAverage(const std::vector<MediumComponent>& medium,
+                                           const ChordDistribution& chords) {
+    auto first = firstInteraction(medium, chords.lengths.front());
+    const double sigma = first.sigma_total;
+    double interacts = 0.0;
+    double survives = chords.miss_weight;
+    for (std::size_t k = 0; k < chords.lengths.size(); ++k) {
+        const double L = chords.lengths.at(k);
+        const double w = chords.weights.at(k);
+        interacts += w * -std::expm1(-sigma * L);
+        survives += w * std::exp(-sigma * L);
+    }
+    const double reference = -std::expm1(-sigma * chords.lengths.front());
+    const double scale = reference > 0.0 ? interacts / reference : 0.0;
+    const auto unknown = static_cast<std::size_t>(schema::FirstInteraction::Unknown);
+    for (std::size_t c = 0; c < kFirstInteractionCategories; ++c) {
+        first.unconditional.at(c) = c == unknown ? survives : first.unconditional.at(c) * scale;
+    }
+    first.protium_elastic *= scale;
+    return first;
+}
+
 LibraryPrediction predictLibrary(const CheckSetup& setup, const ReferenceModel& model,
-                                 const QuadratureRule& spectrum) {
-    const double L = setup.chord.length();
+                                 const ChordDistribution& chords, const QuadratureRule& spectrum) {
     const std::vector<double> u_edges = [&] { return uniformEdges(0.0, 1.0, setup.bins_u); }();
     LibraryPrediction p;
     p.library = model.library;
@@ -91,7 +120,7 @@ LibraryPrediction predictLibrary(const CheckSetup& setup, const ReferenceModel& 
     for (std::size_t i = 0; i < spectrum.nodes.size(); ++i) {
         const double En = spectrum.nodes.at(i);
         const double w = spectrum.weights.at(i);
-        const auto first = firstInteraction(model.mediumAt(En), L);
+        const auto first = chordAverage(model.mediumAt(En), chords);
         p.sigma_total += w * first.sigma_total;
         for (std::size_t c = 0; c < kFirstInteractionCategories; ++c) {
             p.probabilities.at(c) += w * first.unconditional.at(c);
@@ -239,15 +268,91 @@ double normalTwoSidedQuantile(double p) {
     return 0.5 * (low + high);
 }
 
+ChordDistribution pencilChord(const CheckSetup& setup) {
+    if (isFarField(setup)) {
+        throw std::invalid_argument("pencilChord: the source is far-field");
+    }
+    ChordDistribution chords;
+    chords.lengths = {setup.chord.length()};
+    chords.weights = {1.0};
+    chords.sample_mean = setup.chord.length();
+    chords.expected_mean_chord = setup.chord.length();
+    return chords;
+}
+
+ChordDistribution farFieldChords(const CheckSetup& setup, std::uint64_t samples,
+                                 std::uint64_t seed) {
+    if (!isFarField(setup) || samples == 0) {
+        throw std::invalid_argument("farFieldChords: need a far-field setup and samples");
+    }
+    SourceConfig source;
+    source.beam = BeamMode::FarField;
+    source.isotropic = setup.isotropic;
+    source.direction = setup.direction;
+    std::mt19937_64 engine{seed};
+    std::uniform_real_distribution<double> unit{0.0, 1.0};
+    auto uniform = [&]() { return unit(engine); };
+    // Bin index -> (sum of lengths, rays); the map keeps the bins ascending.
+    std::map<std::int64_t, std::pair<double, std::uint64_t>> bins;
+    ChordDistribution chords;
+    chords.far_field = true;
+    chords.samples = samples;
+    chords.seed = seed;
+    chords.acceptance = setup.acceptance;
+    chords.expected_mean_chord = setup.expected_mean_chord;
+    // Welford: nearly equal chords would cancel sum x^2 - n mean^2 to noise.
+    double mean = 0.0;
+    double m2 = 0.0;
+    for (std::uint64_t i = 0; i < samples; ++i) {
+        const auto ray = sampleFarField(source, setup.disk, uniform);
+        const auto chord = rayBoxChord(ray.position, ray.direction, setup.half_size);
+        if (!chord) {
+            continue;
+        }
+        const double length = chord->length();
+        auto& bin = bins[static_cast<std::int64_t>(std::floor(length / kChordBinWidth))];
+        bin.first += length;
+        ++bin.second;
+        ++chords.sample_hits;
+        const double delta = length - mean;
+        mean += delta / static_cast<double>(chords.sample_hits);
+        m2 += delta * (length - mean);
+    }
+    if (chords.sample_hits == 0) {
+        throw std::invalid_argument("farFieldChords: no sampled ray crosses the box");
+    }
+    const auto hits = static_cast<double>(chords.sample_hits);
+    for (const auto& [index, bin] : bins) {
+        const auto count = static_cast<double>(bin.second);
+        chords.lengths.push_back(bin.first / count);
+        chords.weights.push_back(setup.acceptance * count / hits);
+    }
+    chords.miss_weight = 1.0 - setup.acceptance;
+    chords.sample_mean = mean;
+    if (chords.sample_hits > 1) {
+        chords.sample_sd = std::sqrt(m2 / (hits - 1.0));
+    }
+    return chords;
+}
+
 RunPrediction predictRun(const CheckSetup& setup, const std::vector<ReferenceModel>& models,
                          std::uint64_t events, std::size_t energy_nodes) {
+    return predictRun(setup, models, pencilChord(setup), events, energy_nodes);
+}
+
+RunPrediction predictRun(const CheckSetup& setup, const std::vector<ReferenceModel>& models,
+                         const ChordDistribution& chords, std::uint64_t events,
+                         std::size_t energy_nodes) {
     if (models.empty() || events == 0 || energy_nodes == 0) {
         throw std::invalid_argument("predictRun: need models, events and energy nodes");
+    }
+    if (chords.lengths.empty() || chords.lengths.size() != chords.weights.size()) {
+        throw std::invalid_argument("predictRun: empty or malformed chord distribution");
     }
     const QuadratureRule spectrum = sourceQuadrature(setup.En_min, setup.En_max, energy_nodes);
     RunPrediction run;
     run.events = events;
-    run.L = setup.chord.length();
+    run.chords = chords;
     run.En_min = setup.En_min;
     run.En_max = setup.En_max;
     run.energy_nodes = spectrum.nodes.size();
@@ -259,7 +364,7 @@ RunPrediction predictRun(const CheckSetup& setup, const std::vector<ReferenceMod
     offsetRange(setup, energies, run);
     std::size_t degrees = 0;
     for (const auto& model : models) {
-        run.libraries.push_back(predictLibrary(setup, model, spectrum));
+        run.libraries.push_back(predictLibrary(setup, model, chords, spectrum));
         degrees = std::max(degrees, run.libraries.back().legendre.size());
     }
     // As in the checks, a_l beyond a file's order are zero.
@@ -328,10 +433,38 @@ TestPlan testPlan(const RunPrediction& run, double alpha_family) {
     const auto degrees =
         run.libraries.empty() ? 0 : static_cast<int>(run.libraries.front().legendre.size());
     plan.pull_tests = degrees + (run.overlaps_model_window ? 1 : 0);
+    if (run.chords.far_field) {
+        plan.pull_tests += 1 + (run.chords.sample_sd > kChordSpreadTolerance ? 1 : 0);
+    }
     plan.alpha_family = alpha_family;
     plan.alpha_per_test = alpha_family / (plan.chi2_tests + plan.pull_tests);
     plan.pull_threshold = normalTwoSidedQuantile(plan.alpha_per_test);
     return plan;
+}
+
+nlohmann::json chordsJson(const ChordDistribution& chords) {
+    nlohmann::json doc;
+    doc["mode"] = chords.far_field ? "far_field" : "pencil";
+    doc["acceptance"] = chords.acceptance;
+    doc["expected_mean_chord_mm"] = chords.expected_mean_chord;
+    if (!chords.far_field) {
+        doc["L_mm"] = chords.lengths.front();
+        return doc;
+    }
+    const auto samples = static_cast<double>(chords.samples);
+    const double p = chords.acceptance;
+    const auto hits = static_cast<double>(chords.sample_hits);
+    doc["samples"] = chords.samples;
+    doc["seed"] = chords.seed;
+    doc["bins"] = chords.lengths.size();
+    doc["bin_width_mm"] = kChordBinWidth;
+    doc["sample_hits"] = chords.sample_hits;
+    doc["sample_acceptance_pull"] = (hits - samples * p) / std::sqrt(samples * p * (1.0 - p));
+    doc["sample_mean_chord_mm"] = chords.sample_mean;
+    doc["sample_sd_chord_mm"] = chords.sample_sd;
+    doc["min_chord_mm"] = chords.lengths.front();
+    doc["max_chord_mm"] = chords.lengths.back();
+    return doc;
 }
 
 nlohmann::json predictionJson(const RunPrediction& run, const PredictionShift& quadrature,
@@ -339,7 +472,7 @@ nlohmann::json predictionJson(const RunPrediction& run, const PredictionShift& q
     const auto n = static_cast<double>(run.events);
     nlohmann::json doc;
     doc["events"] = run.events;
-    doc["L_mm"] = run.L;
+    doc["chords"] = chordsJson(run.chords);
     doc["En_min_MeV"] = run.En_min;
     doc["En_max_MeV"] = run.En_max;
     doc["energy_nodes"] = run.energy_nodes;

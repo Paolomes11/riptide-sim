@@ -14,6 +14,7 @@
 
 #include "riptide/common/np_kinematics.hpp"
 #include "riptide/common/units.hpp"
+#include "riptide/sim/binning.hpp"
 #include "riptide/sim/check_accumulator.hpp"
 #include "riptide/sim/hp_recoil.hpp"
 
@@ -220,8 +221,12 @@ TEST_CASE("monoenergetic expectations equal the single-energy formulas", "[check
     }
 
     const auto probabilities = checks::firstInteraction(m.mediumAt(kEn), 100.0);
-    const auto p_z = checks::truncatedExponentialBinProbabilities(probabilities.sigma_total, 100.0,
-                                                                  results.depth_z.edges);
+    // The depth is binned as a fraction of the chord: edges over [0, 1] in the
+    // results, over [0, L] for the expected probabilities.
+    const auto bins_z = results.depth_z.edges.size() - 1;
+    CHECK_THAT(results.depth_z.edges.back(), WithinRel(1.0, 1e-15));
+    const auto p_z = checks::truncatedExponentialBinProbabilities(
+        probabilities.sigma_total, 100.0, checks::uniformEdges(0.0, 100.0, bins_z));
     for (std::size_t i = 0; i < p_z.size(); ++i) {
         CHECK_THAT(results.depth_z.per_library.at(0).expected.at(i),
                    WithinRel(kEvents * p_z.at(i), 1e-10));
@@ -585,4 +590,136 @@ TEST_CASE("nuclide from HP cross sections", "[check_accumulator][hp]") {
                                               decreasing, inelastic, capture),
                         endf::EndfError);
     }
+}
+
+namespace {
+
+// Far-field source on the 60 x 20 x 20 mm block of D27, long side on x.
+checks::CheckSetup blockSetup(bool isotropic) {
+    riptide::sim::RunConfig config;
+    config.geometry.scint_size = {60.0, 20.0, 20.0};
+    config.source.beam = riptide::sim::BeamMode::FarField;
+    config.source.En_min = kEn;
+    config.source.En_max = kEn;
+    config.source.isotropic = isotropic;
+    config.source.direction = {1.0, 0.0, 0.0};
+    return checks::makeCheckSetup(config, kin::kProtonMass, checks::kDefaultBins,
+                                  checks::kDefaultBins);
+}
+
+// A neutron along +x starting on the disk at transverse offset (y, z).
+TruthRecord blockRecord(const checks::CheckSetup& setup, double y, double z,
+                        FirstInteraction category) {
+    TruthRecord r;
+    r.En = kEn;
+    r.omega_n = {1.0, 0.0, 0.0};
+    r.n_start = {-setup.disk.distance, y, z};
+    r.r0 = {0.0, y, z};
+    r.first_interaction = category;
+    return r;
+}
+
+} // namespace
+
+TEST_CASE("far-field setup: disk, acceptance and mean chord of the block", "[check_accumulator]") {
+    // Fixed +x: the shadow is the 20 x 20 face, radius sqrt(10^2 + 10^2), and
+    // the acceptance is 400 / (pi 200) = 2 / pi; every hit has chord 60.
+    const auto fixed = blockSetup(false);
+    CHECK(checks::isFarField(fixed));
+    CHECK_THAT(fixed.disk.radius, WithinRel(std::sqrt(200.0), 1e-12));
+    CHECK_THAT(fixed.acceptance, WithinRel(2.0 / units::pi, 1e-12));
+    CHECK_THAT(fixed.expected_mean_chord, WithinRel(60.0, 1e-12));
+    // Isotropic: half-diagonal disk, acceptance (S / 4) / (pi R^2) with
+    // S = 2 (1200 + 1200 + 400) mm^2, R^2 = 1100 mm^2; mean chord 4V/S.
+    const auto iso = blockSetup(true);
+    CHECK_THAT(iso.disk.radius, WithinRel(std::sqrt(1100.0), 1e-12));
+    CHECK_THAT(iso.acceptance, WithinRel(1400.0 / (units::pi * 1100.0), 1e-12));
+    CHECK_THAT(iso.expected_mean_chord, WithinRel(4.0 * 24000.0 / 5600.0, 1e-12));
+}
+
+TEST_CASE("far-field events: per-event chord, misses and source counters", "[check_accumulator]") {
+    const auto setup = blockSetup(false);
+    const auto m = model("lib", kCoefficients);
+    checks::CheckAccumulator accumulator(setup, {m});
+
+    // Two hits along the 60 mm chord, the second an interaction at depth 45.
+    accumulator.add(blockRecord(setup, 0.0, 5.0, FirstInteraction::Unknown));
+    auto hit = blockRecord(setup, 2.0, -3.0, FirstInteraction::NCElastic);
+    hit.r0.x = 15.0;
+    accumulator.add(hit);
+    // Inside the disk (radius 14.1) but outside the face: a miss.
+    accumulator.add(blockRecord(setup, 11.0, 0.0, FirstInteraction::Unknown));
+    accumulator.add(blockRecord(setup, 0.0, -12.0, FirstInteraction::NpElastic));
+    // Off the source: beyond the disk radius, off its plane, tilted.
+    accumulator.add(blockRecord(setup, 0.0, 15.0, FirstInteraction::Unknown));
+    auto off_plane = blockRecord(setup, 0.0, 0.0, FirstInteraction::Unknown);
+    off_plane.n_start.x += 1.0;
+    accumulator.add(off_plane);
+    auto tilted = blockRecord(setup, 0.0, 0.0, FirstInteraction::Unknown);
+    tilted.omega_n = {std::cos(0.01), std::sin(0.01), 0.0};
+    accumulator.add(tilted);
+
+    const auto results = accumulator.finish();
+    const auto& c = results.counters;
+    CHECK(results.events == 7);
+    CHECK(c.start_not_on_source == 2);
+    CHECK(c.omega_not_beam == 1);
+    CHECK(c.interaction_off_chord == 1);
+
+    const auto& a = results.acceptance;
+    CHECK(a.chords.rays == 4);
+    CHECK(a.chords.hits == 2);
+    CHECK_THAT(a.chords.mean, WithinRel(60.0, 1e-12));
+    CHECK_THAT(a.chords.sd, WithinAbs(0.0, 1e-12));
+    CHECK_THAT(a.expected_fraction, WithinRel(2.0 / units::pi, 1e-12));
+    // 4 rays: binomial variance 4 p (1 - p) below kMinExpectedCount; no spread.
+    CHECK_FALSE(a.skipped.empty());
+    CHECK_FALSE(a.mean_chord_skipped.empty());
+
+    // Expected: each miss is a certain Unknown, each hit the 60 mm formulas.
+    const auto first = checks::firstInteraction(m.mediumAt(kEn), 60.0);
+    const auto& expected = results.fractions.per_library.at(0).expected;
+    for (std::size_t k = 0; k < checks::kFirstInteractionCategories; ++k) {
+        const bool unknown = k == static_cast<std::size_t>(FirstInteraction::Unknown);
+        CHECK_THAT(expected.at(k),
+                   WithinAbs(2.0 * first.unconditional.at(k) + (unknown ? 2.0 : 0.0), 1e-12));
+    }
+    // The interaction at x = 15 lies at 3/4 of the chord.
+    const auto& z = results.depth_z;
+    CHECK_THAT(z.edges.back(), WithinRel(1.0, 1e-15));
+    const auto bin = static_cast<std::size_t>(0.75 * static_cast<double>(checks::kDefaultBins));
+    CHECK_THAT(z.observed.at(bin), WithinAbs(1.0, 0.0));
+}
+
+TEST_CASE("isotropic far-field sample: acceptance and Cauchy mean chord", "[check_accumulator]") {
+    // Rays drawn as the generator draws them, all Unknown so only the
+    // geometry enters. Prediction before the run: both pulls N(0, 1), so
+    // within 5 with probability 1 - 6e-7 each.
+    const auto setup = blockSetup(true);
+    checks::CheckAccumulator accumulator(setup, {model("lib", kCoefficients)});
+    riptide::sim::SourceConfig source;
+    source.beam = riptide::sim::BeamMode::FarField;
+    source.isotropic = true;
+    std::mt19937_64 rng{20260907};
+    std::uniform_real_distribution<double> unit{0.0, 1.0};
+    auto uniform = [&]() { return unit(rng); };
+    constexpr int kRays = 200'000;
+    for (int i = 0; i < kRays; ++i) {
+        const auto ray = riptide::sim::sampleFarField(source, setup.disk, uniform);
+        TruthRecord r;
+        r.En = kEn;
+        r.omega_n = ray.direction;
+        r.n_start = ray.position;
+        r.first_interaction = FirstInteraction::Unknown;
+        accumulator.add(r);
+    }
+    const auto results = accumulator.finish();
+    CHECK(results.counters.mustBeZeroTotal() == 0);
+    const auto& a = results.acceptance;
+    CHECK(a.chords.rays == kRays);
+    REQUIRE(a.skipped.empty());
+    REQUIRE(a.mean_chord_skipped.empty());
+    CHECK(std::abs(a.pull) < 5.0);
+    CHECK(std::abs(a.mean_chord_pull) < 5.0);
+    CHECK(a.chords.max <= 2.0 * std::sqrt(1100.0));
 }

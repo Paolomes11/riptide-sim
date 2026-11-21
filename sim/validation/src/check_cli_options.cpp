@@ -59,6 +59,7 @@ struct RawPredictOptions {
     std::string bins_u;
     std::string bins_z;
     std::string energy_nodes;
+    std::string chord_samples;
 };
 
 lyra::cli makePredictCli(RawPredictOptions& raw) {
@@ -74,7 +75,10 @@ lyra::cli makePredictCli(RawPredictOptions& raw) {
            lyra::opt(raw.bins_z, "n")["--bins-z"]("depth histogram: " + bins_help) |
            lyra::opt(raw.energy_nodes, "n")["--nodes"](
                "midpoint nodes of the spectrum average, 1.." + std::to_string(kMaxEnergyNodes) +
-               " (default " + std::to_string(kDefaultEnergyNodes) + ")");
+               " (default " + std::to_string(kDefaultEnergyNodes) + ")") |
+           lyra::opt(raw.chord_samples, "n")["--chord-samples"](
+               "rays of the far-field chord distribution, 1.." + std::to_string(kMaxChordSamples) +
+               " (default " + std::to_string(kDefaultChordSamples) + ")");
 }
 
 std::size_t parseBins(const std::string& value, std::string_view option) {
@@ -149,6 +153,13 @@ PredictCliOptions parsePredictCommandLine(const std::vector<std::string>& args) 
         opts.energy_nodes = parseCliNumber<std::size_t>(raw.energy_nodes, "--nodes");
         if (opts.energy_nodes == 0 || opts.energy_nodes > kMaxEnergyNodes) {
             throw CliError("--nodes: must be in [1, " + std::to_string(kMaxEnergyNodes) + "]");
+        }
+    }
+    if (!raw.chord_samples.empty()) {
+        opts.chord_samples = parseCliNumber<std::uint64_t>(raw.chord_samples, "--chord-samples");
+        if (opts.chord_samples == 0 || opts.chord_samples > kMaxChordSamples) {
+            throw CliError("--chord-samples: must be in [1, " + std::to_string(kMaxChordSamples) +
+                           "]");
         }
     }
     if (!raw.data_dir.empty()) {
