@@ -4,8 +4,8 @@
 
 Unita a `master` con il tag `v0.4.0`. Schema 3, `checks_version` 9. Sei run di validazione con
 tutte le soglie passate (`validation/2_results.md`). Decisi l'offset HP (D24), il bordo a 20 MeV
-(D25) e l'eccesso di `ionIoni` (D26); la correzione di E_p è pronta in `common` (branch
-`feat/hp-offset-correction`). Prossimo: i prerequisiti della fase 3.
+(D25) e l'eccesso di `ionIoni` (D26); la correzione di E_p è pronta in `common`, unita a
+`master`. Prossimo: i prerequisiti della fase 3.
 
 ## Fatto
 
@@ -180,8 +180,7 @@ Deposito, Birks, traccia del protone e classificazione dell'evento, vedi `roadma
 
 **Prossimi passi, nell'ordine:**
 
-1. Unire `feat/hp-offset-correction` a `master`, solo su richiesta.
-2. Fase 3: dimensioni definitive dello scintillatore e distanza della sorgente dal progetto di
+1. Fase 3: dimensioni definitive dello scintillatore e distanza della sorgente dal progetto di
    ottimizzazione.
 
 ## Punti aperti
