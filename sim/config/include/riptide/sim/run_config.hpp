@@ -108,6 +108,9 @@ struct RunConfig {
     std::optional<StepFunction> proton_step_function;
 };
 
+// Half edge lengths of the scintillator box [mm].
+[[nodiscard]] Vec3 scintHalfSize(const GeometryConfig& geometry);
+
 // Half-size of the cubic vacuum world: it must contain both the scintillator
 // and every start point of the source, with room to spare so no primary sits
 // on the world boundary (a primary starting on the boundary is killed at the

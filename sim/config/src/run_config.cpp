@@ -294,9 +294,13 @@ RunConfig parseRunConfig(const json& doc) {
     return config;
 }
 
+Vec3 scintHalfSize(const GeometryConfig& geometry) {
+    const auto& s = geometry.scint_size;
+    return {0.5 * s.x, 0.5 * s.y, 0.5 * s.z};
+}
+
 double worldHalfSize(const RunConfig& config) {
-    const auto& s = config.geometry.scint_size;
-    const Vec3 half{0.5 * s.x, 0.5 * s.y, 0.5 * s.z};
+    const Vec3 half = scintHalfSize(config.geometry);
     const double extent = std::max({half.x, half.y, half.z, sourceExtent(config.source, half)});
     return kWorldScale * extent + kWorldMargin;
 }
