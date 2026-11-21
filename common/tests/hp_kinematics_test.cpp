@@ -33,6 +33,13 @@ constexpr double kHeadOnAbs = 1.0e-12;
 constexpr double kExcessMin14 = 5.36e-4;
 constexpr double kExcessMax14 = 5.49e-4;
 
+// Same excess over the whole 10-20 MeV range, and the largest relative gap
+// between the corrected energy and protonEnergy(En, theta_p) of the HP angle,
+// computed beforehand from the same masses (5.7e-6 at most).
+constexpr double kExcessMin = 5.33e-4;
+constexpr double kExcessMax = 5.49e-4;
+constexpr double kAngleShiftRel = 6.0e-6;
+
 double gridAngle(int i) {
     return 0.5 * units::pi * static_cast<double>(i) / static_cast<double>(kGridSteps + 1);
 }
@@ -76,5 +83,46 @@ TEST_CASE("the atomic target mass raises Ep by about m_e / m_p", "[hp_kinematics
             kin::hpProtonEnergy(kEn14, theta, kTargetMass) / kin::protonEnergy(kEn14, theta) - 1.0;
         CHECK(excess > kExcessMin14);
         CHECK(excess < kExcessMax14);
+    }
+}
+
+TEST_CASE("physicalProtonEnergyFromHp maps the HP proton to the same CM cosine",
+          "[hp_kinematics]") {
+    for (int j = 0; j <= kGridSteps; ++j) {
+        const double En = gridEnergy(j);
+        for (int i = 1; i <= kGridSteps; ++i) {
+            const double theta = gridAngle(i);
+            const double Ep_hp = kin::hpProtonEnergy(En, theta, kTargetMass);
+            const double expected =
+                kin::protonEnergyFromCosCm(En, kin::hpCosCmFromAngle(En, theta, kTargetMass));
+            CHECK_THAT(kin::physicalProtonEnergyFromHp(Ep_hp, En, kTargetMass),
+                       WithinAbs(expected, kRoundTripAbs));
+        }
+    }
+}
+
+TEST_CASE("physicalProtonEnergyFromHp is the identity for the bare proton mass",
+          "[hp_kinematics]") {
+    for (int i = 1; i <= kGridSteps; ++i) {
+        const double Ep = kin::protonEnergy(kEn14, gridAngle(i));
+        // Absolute, not relative: the path through 1 - cos_cm costs about
+        // eps * Ep_max, which near 90 degrees is not small next to Ep itself.
+        CHECK_THAT(kin::physicalProtonEnergyFromHp(Ep, kEn14, kin::kProtonMass),
+                   WithinAbs(Ep, kRoundTripAbs));
+    }
+}
+
+TEST_CASE("physicalProtonEnergyFromHp removes the m_e / m_p offset", "[hp_kinematics]") {
+    for (int j = 0; j <= kGridSteps; ++j) {
+        const double En = gridEnergy(j);
+        for (int i = 1; i <= kGridSteps; ++i) {
+            const double theta = gridAngle(i);
+            const double Ep_hp = kin::hpProtonEnergy(En, theta, kTargetMass);
+            const double Ep = kin::physicalProtonEnergyFromHp(Ep_hp, En, kTargetMass);
+            const double removed = Ep_hp / Ep - 1.0;
+            CHECK(removed > kExcessMin);
+            CHECK(removed < kExcessMax);
+            CHECK_THAT(Ep, WithinRel(kin::protonEnergy(En, theta), kAngleShiftRel));
+        }
     }
 }

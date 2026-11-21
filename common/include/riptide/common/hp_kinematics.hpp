@@ -58,6 +58,16 @@ namespace riptide::kinematics {
     return 1.0 - 2.0 * target_kinetic / maxRecoilEnergy(En, kNeutronMass, target_mass);
 }
 
+// Physical recoil-proton energy for the same scattering as a Geant4 HP proton
+// of energy Ep_hp: the CM cosine is recovered exactly with the HP target mass
+// and mapped back with the bare-proton kinematics. Recomputing from the lab
+// angle instead would leave a few 1e-6 of the energy, since the HP model also
+// shifts theta_p slightly.
+[[nodiscard]] inline double physicalProtonEnergyFromHp(double Ep_hp, double En,
+                                                       double target_mass) noexcept {
+    return protonEnergyFromCosCm(En, hpCosCm(Ep_hp, En, target_mass));
+}
+
 // NOLINTEND(bugprone-easily-swappable-parameters)
 
 } // namespace riptide::kinematics
