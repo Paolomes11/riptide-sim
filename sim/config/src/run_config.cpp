@@ -9,6 +9,8 @@
 #include <string>
 #include <string_view>
 
+#include "riptide/sim/source_sampling.hpp"
+
 namespace riptide::sim {
 
 namespace {
@@ -98,25 +100,28 @@ bool insideBox(const Vec3& p, const Vec3& size) {
            std::abs(p.z) <= 0.5 * size.z;
 }
 
-SourceConfig parseSource(const json& obj) {
-    constexpr std::string_view where = "source";
-    if (!obj.is_object()) {
-        fail(where, "expected a JSON object");
+Vec3 unitVector(const json& value, std::string_view where) {
+    const auto direction = vec3(value, where, 1.0);
+    const double length = norm(direction);
+    if (!(std::abs(length - 1.0) <= kDirectionNormTolerance)) {
+        fail(where, "expected a unit vector");
     }
+    return {direction.x / length, direction.y / length, direction.z / length};
+}
+
+// Energy spectrum of the source, common to both beam modes.
+void parseSpectrum(const json& obj, SourceConfig& source) {
+    constexpr std::string_view where = "source";
     const auto& mode = member(obj, where, "mode");
     if (!mode.is_string()) {
         fail("source.mode", "expected a string");
     }
-    SourceConfig source;
     if (mode.get<std::string>() == "mono") {
-        requireOnlyKeys(obj, where, {"mode", "En_MeV", "direction", "position_mm"});
         source.mode = SourceMode::Mono;
         source.En_min = finiteNumber(member(obj, where, "En_MeV"), "source.En_MeV") * units::MeV;
         source.En_max = source.En_min;
         checkEnergy(source.En_min, "source.En_MeV");
     } else if (mode.get<std::string>() == "flat") {
-        requireOnlyKeys(obj, where,
-                        {"mode", "En_min_MeV", "En_max_MeV", "direction", "position_mm"});
         source.mode = SourceMode::Flat;
         source.En_min =
             finiteNumber(member(obj, where, "En_min_MeV"), "source.En_min_MeV") * units::MeV;
@@ -130,14 +135,78 @@ SourceConfig parseSource(const json& obj) {
     } else {
         fail("source.mode", "expected \"mono\" or \"flat\"");
     }
+}
 
-    const auto direction = vec3(member(obj, where, "direction"), "source.direction", 1.0);
-    const double length = norm(direction);
-    if (!(std::abs(length - 1.0) <= kDirectionNormTolerance)) {
-        fail("source.direction", "expected a unit vector");
+// Keys of the spectrum for the mode in the file, so that requireOnlyKeys can
+// reject keys of the other mode.
+bool isFlat(const json& obj) {
+    const auto it = obj.find("mode");
+    return it != obj.end() && it->is_string() && it->get<std::string>() == "flat";
+}
+
+// `keys` is the source object without the beam key, which only version 3 has.
+void parsePencil(const json& keys, SourceConfig& source) {
+    constexpr std::string_view where = "source";
+    if (isFlat(keys)) {
+        requireOnlyKeys(keys, where,
+                        {"mode", "En_min_MeV", "En_max_MeV", "direction", "position_mm"});
+    } else {
+        requireOnlyKeys(keys, where, {"mode", "En_MeV", "direction", "position_mm"});
     }
-    source.direction = {direction.x / length, direction.y / length, direction.z / length};
-    source.position = vec3(member(obj, where, "position_mm"), "source.position_mm", units::mm);
+    source.beam = BeamMode::Pencil;
+    source.direction = unitVector(member(keys, where, "direction"), "source.direction");
+    source.position = vec3(member(keys, where, "position_mm"), "source.position_mm", units::mm);
+}
+
+void parseFarField(const json& obj, SourceConfig& source) {
+    constexpr std::string_view where = "source";
+    if (isFlat(obj)) {
+        requireOnlyKeys(obj, where,
+                        {"beam", "mode", "En_min_MeV", "En_max_MeV", "direction", "margin_mm"});
+    } else {
+        requireOnlyKeys(obj, where, {"beam", "mode", "En_MeV", "direction", "margin_mm"});
+    }
+    source.beam = BeamMode::FarField;
+    const auto& direction = member(obj, where, "direction");
+    if (direction.is_string()) {
+        if (direction.get<std::string>() != "isotropic") {
+            fail("source.direction", "expected a unit vector or \"isotropic\"");
+        }
+        source.isotropic = true;
+    } else {
+        source.direction = unitVector(direction, "source.direction");
+    }
+    source.margin = finiteNumber(member(obj, where, "margin_mm"), "source.margin_mm") * units::mm;
+    // A positive margin keeps every start point strictly outside the box.
+    if (!(source.margin > 0.0)) {
+        fail("source.margin_mm", "expected a positive length");
+    }
+}
+
+SourceConfig parseSource(const json& obj, int config_version) {
+    constexpr std::string_view where = "source";
+    if (!obj.is_object()) {
+        fail(where, "expected a JSON object");
+    }
+    SourceConfig source;
+    parseSpectrum(obj, source);
+    if (config_version < kFirstBeamConfigVersion) {
+        parsePencil(obj, source);
+        return source;
+    }
+    const auto& beam = member(obj, where, "beam");
+    if (!beam.is_string()) {
+        fail("source.beam", "expected a string");
+    }
+    if (beam.get<std::string>() == "pencil") {
+        json keys = obj;
+        keys.erase("beam");
+        parsePencil(keys, source);
+    } else if (beam.get<std::string>() == "far_field") {
+        parseFarField(obj, source);
+    } else {
+        fail("source.beam", "expected \"pencil\" or \"far_field\"");
+    }
     return source;
 }
 
@@ -208,10 +277,12 @@ RunConfig parseRunConfig(const json& doc) {
         requireOnlyKeys(doc, where, {"config_version", "geometry", "source", "physics_list"});
     }
     config.geometry = parseGeometry(member(doc, where, "geometry"));
-    config.source = parseSource(member(doc, where, "source"));
+    config.source = parseSource(member(doc, where, "source"), config.config_version);
     // The gun must start outside the scintillator, otherwise the "first
     // interaction inside the scintillator" of the truth record is ill-defined.
-    if (insideBox(config.source.position, config.geometry.scint_size)) {
+    // The far-field disk lies outside by construction (source_sampling.hpp).
+    if (config.source.beam == BeamMode::Pencil &&
+        insideBox(config.source.position, config.geometry.scint_size)) {
         fail("source.position_mm", "the source must lie outside the scintillator");
     }
 
@@ -225,9 +296,8 @@ RunConfig parseRunConfig(const json& doc) {
 
 double worldHalfSize(const RunConfig& config) {
     const auto& s = config.geometry.scint_size;
-    const auto& p = config.source.position;
-    const double extent =
-        std::max({0.5 * s.x, 0.5 * s.y, 0.5 * s.z, std::abs(p.x), std::abs(p.y), std::abs(p.z)});
+    const Vec3 half{0.5 * s.x, 0.5 * s.y, 0.5 * s.z};
+    const double extent = std::max({half.x, half.y, half.z, sourceExtent(config.source, half)});
     return kWorldScale * extent + kWorldMargin;
 }
 
@@ -264,8 +334,16 @@ json toJson(const RunConfig& config) {
                   {"En_min_MeV", s.En_min / units::MeV},
                   {"En_max_MeV", s.En_max / units::MeV}};
     }
-    source["direction"] = array(s.direction, 1.0);
-    source["position_mm"] = array(s.position, units::mm);
+    if (config.config_version >= kFirstBeamConfigVersion) {
+        source["beam"] = s.beam == BeamMode::Pencil ? "pencil" : "far_field";
+    }
+    if (s.beam == BeamMode::Pencil) {
+        source["direction"] = array(s.direction, 1.0);
+        source["position_mm"] = array(s.position, units::mm);
+    } else {
+        source["direction"] = s.isotropic ? json("isotropic") : array(s.direction, 1.0);
+        source["margin_mm"] = s.margin / units::mm;
+    }
     json doc = {{"config_version", config.config_version},
                 {"geometry", {{"scint_size_mm", array(config.geometry.scint_size, units::mm)}}},
                 {"source", source},
