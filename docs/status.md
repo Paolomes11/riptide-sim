@@ -2,9 +2,10 @@
 
 **v0.4.0 — 2026-11-21 — Fase 2 (deposito di energia e quenching di Birks) completata.**
 
-Branch `feat/sim-deposits`, non ancora unito a `master`. Schema 3, `checks_version` 9. Sei run di
-validazione con tutte le soglie passate (`validation/2_results.md`). Prossimo: i prerequisiti
-della fase 3.
+Unita a `master` con il tag `v0.4.0`. Schema 3, `checks_version` 9. Sei run di validazione con
+tutte le soglie passate (`validation/2_results.md`). Decisi l'offset HP (D24), il bordo a 20 MeV
+(D25) e l'eccesso di `ionIoni` (D26); la correzione di E_p è pronta in `common` (branch
+`feat/hp-offset-correction`). Prossimo: i prerequisiti della fase 3.
 
 ## Fatto
 
@@ -167,7 +168,11 @@ Deposito, Birks, traccia del protone e classificazione dell'evento, vedi `roadma
   fra i thread. Lo smoke test confronta byte per byte i run a 1 e a 2 thread. Le verifiche `c2`
   sugli stessi run passano tutte, comprese le quattro identità. Lo scarto da `c1` è fino a
   1.8·10⁻⁸ relativo sui pull dei run piatti, oltre i 10⁻¹¹ previsti (d).
-- **Test:** `debug` 238/238, `ci` 219/219, zero warning nel codice del progetto, clang-format
+- **Decisioni D24–D26 (2026-11-21):** la cinematica HP passa da `sim/validation` a
+  `common/hp_kinematics.hpp`; `physicalProtonEnergyFromHp` toglie l'offset di E_p di D14, da
+  applicare in `analysis/io` prima di σ_Ep (D24). Sorgente ≤ 19.5 MeV nelle fasi 5–6 (D25);
+  eccesso di `ionIoni` come sistematica del fondo da carbonio (D26).
+- **Test:** `debug` 241/241, `ci` 222/222, zero warning nel codice del progetto, clang-format
   pulito. In `release` restano due `-Wnull-dereference` da un header di Geant4
   (`G4NavigationHistory.icc`), presenti anche prima di D21, e quattro `-Warray-bounds` da
   nlohmann/GCC 13 in `sim/tests/integration_reader.cpp`, presenti anche con il file di
@@ -175,9 +180,9 @@ Deposito, Birks, traccia del protone e classificazione dell'evento, vedi `roadma
 
 **Prossimi passi, nell'ordine:**
 
-1. Unire `feat/sim-deposits` a `master` e mettere il tag `v0.4.0`, solo su richiesta.
-2. Fase 3: dimensioni definitive dello scintillatore e distanza della sorgente. Prima vanno
-   decisi l'offset HP (D14), il bordo a 20 MeV (D16) e l'eccesso di `ionIoni` sui rinculi C12.
+1. Unire `feat/hp-offset-correction` a `master`, solo su richiesta.
+2. Fase 3: dimensioni definitive dello scintillatore e distanza della sorgente dal progetto di
+   ottimizzazione.
 
 ## Punti aperti
 
@@ -185,20 +190,21 @@ Deposito, Birks, traccia del protone e classificazione dell'evento, vedi `roadma
   fase 3.
 - SSD esterno montato su `/mnt/external_ssd`, ma non in modo permanente: prima di ogni run
   `scripts/data_root.sh check` (procedura in `architecture/data_layout.md`).
-- **Fase 2:** sopra 19.5 MeV lo stato finale elastico è in parte CHIPS (D16): il bordo della
-  sorgente va evitato o trattato come sistematica.
-- **Fase 2:** la verità di Geant4 ha un E_p più alto della cinematica fisica di circa 5.4·10⁻⁴
-  in relativo, circa 7.6 keV a E_p = 14 MeV. Ne seguirebbe un bias relativo dello stesso ordine
-  su E_n ricostruito. Va deciso prima dell'analisi se correggerlo, se modellarlo o se riportarlo
-  come sistematica (D14).
+- **Fase 2, deciso (D25):** sopra 19.5 MeV lo stato finale elastico è in parte CHIPS (D16):
+  sorgente ≤ 19.5 MeV nelle fasi 5–6, bordo come sistematica nella fase 9.
+- **Fase 2, deciso (D24):** la verità di Geant4 ha un E_p più alto della cinematica fisica di
+  circa 5.4·10⁻⁴ in relativo (D14). Si corregge in `analysis/io` con
+  `physicalProtonEnergyFromHp`; resta da fissare nella fase 4 come la massa HP arriva
+  all'analisi.
 - **Fase 2:** il doppio conteggio del C-13 nel modello HP (circa +0.5% sul non elastico del
   carbonio) va tenuto fra le sistematiche del fondo da carbonio (D15).
 - Confronto n–p indipendente da JEFF-3.3/ENDF-B-VIII.0 (D13) e verifica di H-2 contro una
   valutazione indipendente (D17): non fatti in 1b.
-- **Fase 2:** a fine percorso `ionIoni` deposita più del K iniziale dello step. Riguarda 56
+- **Fase 2, deciso (D26):** a fine percorso `ionIoni` deposita più del K iniziale dello step. Riguarda 56
   rinculi C12 su 486 e 4 Be9, con K fra 0.11 e 0.40 MeV; l'eccesso arriva al 15%, per un totale
   di 0.74 MeV su 492 MeV di rinculi C12 (D14). La causa non è verificata; non dipende dalla
-  funzione di passo del protone (D21, P4). Pesa su `det_Edep` più che sulla luce.
+  funzione di passo del protone (D21, P4). Pesa su `det_Edep` più che sulla luce. Resta una
+  sistematica del fondo da carbonio, da studiare solo se nella fase 9 conterà.
 - **Fase 2:** kB è misurato fino a 500 MeV/cm; la fine del range dei protoni va oltre, quindi lì
   la luce è un'estrapolazione non coperta dall'intervallo di D18. Un fit di Birks sui dati EJ-200
   di Laplace 2020 la sonderebbe.
