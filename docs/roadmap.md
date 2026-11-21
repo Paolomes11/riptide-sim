@@ -80,11 +80,14 @@ progetto ricostruisce il neutrone incidente da ciò che interagisce nello scinti
 - Selezione dei candidati a singolo scattering n–p.
 - Risposta del rivelatore (σ_Ep, σ_θ) applicata **in analisi**, con seme registrato: la stessa
   simulazione serve a più risoluzioni.
+- `truth_Ep` convertito all'E_p fisico con `physicalProtonEnergyFromHp` prima di σ_Ep; la massa
+  HP del bersaglio viene dai dati della run, mai scritta a mano (D24).
 
 ## Fase 5 — Port del motore statistico (Caso A)
 
 - `analysis/stats`: kinematics, forward_model, posterior_A, combine, validate.
 - Oracoli R1/R2/R3 e test di limite come test Catch2.
+- Sorgente con E_n ≤ 19.5 MeV nei run delle fasi 5–6 (D25); dominio del prior da decidere qui.
 - Target di prestazione più stretti del toy (log-verosimiglianza N = 1000 ≪ 0.71 s), griglie
   contigue, parallelismo sugli eventi (TBB) solo dopo aver profilato.
 
@@ -106,7 +109,9 @@ dominio.
 ## Fase 9 — Realismo
 
 σ_np(E) nella verosimiglianza (spettro rivelato ≠ incidente), soglia su E_p, eventi n–C nel
-modello, sorgenti multiple e fondo (mistura con frazione f), spettri non gaussiani.
+modello, sorgenti multiple e fondo (mistura con frazione f), spettri non gaussiani. Sistematiche:
+bordo 19.5–20 MeV del modello HP (D25), eccesso di `ionIoni` sui rinculi C12 (D26) e doppio
+conteggio del C-13 (D15).
 
 ## Fase 10 — Produzione batch
 
