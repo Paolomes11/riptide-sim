@@ -695,3 +695,67 @@ cancellano: se cambiano, se ne aggiunge una nuova che rimanda alla vecchia.
     simulazione;
   - il merge legge tutti i file in parallelo (un cursore di riga per ntupla nel reader di Geant4);
     la memoria resta quella di una riga per file.
+
+## D24 — Offset HP di E_p corretto in analisi (2026-11-21)
+
+- **Problema:** il modello HP di Geant4 risolve lo scattering n–p con la massa dell'atomo di H-1
+  (AWR = 0.999167 in G4NDL 4.7.1) e crea un G4Proton con l'impulso che ne risulta (D14). Il
+  `truth_Ep` della simulazione è così più alto della cinematica fisica di (5.33–5.49)·10⁻⁴ in
+  relativo su 10–20 MeV, circa 7.6 keV a E_p = 14 MeV. I protoni veri non hanno questa
+  convenzione: lasciata nei dati, darebbe un bias relativo dello stesso ordine su E_n ricostruito.
+- **Decisione:**
+  - in `analysis/io` (fase 4) il `truth_Ep` dei candidati si converte all'E_p fisico con
+    `physicalProtonEnergyFromHp` (`common/hp_kinematics.hpp`) **prima** di applicare σ_Ep. La
+    funzione ricava cos_cm esatto con la massa HP e lo rimappa con la cinematica del protone
+    nudo: è la stessa conversione dell'oracolo di D14, con residuo all'arrotondamento;
+  - la massa del bersaglio è un argomento: si legge dai dati nucleari usati dalla run (oggi
+    `hp_elastic_H1.awr` in `checks.json`), mai scritta a mano nell'analisi. Come arriva
+    all'analisi si decide nella fase 4;
+  - restano non corretti: θ_p, che il modello sposta al più di 1.4·10⁻⁶ rad (trascurabile
+    rispetto a σ_θ), e `det_Edep` / `det_Evis`, con l'energia creata fino a circa 6·10⁻⁴ · E_n,
+    che resta una sistematica dei depositi.
+- **Alternative:**
+  - ricalcolare `protonEnergy(truth_En, truth_theta_p)`: più semplice, ma lascia fino a
+    5.7·10⁻⁶ relativo per lo spostamento di θ_p, e costa quanto la conversione esatta;
+  - modellare l'offset nella verosimiglianza: porterebbe nella statistica una convenzione di
+    Geant4 che i dati veri non hanno;
+  - riportarlo come sistematica: sprecherebbe un effetto noto all'arrotondamento.
+- **Conseguenze:**
+  - le funzioni di cinematica HP passano da `sim/validation` a `common`, header-only, perché
+    l'analisi dipende solo da `common`; i loro test girano anche in `ci`;
+  - i test fissano: andata e ritorno entro 10⁻¹² MeV, identità con M_T = m_p, offset tolto in
+    (5.33–5.49)·10⁻⁴, scarto da `protonEnergy(En, θ_p)` sotto 6·10⁻⁶ relativo.
+
+## D25 — Sorgente fino a 19.5 MeV nelle fasi 5–6 (2026-11-21)
+
+- **Problema:** in 19.5–20 MeV lo stato finale elastico n–p è HP o CHIPS secondo una rampa (D16).
+  Lì la distribuzione angolare non è più solo quella di JEFF-3.3, quindi il motore statistico
+  vedrebbe un modello diverso sull'ultimo mezzo MeV.
+- **Decisione:**
+  - i config dei run delle fasi 5–6 hanno `En_max_MeV` ≤ 19.5: lo stato finale elastico è solo
+    HP/JEFF-3.3;
+  - il dominio del prior su E_n si decide nella fase 5;
+  - nella fase 9 il bordo 19.5–20 MeV torna come sistematica, con la verifica `model_mix` già
+    validata nella fase 2.
+- **Alternative:**
+  - tenere 20 MeV e modellare la rampa: lega l'analisi a un dettaglio di Geant4 prima che il
+    Caso A sia validato;
+  - trattare subito il bordo come sistematica: mescola un effetto noto con la validazione del
+    motore.
+- **Conseguenze:** i config della fase 2 restano invariati; i nuovi config delle fasi 5–6
+  scrivono il limite esplicitamente.
+
+## D26 — Eccesso di `ionIoni` sui rinculi C12 come sistematica documentata (2026-11-21)
+
+- **Fatti:** a fine percorso `ionIoni` deposita più del K iniziale dello step su 56 rinculi C12
+  su 486 e 4 Be9, con K fra 0.11 e 0.40 MeV; in totale 0.74 MeV su 492 MeV di rinculi C12, cioè
+  0.15% del loro deposito (fase 2). La causa non è verificata; non dipende dalla funzione di
+  passo del protone (D21). Sulla luce pesa meno, per il quenching dei rinculi pesanti.
+- **Decisione:** nessuna modifica al codice. L'eccesso resta fra le sistematiche del fondo da
+  carbonio; la causa si studia solo se nella fase 9 quel fondo conterà.
+- **Alternative:**
+  - studiare ora la causa nel codice di Geant4: costo alto per un effetto dello 0.15% su eventi
+    n–C, che la selezione dei candidati a singolo n–p esclude;
+  - correggere il deposito a mano: senza la causa sarebbe una correzione inventata.
+- **Conseguenze:** gli eventi n–C non entrano nelle fasi 5–8; nella fase 9 il numero va riportato
+  accanto a quello del C-13 (D15).
