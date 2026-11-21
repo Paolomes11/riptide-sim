@@ -1,23 +1,13 @@
 #pragma once
 
-// Recoil-proton kinematics as the Geant4 high-precision elastic model
-// produces it, so that the checks compare the simulation with what it is
-// meant to do rather than with a slightly different convention.
-//
-// G4ParticleHPElasticFS takes the target mass from the final-state file of
-// the nuclide: AWR (in neutron masses) on its first line. For H-1 that AWR is
-// the mass of the hydrogen atom, electron included, not of the bare proton.
-// The scattering is solved with that mass, and the recoil is then created as
-// a G4Proton with the resulting momentum, so its kinetic energy is
-// sqrt(p^2 + m_p^2) - m_p: higher than the bare-proton kinematics by about
-// m_e / m_p in relative terms. Above the thermal (SVT) threshold, a few eV
-// at room temperature, the target is at rest, which is what is modelled here.
-//
-// common/np_kinematics.hpp stays the physical n-p kinematics used by the
-// analysis; these functions describe the simulation only.
+// Header of the G4NDL elastic final-state files, from which the checks read
+// the target mass that the Geant4 high-precision model uses (see
+// common/hp_kinematics.hpp for why it matters).
 
 #include <istream>
 #include <stdexcept>
+
+#include "riptide/common/hp_kinematics.hpp"
 
 namespace riptide::sim::checks {
 
@@ -43,22 +33,10 @@ inline constexpr int kHpFrameCm = 2;
 // on AWR <= 0 or on a frame other than kHpFrameCm.
 [[nodiscard]] HpElasticHeader parseHpElasticHeader(std::istream& in);
 
-// The functions take (energy, angle or energy, mass) as plain doubles like
-// common/np_kinematics.hpp.
-// NOLINTBEGIN(bugprone-easily-swappable-parameters)
-
-// Kinetic energy [MeV] of the recoil proton at lab angle theta_p for a
-// neutron of energy En on a target of rest energy target_mass at rest.
-[[nodiscard]] double hpProtonEnergy(double En, double theta_p, double target_mass) noexcept;
-
-// Neutron CM cosine from the recoil-proton energy: the exact inverse of
-// hpProtonEnergy through the target's recoil energy, which is linear in the
-// CM cosine for any masses.
-[[nodiscard]] double hpCosCm(double Ep, double En, double target_mass) noexcept;
-
-// Neutron CM cosine from the proton lab angle with the same target mass.
-[[nodiscard]] double hpCosCmFromAngle(double En, double theta_p, double target_mass) noexcept;
-
-// NOLINTEND(bugprone-easily-swappable-parameters)
+// The HP kinematics lives in common (hp_kinematics.hpp) so that the analysis
+// can remove the convention; the checks keep their unqualified names.
+using kinematics::hpCosCm;
+using kinematics::hpCosCmFromAngle;
+using kinematics::hpProtonEnergy;
 
 } // namespace riptide::sim::checks

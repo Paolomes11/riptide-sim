@@ -1,6 +1,7 @@
 add_executable(common_tests
     data_paths_test.cpp
     event_schema_test.cpp
+    hp_kinematics_test.cpp
     np_kinematics_test.cpp
     units_test.cpp)
 target_link_libraries(common_tests PRIVATE
