@@ -14,7 +14,9 @@
 #include <functional>
 #include <map>
 #include <stdexcept>
+#include <string>
 #include <string_view>
+#include <vector>
 
 #include "riptide/sim/event_row.hpp"
 
@@ -32,11 +34,38 @@ public:
 // RunReadError otherwise.
 [[nodiscard]] nlohmann::json readRunRecord(const std::filesystem::path& run_dir);
 
-// Calls `visit` on every row of every event file listed in `record`, in file
-// order and, within a file, in write order. Every column of the record's
-// schema version is bound by name, so a file missing one throws RunReadError;
-// columns added by later versions are 0 in the rows of an older file. The files are closed on
-// return and on exception. Returns the number of rows visited.
+// One stream of rows in ascending event_id, such as one event file. next()
+// fills `row` and returns true, or returns false once the stream is exhausted.
+class RowSource {
+public:
+    RowSource() = default;
+    RowSource(const RowSource&) = delete;
+    RowSource& operator=(const RowSource&) = delete;
+    RowSource(RowSource&&) = delete;
+    RowSource& operator=(RowSource&&) = delete;
+    virtual ~RowSource() = default;
+
+    virtual bool next(EventRow& row) = 0;
+    [[nodiscard]] virtual std::string name() const = 0; // for error messages
+};
+
+// Calls `visit` on every row of `sources`, merged in ascending event_id; rows
+// with the same event_id in two sources (a broken run, which loadRun's
+// row_count exposes) come in source order. Geant4 spreads the events of a run
+// over the worker threads at run time, so the same events land in different
+// files from run to run; merging makes the visit order, and every sum the
+// visitor builds, a function of the events alone. Throws RunReadError if a
+// source is not strictly ascending in event_id, since the merge would then
+// depend on the split again. Returns the number of rows visited.
+std::size_t mergeByEventId(const std::vector<RowSource*>& sources,
+                           const std::function<void(const EventRow&)>& visit);
+
+// Calls `visit` on every row of every event file listed in `record`, in
+// ascending event_id (mergeByEventId over the files). Every column of the
+// record's schema version is bound by name, so a file missing one throws
+// RunReadError; columns added by later versions are 0 in the rows of an older
+// file. The files are closed on return and on exception. Returns the number
+// of rows visited.
 std::size_t forEachEventRow(const std::filesystem::path& run_dir, const nlohmann::json& record,
                             const std::function<void(const EventRow&)>& visit);
 
