@@ -759,3 +759,54 @@ cancellano: se cambiano, se ne aggiunge una nuova che rimanda alla vecchia.
   - correggere il deposito a mano: senza la causa sarebbe una correzione inventata.
 - **Conseguenze:** gli eventi n–C non entrano nelle fasi 5–8; nella fase 9 il numero va riportato
   accanto a quello del C-13 (D15).
+
+## D27 — Blocco 60 × 20 × 20 mm e sorgente a campo lontano (2026-11-21)
+
+- **Problema:**
+  - il cubo di 10 cm delle fasi 1–2 era provvisorio;
+  - il fascio a matita illumina una sola corda del blocco. Il Caso A e i Casi B–C vogliono
+    invece un neutrone da sorgente lontana: Ω_n è la stessa in tutto il blocco e l'interazione
+    può avvenire in tutto il volume.
+- **Decisione — geometria:**
+  - blocco di BC-408 (materiale e kB di D18) di 60 × 20 × 20 mm, centrato nell'origine, con il
+    lato lungo su X: è l'unico volume 3D del progetto di ottimizzazione, che non definisce
+    materiale né sorgente;
+  - il mondo resta nel vuoto (D10), senza supporti, perché qui interessa la statistica del
+    singolo scattering.
+- **Decisione — sorgente a campo lontano (`source.beam = "far_field"`):**
+  - per ogni evento la direzione Ω_n è fissa da config oppure isotropa sulla sfera;
+  - il punto di partenza è uniforme su un disco ⟂ Ω_n, centrato sulla retta per il centro del
+    blocco, a distanza R_d + margine dal centro all'indietro lungo −Ω_n, dove R_d = √(30² + 10² +
+    10²) mm = 33.17 mm è la mezza diagonale. Nessun neutrone parte dentro il blocco;
+  - raggio del disco:
+    - con direzione fissa: la massima distanza da Ω_n dei vertici del blocco, cioè il cerchio
+      minimo centrato che contiene l'ombra del blocco (14.14 mm lungo +X);
+    - con direzione isotropa: R_d per tutte le direzioni. Un raggio per direzione cambierebbe
+      il peso relativo delle direzioni fra gli eventi che colpiscono il blocco, che deve
+      restare proporzionale all'area proiettata, come per un flusso isotropo vero;
+  - è un fascio parallelo esteso: illuminazione uniforme del blocco per ogni Ω_n e ipotesi di
+    campo lontano esatta. La distanza fisica dalla sorgente non entra;
+  - accettanza geometrica attesa = area proiettata / area del disco, con area proiettata
+    4·(|Ω_x| h_y h_z + |Ω_y| h_x h_z + |Ω_z| h_x h_y). Vale 400 / 628.3 = 63.7% lungo +X e
+    ⟨S/4⟩ / πR_d² = 1400 / 3455.8 = 40.5% isotropa. Gli eventi che mancano il blocco costano
+    solo il trasporto nel vuoto;
+  - nei raggi che colpiscono il blocco con direzione isotropa la corda media è 4V/S =
+    17.14 mm (formula di Cauchy): un oracolo esatto del campionamento.
+- **Decisione — fascio a matita (`source.beam = "pencil"`):** resta, con `position_mm` e
+  `direction`, per la regressione con le fasi 1–2. I config v2 si leggono come pencil.
+- **Alternative:**
+  - punto unico con direzioni isotrope: campo vicino, cioè Ω_n cambia lungo il blocco e la
+    maggior parte delle direzioni manca il blocco;
+  - fascio a matita: non copre il volume, quindi non misura l'effetto dei bordi sui protoni che
+    escono;
+  - disco di raggio minimo anche per la direzione isotropa: più efficiente, ma distorce la
+    distribuzione delle direzioni che interagiscono;
+  - interazione forzata con pesi: più efficiente, ma porta pesi in un'analisi che oggi conta
+    eventi.
+- **Conseguenze:**
+  - config v3 (`source.beam`, `margin_mm` obbligatorio per `far_field`);
+  - schema v4 con il punto di partenza del neutrone (`truth_n_start_{x,y,z}`), perché le
+    verifiche calcolano la corda per evento;
+  - le verifiche della fase 2 che assumevano una sola corda passano a quantità per evento
+    (`checks_version` 10). Con la corda costante del fascio a matita devono dare gli stessi
+    numeri.
