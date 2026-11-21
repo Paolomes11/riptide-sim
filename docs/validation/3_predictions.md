@@ -1,6 +1,9 @@
 # Previsioni della fase 3 — scritte prima dei run
 
-Versione 1 (2026-11-21). La geometria (blocco 60 × 20 × 20 mm) e la sorgente a campo lontano sono
+Versione 2 (2026-11-21), scritta anche questa prima dei run. Rispetto alla versione 1 (`8429cc3`)
+cambia solo il riferimento della luce per bin (§5), che ora è nel repo; le soglie restano quelle.
+
+La geometria (blocco 60 × 20 × 20 mm) e la sorgente a campo lontano sono
 descritte in D27. Le verifiche per evento sono quelle di `checks_version` 10
 (`docs/architecture/data_layout.md`). Questo file va committato prima dei tre run di validazione;
 i risultati (`3_results.md`) citeranno l'hash di quel commit. Dopo i run le soglie non si toccano.
@@ -211,13 +214,19 @@ ha un errore statistico di circa 0.0014%/√(N/10⁵) e i piloti ci stanno dentr
 
 **Luce per bin di E_p.** Il residuo per bin, (`Evis_mean` − `L_mean`) / `L_mean` in
 `pstar_comparison.csv`, è una funzione liscia di E_p (fase 2, (c)). Soglia per i bin con
-`Ep_low` ≥ 2 MeV e almeno 100 protoni: entro **0.005% assoluto** dal riferimento. Il riferimento
-è salvato sull'SSD, quindi non dipende da file temporanei:
-- +X e isotropa mono: il bin con gli stessi bordi di `validation/2_mono_14MeV_1e7/c2/
-  pstar_comparison.csv`. I bordi coincidono (50 bin su [0, 14] MeV) (a);
-- isotropa piatta: l'interpolazione lineare, al centro del bin, dei residui di
-  `validation/2_flat_10_20MeV_1e7/c2/pstar_comparison.csv` ai centri dei loro bin. I bin sono
-  larghi 0.39 MeV invece di 0.40, quindi i bordi non coincidono.
+`Ep_low` ≥ 2 MeV e almeno 100 protoni: entro **0.005% assoluto** dal riferimento. Il
+riferimento è committato in `predictions/`: colonne `Ep_low`, `Ep_high`, `reference_residual`,
+un bin per riga, compresi tutti i bin del riferimento con almeno 2 protoni. La regola dei 100
+protoni si applica al run.
+- +X e isotropa mono: `predictions/3_pstar_light_reference_mono_14MeV.csv`. È il residuo dello
+  stesso bin in `validation/2_mono_14MeV_1e7/c2/pstar_comparison.csv` sull'SSD. I bordi
+  coincidono (50 bin su [0, 14] MeV) (a).
+- isotropa piatta: `predictions/3_pstar_light_reference_flat_10_19p5MeV.csv`. È l'interpolazione
+  lineare, al centro del bin, dei residui di `validation/2_flat_10_20MeV_1e7/c2/
+  pstar_comparison.csv` presi ai centri dei loro bin. I bin sono larghi 0.39 MeV invece di 0.40,
+  quindi i bordi non coincidono. Il primo bin, sotto il primo centro, non ha riferimento.
+
+I bin si accoppiano per `Ep_low` uguale entro 10⁻⁶ MeV.
 
 La banda di 0.005% è la stessa della fase 2. Prove fatte prima di fissarla (c):
 - i piloti, su tutti i bin da 2 MeV in su, distano dal riferimento al più 0.0010% (+X), 0.0008%
