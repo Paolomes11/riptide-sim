@@ -1,12 +1,10 @@
 # Stato
 
-**v0.3.0 — 2026-11-19 — Fase 1b (verifiche fisiche e prestazioni) completata.**
+**v0.4.0 — 2026-11-21 — Fase 2 (deposito di energia e quenching di Birks) completata.**
 
-Fase 2 in corso (branch `feat/sim-deposits`, aggiornato 2026-11-20): passi 1–5 del piano fatti,
-più i confronti con PSTAR (`checks_version` 7), la spiegazione della banda di overflow (D14), la
-luce continua dei protoni (D21), l'intervallo sistematico di kB (D18) e le previsioni dei run
-(`validation/2_predictions.md`, scritte prima dei run). Il pilota ha trovato i rinculi nucleari
-del protone (D22): schema 3, `checks_version` 8, previsioni alla versione 2.
+Branch `feat/sim-deposits`, non ancora unito a `master`. Schema 3, `checks_version` 9. Sei run di
+validazione con tutte le soglie passate (`validation/2_results.md`). Prossimo: i prerequisiti
+della fase 3.
 
 ## Fatto
 
@@ -91,7 +89,7 @@ Verifiche fisiche non circolari e prestazioni, vedi `roadmap.md`.
   previsioni committate prima: tutte le verifiche passano nei tre run.
 - **Test:** `debug` 172/172, `ci` 157/157, zero warning, clang-format pulito.
 
-### Fase 2 (in corso, branch `feat/sim-deposits`)
+### Fase 2 (v0.4.0, branch `feat/sim-deposits`, `checks_version` 9)
 
 Deposito, Birks, traccia del protone e classificazione dell'evento, vedi `roadmap.md`.
 
@@ -148,7 +146,28 @@ Deposito, Birks, traccia del protone e classificazione dell'evento, vedi `roadma
   1 (lo stesso evento del pilota v2, che riproduce evento per evento); minimo del bilancio
   −5.3·10⁻¹⁵ MeV; luce contro PSTAR −0.062%, range −0.107% e −0.103%. Stima per la produzione
   (b): circa 4 minuti e 1.15 GB per ogni run da 10⁷ a 8 thread.
-- **Test:** `debug` 235/235, `ci` 219/219, zero warning nel codice del progetto, clang-format
+- **Run di validazione (2026-11-21, `validation/2_results.md`):** tre da 10⁷ eventi (mono
+  14 MeV, piatto 10–20 MeV, bordo 19.5–20 MeV) e tre da 10⁶ a kB = 0.145 / 0.155 / 0.165, a 8
+  thread, contro le previsioni v2 (`85283ba`) con soglie invariate.
+  - **Prestazioni (c):** circa 4.5 minuti e meno di 170 MiB di RSS per 10⁷ eventi;
+    112.9–120.9 B/evento, quindi `kBytesPerEvent` = 256 B resta; 3.82 GB in tutto.
+  - **Oracoli (a):** contatori che devono essere zero a 0 in tutti i run; bilancio dei protoni
+    contenuti fra −1.1·10⁻¹⁴ e 9.2·10⁻⁴ MeV; rinculi nucleari (D22) 40–57 per 10⁷ eventi, nella
+    banda 1–150.
+  - **Statistiche contro `jeff33` (c):** tutte sotto le soglie Bonferroni. I CSV di prima
+    interazione corrispondono a quelli della fase 1b.
+  - **PSTAR (c):** luce da −0.062% (mono) a −0.057% (bordo) rispetto a L di PSTAR, range
+    −0.10%. Nel confronto per bin con lo scan, entro 0.005%.
+  - **Sensibilità a kB (b):** ±0.01 mm/MeV su kB sposta la luce media dei protoni di +3.8% /
+    −3.5%. Depositi e traccia identici, byte per byte.
+  - **Verifiche `c1`:** quattro identità fallite nei run di kB, a 10⁻¹² relativo, per l'ordine
+    di somma nel checker; la previsione era sbagliata (d).
+- **Lettura in ordine di `event_id` (D23, `checks_version` 9):** il reader fonde i file per
+  thread in ordine di `event_id`, quindi le somme non dipendono più dalla divisione degli eventi
+  fra i thread. Lo smoke test confronta byte per byte i run a 1 e a 2 thread. Le verifiche `c2`
+  sugli stessi run passano tutte, comprese le quattro identità. Lo scarto da `c1` è fino a
+  1.8·10⁻⁸ relativo sui pull dei run piatti, oltre i 10⁻¹¹ previsti (d).
+- **Test:** `debug` 238/238, `ci` 219/219, zero warning nel codice del progetto, clang-format
   pulito. In `release` restano due `-Wnull-dereference` da un header di Geant4
   (`G4NavigationHistory.icc`), presenti anche prima di D21, e quattro `-Warray-bounds` da
   nlohmann/GCC 13 in `sim/tests/integration_reader.cpp`, presenti anche con il file di
@@ -156,10 +175,9 @@ Deposito, Birks, traccia del protone e classificazione dell'evento, vedi `roadma
 
 **Prossimi passi, nell'ordine:**
 
-1. Col via: tre run da 10⁷ e tre di sensibilità a kB, come in `validation/2_predictions.md` v2,
-   uno alla volta con `scripts/run_capped.sh -m 5G`, ciascuno con la verifica c1.
-2. Risultati `validation/2_results.md` (con i piloti, l'oracolo della v1 fallito e D22) e
-   v0.4.0.
+1. Unire `feat/sim-deposits` a `master` e mettere il tag `v0.4.0`, solo su richiesta.
+2. Fase 3: dimensioni definitive dello scintillatore e distanza della sorgente. Prima vanno
+   decisi l'offset HP (D14), il bordo a 20 MeV (D16) e l'eccesso di `ionIoni` sui rinculi C12.
 
 ## Punti aperti
 
@@ -186,8 +204,7 @@ Deposito, Birks, traccia del protone e classificazione dell'evento, vedi `roadma
   di Laplace 2020 la sonderebbe.
 - **Fase 2:** le verifiche dei depositi devono tollerare `det_Edep` − E_n fino a circa
   6·10⁻⁴ · E_n senza un γ di cattura (D14).
-- **Fase 2:** `kBytesPerEvent` (256 B) resta: i piloti v3 misurano 114–115 B/evento; il valore
-  va registrato in `2_results.md`.
-- Sull'SSD aspettano l'OK per la cancellazione: `sim/scratch_trace_246185` e i piloti v2
-  `sim/pilot2_mono_14MeV_{1e5_1t,4e5_8t}` con le loro cartelle in `validation/` (schema 2, le
-  verifiche dei depositi non li leggono più).
+- **Fase 2:** il range sotto 3 MeV supera R_CSDA di PSTAR del 5–8% nel primo bin; la causa non
+  è studiata.
+- I riferimenti per bin delle previsioni (scan) vanno conservati nel repo: quelli della fase 2
+  sono andati persi, e si sono potuti confrontare solo 7 punti della tabella.
