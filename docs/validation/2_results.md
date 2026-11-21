@@ -16,6 +16,11 @@ pilota, che non è un run di validazione (D22).
   - La causa è l'ordine di somma nella verifica, non la simulazione (§1, run di kB). Previsione
     fallita (d), soglia invariata.
 
+**Esito (`c2`, `checks_version` 9, D23):** rilette in ordine di `event_id`, passano tutte le
+soglie dei sei run, comprese le quattro identità dei run di kB. La previsione di `c2` sulla
+distanza da `c1` è fallita in parte: lo scarto dei float arriva a 1.8·10⁻⁸ relativo invece di
+10⁻¹¹ (§7).
+
 ## Run
 
 Build `release` al commit `782d9c2` (`git describe` v0.3.0-21-g782d9c2), Geant4 11.4.1,
@@ -138,7 +143,7 @@ La previsione (d) «identici» valeva per i depositi di ogni evento, verificati 
 d'integrazione. Non vale per le medie, che dipendono dall'ordine di somma. Il fallimento resta
 scritto così e la soglia non cambia. Il fatto fisico previsto, cioè stessi eventi, stessi
 depositi e stessa traccia, è verificato da ogni campo intero e dai due file confrontati byte per
-byte (a). Vedi «Punti aperti» per la verifica indipendente dall'ordine.
+byte (a). Con la lettura in ordine di `event_id` (`c2`, §7) le due verifiche passano.
 
 ## 2. Test statistici contro `jeff33` — (c)
 
@@ -320,14 +325,42 @@ Il checker con `checks_version` 9 rilegge i sei run come `c2`, con gli stessi ar
   - ogni float differisce di al più 10⁻¹¹ in relativo, perché cambia solo l'ordine delle somme;
   - ogni soglia delle §1–§3 ha lo stesso esito.
 
+**Risultati** (sei verifiche, ognuna in circa 1 minuto per 10⁷ eventi, RSS ≤ 200 MB):
+
+| Verifica | Soglia o previsione | Osservato | Esito |
+|---|---|---|---|
+| §1–§3, tutte le soglie, sei run | come in `c1` | stesso esito di `c1` per ogni soglia | PASS |
+| run di kB, `contained_balance_MeV` | identico | identico, `mean` compreso | PASS |
+| run di kB, `pstar.range_mm` | identico | identico | PASS |
+| run di kB, `Edep` e `proton_exits.csv` | identici byte per byte | identici | PASS |
+| interi di `checks.json` e dei CSV, `c2` contro `c1` | identici | identici, sei run | come previsto |
+| float, `c2` contro `c1`, run mono e di kB | ≤ 10⁻¹¹ relativo | ≤ 8.7·10⁻¹³ (Legendre) | come previsto |
+| float, `c2` contro `c1`, run piatto e bordo | ≤ 10⁻¹¹ relativo | 267 valori oltre, fino a 1.8·10⁻⁸ | **previsione fallita** (d) |
+
+Le righe di `residuals_Ep.csv` (una per evento n–p) ora escono in ordine di `event_id`. Come
+insieme sono identiche a quelle di `c1`, in tutti i run.
+
+**Perché la previsione dei float è fallita**, dagli stessi file:
+- I valori oltre 10⁻¹¹ sono tutti nei due run a spettro piatto: pull, χ² e p-value di
+  `spectrum_u`, `depth_z`, `fractions` e `model_mix`, più un coefficiente di Legendre.
+- In quei run i conteggi attesi sono somme di pesi che dipendono da E_n, su 10⁷ eventi.
+  L'arrotondamento di una somma cresce col numero di termini: lo scarto relativo arriva a
+  10⁻¹⁰ sui χ².
+- Un pull è (osservato − atteso)/σ. Quando osservato e atteso si avvicinano, lo scarto relativo
+  si amplifica: 1.8·10⁻⁸ corrisponde a 3.7·10⁻¹¹ in assoluto. Lo scarto assoluto più grande
+  su un pull è 3.1·10⁻¹⁰; su un χ² è 3.4·10⁻⁹.
+- La previsione aveva preso la scala di `c1` dei run mono di kB (10⁻¹²). Non aveva tenuto conto
+  dei pesi in E_n né della cancellazione nei pull.
+
+L'esito di ogni soglia non cambia. D'ora in poi `c2` è il riferimento di questi run, perché non
+dipende dalla divisione fra i thread.
+
 ## Punti aperti
 
-- **Verifica indipendente dall'ordine.** Oggi le medie e i fit di `riptide_sim_check` dipendono
-  dalla ripartizione degli eventi fra i thread, a 10⁻¹² in relativo. Basterebbe una somma
-  indipendente dall'ordine (eventi in ordine di `event_id`, o somma esatta) per rendere
-  l'output della verifica identico byte per byte fra run con gli stessi eventi. Si aprirebbe
-  così un `c2` dei run di kB con la soglia «identici» come scritta. È una scelta da fare prima
-  della fase 3.
+- **Verifica indipendente dall'ordine:** risolta da D23 (`c2`, §7).
+- **Warning `-Warray-bounds` nella build `release`** di `sim/tests/integration_reader.cpp`, da
+  GCC 13 dentro `nlohmann::json`. C'erano già prima di D23. Da eliminare, perché la regola è
+  zero warning.
 - **Riferimenti per bin dello scan perduti.** Vanno conservati nel repo, per esempio in un CSV
   sotto `docs/validation/predictions/`, d'ora in poi per ogni previsione per bin.
 - **Range sotto 3 MeV** (+5–8% nel primo bin): causa non studiata.
