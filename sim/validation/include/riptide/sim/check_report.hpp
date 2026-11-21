@@ -12,10 +12,13 @@
 #include <filesystem>
 #include <ostream>
 #include <stdexcept>
+#include <string>
 #include <string_view>
 #include <vector>
 
 #include "riptide/sim/check_accumulator.hpp"
+#include "riptide/sim/deposit_checks.hpp"
+#include "riptide/sim/pstar_checks.hpp"
 
 namespace riptide::sim::checks {
 
@@ -26,9 +29,18 @@ inline constexpr const char* kFractionsFileName = "fractions.csv";
 inline constexpr const char* kLegendreFileName = "legendre.csv";
 inline constexpr const char* kResidualsFileName = "residuals_Ep.csv";
 inline constexpr const char* kModelMixFileName = "model_mix.csv";
+inline constexpr const char* kDepositSpectraFileName = "deposit_spectra.csv";
+inline constexpr const char* kProtonExitsFileName = "proton_exits.csv";
+inline constexpr const char* kPstarComparisonFileName = "pstar_comparison.csv";
 
-// Version of the checks.json layout; bumped on any change of its keys.
-inline constexpr int kChecksVersion = 5;
+// Version of the checks.json layout and of how its numbers are formed; bumped
+// on any change of its keys or of their meaning. Version 6 added
+// results.deposits, version 7 results.deposits.pstar, version 8
+// results.deposits.protons_nuclear_recoil (and those protons left the balance
+// and PSTAR samples). Version 9 reads the rows in ascending event_id, so every
+// sum, and every output byte, no longer depends on how the run's events were
+// spread over the worker threads.
+inline constexpr int kChecksVersion = 9;
 
 class ReportError : public std::runtime_error {
 public:
@@ -44,6 +56,33 @@ public:
 // the expected-rare ones. A skipped check carries its reason in "skipped" and no chi^2; a compared
 // one has "skipped": null.
 [[nodiscard]] nlohmann::json resultsJson(const CheckResults& results);
+
+// The "deposits" object of checks.json for a run with deposit columns: the
+// setup, the event classes, the proton counts, the energy balance of the
+// contained protons, the kB = 0 oracle and the counters, must-be-zero apart
+// from expected-rare. "skipped" is null here; depositsSkippedJson gives the
+// object of a run without deposit columns.
+[[nodiscard]] nlohmann::json depositsJson(const DepositSetup& setup, const DepositResults& results);
+[[nodiscard]] nlohmann::json depositsSkippedJson(const std::string& reason);
+
+// The comparison with PSTAR: the compared and below-table protons, the
+// range (mm) and light (MeV) residuals over all bins and per bin of truth_Ep.
+// Undefined statistics (fewer than two protons) are null. The caller adds the
+// source of the table.
+[[nodiscard]] nlohmann::json pstarJson(const PstarResults& results);
+
+// low,high,Edep,Evis: events per bin of det_Edep and det_Evis; the overflow
+// above En_max is only in the JSON.
+void writeDepositSpectraCsv(std::ostream& out, const DepositResults& results);
+// Ep_low,Ep_high,protons,exiting: recoil protons by truth_Ep and how many left
+// the scintillator.
+void writeProtonExitsCsv(std::ostream& out, const DepositResults& results);
+
+// Ep_low,Ep_high,protons,length_mean,R_csda_mean,length_residual_mean,
+// length_residual_sd,Evis_mean,L_mean,Evis_residual_mean,Evis_residual_sd:
+// one row per bin of truth_Ep; the means are empty without protons, the
+// standard deviations with fewer than two.
+void writePstarComparisonCsv(std::ostream& out, const PstarResults& results);
 
 // low,high,observed,expected_<library>... one row per original bin.
 void writeHistogramCsv(std::ostream& out, const HistogramResult& histogram);

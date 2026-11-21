@@ -1,7 +1,10 @@
 #include "riptide/sim/detector_construction.hpp"
 
 #include <G4Box.hh>
+#include <G4EmParameters.hh>
+#include <G4IonisParamMat.hh>
 #include <G4LogicalVolume.hh>
+#include <G4Material.hh>
 #include <G4NistManager.hh>
 #include <G4PVPlacement.hh>
 #include <G4SystemOfUnits.hh>
@@ -17,6 +20,17 @@ namespace {
 
 constexpr const char* kWorldMaterial = "G4_Galactic";
 constexpr bool kCheckOverlaps = true;
+
+// Geant4 has no built-in Birks constant for this material, so G4EmSaturation
+// would apply no quenching; the configured value (D18) is set on the material,
+// where G4EmSaturation reads it. A non-zero value is kept by Geant4's own
+// initialisation, which only fills materials whose constant is still zero.
+void setBirksConstant(G4Material* material, const ScintillatorConfig& scintillator) {
+    // Project and Geant4 units agree (checked in sim/tests); the conversion is
+    // written out so the unit of the value is visible at the boundary.
+    const double kB = scintillator.birks_kB / kBirksUnit * (CLHEP::mm / CLHEP::MeV);
+    material->GetIonisation()->SetBirksConstant(kB);
+}
 
 } // namespace
 
@@ -36,10 +50,19 @@ G4VPhysicalVolume* DetectorConstruction::Construct() {
 
     const auto& size = config_.geometry.scint_size;
     auto* scint_solid = new G4Box(kScintillatorName, 0.5 * size.x, 0.5 * size.y, 0.5 * size.z);
-    auto* scint_logical = new G4LogicalVolume(
-        scint_solid, nist->FindOrBuildMaterial(kScintillatorMaterial), kScintillatorName);
-    new G4PVPlacement(nullptr, G4ThreeVector(), scint_logical, kScintillatorName, world_logical,
-                      false, 0, kCheckOverlaps);
+    auto* scint_material = nist->FindOrBuildMaterial(kScintillatorMaterial);
+    // value() throws for a version 1 configuration, which loadRunConfig never
+    // hands to a new run.
+    setBirksConstant(scint_material, config_.scintillator.value());
+    auto* scint_logical = new G4LogicalVolume(scint_solid, scint_material, kScintillatorName);
+    scintillator_ = new G4PVPlacement(nullptr, G4ThreeVector(), scint_logical, kScintillatorName,
+                                      world_logical, false, 0, kCheckOverlaps);
+    // G4EmSaturation is created here, once, on the master: its constructor
+    // fills tables shared by all instances and is not thread-safe, and the
+    // shared instance's lazy creation in G4EmParameters writes a flag every
+    // time it is fetched. The tables are built from the material table, so
+    // this must come after the materials and their Birks constants are set.
+    saturation_ = G4EmParameters::Instance()->GetEmSaturation();
     return world_physical;
 }
 

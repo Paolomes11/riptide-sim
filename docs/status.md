@@ -1,6 +1,10 @@
 # Stato
 
-**v0.3.0 — 2026-11-19 — Fase 1b (verifiche fisiche e prestazioni) completata.**
+**v0.4.0 — 2026-11-21 — Fase 2 (deposito di energia e quenching di Birks) completata.**
+
+Branch `feat/sim-deposits`, non ancora unito a `master`. Schema 3, `checks_version` 9. Sei run di
+validazione con tutte le soglie passate (`validation/2_results.md`). Prossimo: i prerequisiti
+della fase 3.
 
 ## Fatto
 
@@ -85,6 +89,96 @@ Verifiche fisiche non circolari e prestazioni, vedi `roadmap.md`.
   previsioni committate prima: tutte le verifiche passano nei tre run.
 - **Test:** `debug` 172/172, `ci` 157/157, zero warning, clang-format pulito.
 
+### Fase 2 (v0.4.0, branch `feat/sim-deposits`, `checks_version` 9)
+
+Deposito, Birks, traccia del protone e classificazione dell'evento, vedi `roadmap.md`.
+
+- **D18:** kB = 0.155 mm/MeV per il plastico vinil-toluenico, da letteratura citata.
+- **Config v2:** blocco `scintillator` (kB e fonte) e funzione di passo del protone.
+- **Libreria:** registrazione dei depositi per evento (totale e del protone di rinculo, con e
+  senza Birks), traccia del protone (lunghezza, punto finale, uscita, interazioni adroniche),
+  classificazione dell'evento in 7 classi dai contatori d'interazione.
+- **Schema v2 (D19):** colonne di deposito, energia visibile, traccia del protone e classe
+  dell'evento. Il protone può depositare fino a circa 10⁻⁴ MeV più di `truth_Ep` per
+  G4NuclearStopping a fine percorso; tolleranza 0.01 MeV.
+- **Verifiche (`checks_version` 6):** sezione `deposits` di `checks.json` (contatori che devono
+  essere zero, rari attesi, classi, bilancio dei protoni contenuti), `deposit_spectra.csv`,
+  `proton_exits.csv`; per i run con schema v1 la sezione è `skipped`.
+- **Oracolo kB = 0:** terzo run `ctest_it_kB0` in `sim_integration`, con E_vis = E_dep entro
+  10⁻⁹ MeV e depositi identici al run a 1 thread.
+- **Smoke test** (1000 eventi a 14 MeV): contatori che devono essere zero tutti a zero; 292
+  protoni contenuti con bilancio massimo 1.9·10⁻⁴ MeV e nessun bilancio negativo. Solo
+  controllo del funzionamento, non un risultato.
+- **PSTAR (D20, 2026-11-20):** tabella NIST del plastico vinil-toluenico sull'SSD con sha256,
+  lettore in `sim/validation` (S e R_CSDA interpolati log-log, L(E_p; kB) con Simpson su S
+  totale) e sezione `deposits.pstar` di `checks.json` (`checks_version` 7) con
+  `pstar_comparison.csv`: residui di `truth_p_length` contro R_CSDA e di `truth_p_Evis` contro
+  L, per bin di E_p, per i protoni contenuti senza interazioni adroniche.
+- **Osservazione (d) dello smoke test** (292 protoni, solo funzionamento, non un risultato):
+  range relativo −1.1·10⁻⁴ ± 9·10⁻⁴; luce relativa +0.57% ± 0.04% sopra L di PSTAR. Spiegata e
+  rimossa da D21.
+- **Regressione v7 sui run 1b (`c3`, 2026-11-20):** CSV identici byte per byte a `c2`, in
+  `checks.json` cambiano solo le versioni e `check_id`, `deposits` saltata (schema 1). Dettagli
+  in `validation/1b_results.md`.
+- **Banda di overflow spiegata (D14, 2026-11-20):** i 27 eventi a circa +7.5 keV sopra E_n sono
+  l'energia creata dall'offset HP in ogni urto n–p. Σε_np vale in media 7.4 keV; il resto della
+  dispersione è il neutrone termalizzato che esce dal blocco. Il bilancio per evento chiude
+  entro 4·10⁻¹⁵ MeV con un diagnostico fuori dal repo, che riproduce il run bit per bit (c).
+  La cattura n–p conserva l'energia: la previsione di +1.3 keV per cattura era sbagliata.
+- **Luce continua dei protoni (D21, 2026-11-20):** Birks per step dipendeva dalla funzione di
+  passo, da +0.51% a −0.39% sulla griglia, senza limite (c). Ora per i protoni la luce di uno step
+  è L(K_pre) − L(K_pre − E_dep) dallo S elettronico di Geant4. Sullo stesso scan il residuo contro
+  PSTAR vale −0.062% ± 0.001% per tutte le config (c): è la differenza fra lo S di Geant4 e lo S
+  totale di PSTAR. La funzione di passo resta (0.2, 0.1 mm).
+- **Intervallo di kB (D18, 2026-11-20):** [0.145, 0.165] mm/MeV, ±2σ di Pöschl, solo da quella
+  fonte. Laplace 2020 letto: non dà un kB.
+- **Pilota v2 (2026-11-20, non un run di validazione):** 10⁵ eventi a 1 thread in 13.0 s e
+  4·10⁵ a 8 thread in 9.6 s, circa 113 B/evento. Nel secondo un protone contenuto ha
+  `truth_p_Edep` − `truth_Ep` = −2.027 MeV: uno scattering Coulombiano singolo ha creato un
+  rinculo di C12 da 2.027 MeV (c, run ripetuto con la traccia degli step).
+- **Rinculi nucleari (D22, 2026-11-20):** colonna `truth_p_n_nuclear_recoil` (schema 3); le
+  verifiche dei depositi (`checks_version` 8) escludono quei protoni dal bilancio e da PSTAR, li
+  contano in `protons_nuclear_recoil` e saltano i run con schema < 3.
+  `validation/2_predictions.md` è alla versione 2, corretta dopo il pilota e detta tale.
+- **Pilota v3 (2026-11-20, non un run di validazione):** `pilot2_v3_mono_14MeV_1e5_1t` in
+  13.3 s, 89 MiB, 114 B/evento; `pilot2_v3_mono_14MeV_4e5_8t` in 9.5 s, 145 MiB, 115 B/evento.
+  Verifica c1: contatori che devono essere zero a 0 in tutti e due; `protons_nuclear_recoil` 0 e
+  1 (lo stesso evento del pilota v2, che riproduce evento per evento); minimo del bilancio
+  −5.3·10⁻¹⁵ MeV; luce contro PSTAR −0.062%, range −0.107% e −0.103%. Stima per la produzione
+  (b): circa 4 minuti e 1.15 GB per ogni run da 10⁷ a 8 thread.
+- **Run di validazione (2026-11-21, `validation/2_results.md`):** tre da 10⁷ eventi (mono
+  14 MeV, piatto 10–20 MeV, bordo 19.5–20 MeV) e tre da 10⁶ a kB = 0.145 / 0.155 / 0.165, a 8
+  thread, contro le previsioni v2 (`85283ba`) con soglie invariate.
+  - **Prestazioni (c):** circa 4.5 minuti e meno di 170 MiB di RSS per 10⁷ eventi;
+    112.9–120.9 B/evento, quindi `kBytesPerEvent` = 256 B resta; 3.82 GB in tutto.
+  - **Oracoli (a):** contatori che devono essere zero a 0 in tutti i run; bilancio dei protoni
+    contenuti fra −1.1·10⁻¹⁴ e 9.2·10⁻⁴ MeV; rinculi nucleari (D22) 40–57 per 10⁷ eventi, nella
+    banda 1–150.
+  - **Statistiche contro `jeff33` (c):** tutte sotto le soglie Bonferroni. I CSV di prima
+    interazione corrispondono a quelli della fase 1b.
+  - **PSTAR (c):** luce da −0.062% (mono) a −0.057% (bordo) rispetto a L di PSTAR, range
+    −0.10%. Nel confronto per bin con lo scan, entro 0.005%.
+  - **Sensibilità a kB (b):** ±0.01 mm/MeV su kB sposta la luce media dei protoni di +3.8% /
+    −3.5%. Depositi e traccia identici, byte per byte.
+  - **Verifiche `c1`:** quattro identità fallite nei run di kB, a 10⁻¹² relativo, per l'ordine
+    di somma nel checker; la previsione era sbagliata (d).
+- **Lettura in ordine di `event_id` (D23, `checks_version` 9):** il reader fonde i file per
+  thread in ordine di `event_id`, quindi le somme non dipendono più dalla divisione degli eventi
+  fra i thread. Lo smoke test confronta byte per byte i run a 1 e a 2 thread. Le verifiche `c2`
+  sugli stessi run passano tutte, comprese le quattro identità. Lo scarto da `c1` è fino a
+  1.8·10⁻⁸ relativo sui pull dei run piatti, oltre i 10⁻¹¹ previsti (d).
+- **Test:** `debug` 238/238, `ci` 219/219, zero warning nel codice del progetto, clang-format
+  pulito. In `release` restano due `-Wnull-dereference` da un header di Geant4
+  (`G4NavigationHistory.icc`), presenti anche prima di D21, e quattro `-Warray-bounds` da
+  nlohmann/GCC 13 in `sim/tests/integration_reader.cpp`, presenti anche con il file di
+  `83b959d`.
+
+**Prossimi passi, nell'ordine:**
+
+1. Unire `feat/sim-deposits` a `master` e mettere il tag `v0.4.0`, solo su richiesta.
+2. Fase 3: dimensioni definitive dello scintillatore e distanza della sorgente. Prima vanno
+   decisi l'offset HP (D14), il bordo a 20 MeV (D16) e l'eccesso di `ionIoni` sui rinculi C12.
+
 ## Punti aperti
 
 - Dimensioni dello scintillatore: cubo di 10 cm provvisorio nei config; definitive prima della
@@ -101,4 +195,16 @@ Verifiche fisiche non circolari e prestazioni, vedi `roadmap.md`.
   carbonio) va tenuto fra le sistematiche del fondo da carbonio (D15).
 - Confronto n–p indipendente da JEFF-3.3/ENDF-B-VIII.0 (D13) e verifica di H-2 contro una
   valutazione indipendente (D17): non fatti in 1b.
-- kB di Birks per BC-408: da prendere da letteratura citata (fase 2).
+- **Fase 2:** a fine percorso `ionIoni` deposita più del K iniziale dello step. Riguarda 56
+  rinculi C12 su 486 e 4 Be9, con K fra 0.11 e 0.40 MeV; l'eccesso arriva al 15%, per un totale
+  di 0.74 MeV su 492 MeV di rinculi C12 (D14). La causa non è verificata; non dipende dalla
+  funzione di passo del protone (D21, P4). Pesa su `det_Edep` più che sulla luce.
+- **Fase 2:** kB è misurato fino a 500 MeV/cm; la fine del range dei protoni va oltre, quindi lì
+  la luce è un'estrapolazione non coperta dall'intervallo di D18. Un fit di Birks sui dati EJ-200
+  di Laplace 2020 la sonderebbe.
+- **Fase 2:** le verifiche dei depositi devono tollerare `det_Edep` − E_n fino a circa
+  6·10⁻⁴ · E_n senza un γ di cattura (D14).
+- **Fase 2:** il range sotto 3 MeV supera R_CSDA di PSTAR del 5–8% nel primo bin; la causa non
+  è studiata.
+- I riferimenti per bin delle previsioni (scan) vanno conservati nel repo: quelli della fase 2
+  sono andati persi, e si sono potuti confrontare solo 7 punti della tabella.

@@ -211,6 +211,53 @@ cancellano: se cambiano, se ne aggiunge una nuova che rimanda alla vecchia.
     riportarlo come sistematica nota.
   - Un cambio di G4NDL che modifichi l'AWR di H-1 si vede in `checks.json` e nello smoke test,
     che controlla AWR = 0.999167.
+  - **Violazione del bilancio energetico (2026-11-20).** L'offset non è solo uno spostamento di
+    E_p: ogni urto n–p HP crea l'energia ε = E_p(m_p) − E_p(M_T), che finisce nel deposito.
+    Lungo una termalizzazione la somma è Σε ≈ 5.4·10⁻⁴ · ΣE_p, e ΣE_p arriva a circa E_n.
+    Questo spiega la banda di `det_Edep` a circa +7.5 keV sopra E_n, vista nel run
+    d'integrazione a 14 MeV (28 eventi su 1000 sopra E_n).
+    - **Metodo.** Un diagnostico fuori dal repo replica `riptide_sim` con le stesse azioni,
+      avvolte. Lo stesso seme, lo stesso config e lo stesso binario debug riproducono il run
+      d'integrazione bit per bit su tutte le colonne dei 1000 eventi. Per ogni step nello
+      scintillatore il diagnostico calcola dK = K_post + ΣK_sec + E_dep − K_pre. Per gli step
+      adronici calcola anche Q dalle masse nucleari di Geant4 (`G4NucleiProperties`) e ε = dK − Q.
+    - **Bilancio per evento (c).** E_n + ΣdK − E_uscita − `det_Edep` = 0 entro 4·10⁻¹⁵ MeV su
+      tutti i 1000 eventi, e il deposito ricostruito coincide con quello di `riptide_sim`.
+    - **Per urto n–p (c).** Sopra 400 kT (1017 urti), ε misurato e ε di D14 coincidono entro
+      4.5·10⁻¹³ MeV. ε/E_p vale (5.36–5.44)·10⁻⁴ per E_p > 1 keV. Sotto 1 keV i valori sono
+      dominati dall'arrotondamento: un urto a E_p = 28 eV dà 5.57·10⁻⁴. Sui 505 urti termici
+      Σε = 2·10⁻⁵ MeV, trascurabile.
+    - **I 27 eventi della banda (c), un solo run.**
+      - **Fatti:** eccesso fra 2.2 e 11.8 keV, media 6.9 keV, sd 1.8 keV; Σε_np fra 5.9 e
+        7.6 keV, media 7.43 keV, sd 0.31 keV.
+      - **Scomposizione:** eccesso = Σε_np + Σε_C − E_uscita, più (in un solo evento)
+        l'eccesso degli ioni descritto sotto. Il termine dominante è Σε_np in tutti i 27
+        eventi.
+      - **Il carbonio:** l'elastico HP sul C dà anch'esso ε > 0, ma piccolo: fino a 1.1 keV
+        per evento, 0.1 MeV in totale su 649 urti.
+      - **La dispersione** viene da E_uscita. In 26 eventi il neutrone, rallentato da 2–47 urti
+        n–p, esce dal blocco senza essere catturato, con un'energia fra 5 meV e 5.3 keV.
+      - **I due eventi con cattura nel blocco.**
+        - Evento 958, nella banda: il γ esce tutto.
+        - Evento 56, a 15.6 MeV: dei 2.224 MeV di Q restano 1.613 MeV, perché il γ esce con
+          0.611 MeV.
+    - **Previsione sbagliata:** la cattura n–p conserva l'energia. Mi aspettavo, dalla lettura
+      di `G4NeutronHPCaptureFS`, circa +1.3 keV per cattura dal rinculo del deuterone. Invece
+      K_d (1.31–1.33 keV) ed E_γ sommano a Q = m_n + M(¹H) − M(²H) entro 10⁻⁷ MeV, cioè entro
+      l'energia del neutrone termico.
+    - **Altro trovato (c):** a fine percorso `ionIoni` deposita più del K iniziale dello step.
+      - **Dove:** in 56 rinculi C12 (su 486 sopra 0.1 MeV) e in 4 Be9, con K_pre fra 0.11 e
+        0.40 MeV.
+      - **Quanto:** l'eccesso relativo va da 0.2% a 15%, mediana 4.4%. In totale fa 0.74 MeV su
+        492 MeV di rinculi C12.
+      - **Perché:** la causa non è verificata sui sorgenti (d). È dello stesso tipo del
+        G4NuclearStopping del protone in D19, ma relativamente più grande. Pesa poco sulla luce,
+        perché i rinculi di C sono fortemente spenti da Birks, ma entra in `det_Edep`.
+      - **Le conversioni γ → e⁺e⁻ e le annichilazioni** danno ±2m_e: per gli step non adronici
+        il diagnostico non calcola Q, quindi non sono violazioni.
+    - **Conseguenza:** `det_Edep` > E_n non è un errore del codice, ma il segno della convenzione
+      HP. Le verifiche dei depositi devono tollerare Σε ≲ 6·10⁻⁴ · E_n senza un γ di cattura
+      depositato.
 
 ## D15 — Carbonio HP: inelastico senza cattura e composizione isotopica (2026-11-18)
 
@@ -349,3 +396,302 @@ cancellano: se cambiano, se ne aggiunge una nuova che rimanda alla vecchia.
   a E_p alti); tagliare gli eventi a E_p piccolo (perde proprio il bordo dello spettro).
 - **Conseguenze:** l'esito della fase 1b è quello di `c2`, con `c1` riportato accanto. Il
   confronto n–p indipendente resta quello di D13; H-2 è controllato solo per coerenza con G4NDL.
+
+## D18 — Costante di Birks per lo scintillatore PVT (2026-11-19)
+
+- **Fatti:**
+  - in Geant4 11.4.1 `G4EmSaturation` applica Birks passo per passo, con kB letto da
+    `G4IonisParamMat::GetBirksConstant()`;
+  - i valori di serie esistono solo per pochi materiali (fra cui `G4_POLYSTYRENE`), non per
+    `G4_PLASTIC_SC_VINYLTOLUENE`, per cui senza un valore esplicito la luce visibile coincide con
+    l'energia depositata.
+- **Decisione:**
+  - **kB = 0.155 mm/MeV**, con incertezza ±0.005 mm/MeV (intervallo di credibilità al 68%, che
+    comprende statistica e sistematica).
+  - **Fonte:** T. Pöschl, D. Greenwald, M. J. Losekamm, S. Paul, *Measurement of ionization
+    quenching in plastic scintillators*, Nucl. Instrum. Methods Phys. Res. A 988 (2021) 164865,
+    doi:10.1016/j.nima.2020.164865 (arXiv:2007.08366), Tabella 1, riga "Birks", colonna BC-408.
+  - **Misura:** BC-408, a base di poliviniltoluene, con protoni da 30–100 MeV che si fermano in
+    fibre scintillanti; Bragg curve fino a circa 500 MeV/cm; stopping power CSDA da NIST.
+  - Gli autori dichiarano accordo con il valore BC-408 di M. Almurayshid et al., J. Appl. Clin.
+    Med. Phys. 18 (5) (2017) 210–219, doi:10.1002/acm2.12143, valore non letto direttamente qui.
+  - BC-408 ed EJ-200 sono formulazioni commerciali equivalenti; il materiale Geant4 resta
+    `G4_PLASTIC_SC_VINYLTOLUENE`.
+  - kB entra come parametro **obbligatorio** del config (`config_version` 2), con la fonte
+    registrata in `run.json`; kB = 0 resta ammesso come oracolo (luce visibile = deposito).
+- **Limiti noti** (dalla stessa fonte):
+  - per BC-408 Birks è il modello preferito fra quelli confrontati, ma nessun modello descrive bene
+    l'intero intervallo di dE/dx; le misure sullo stesso scintillatore spesso non concordano;
+  - il fit copre dE/dx fino a circa 500 MeV/cm, mentre i protoni di rinculo a fine percorso
+    superano questo valore: lì kB è un'estrapolazione;
+  - un solo kB non descrive il quenching di ioni più pesanti (carbonio di rinculo, alfa).
+- **Sistematica** (fissata il 2026-11-20, prima delle previsioni della fase 2):
+  - **intervallo kB ∈ [0.145, 0.165] mm/MeV**, ±2σ del valore Birks di Pöschl (Tabella 1,
+    BC-408, 0.155 ± 0.005, 68% di credibilità con statistica e sistematica insieme, fra cui un
+    prior del 4% sullo stopping NIST). Viene **solo** da Pöschl;
+  - nella stessa Tabella 1 il modello di Chou dà per BC-408 kB = 0.151 ± 0.04 mm/MeV con C
+    compatibile con 0: dentro l'intervallo, ma con un errore otto volte più largo;
+  - T. A. Laplace et al. (2020), letto il 2026-11-20 (arXiv:2009.07217): misura la resa luminosa
+    dei protoni in EJ-200, EJ-204 ed EJ-208 relativa a un elettrone da 477 keV, **senza** fit di
+    Birks né valori di kB. Un fit proprio su quei dati sonderebbe proprio la zona oltre
+    500 MeV/cm; non è fatto;
+  - non letti: Almurayshid 2017 (citato da Pöschl come in accordo, valore non riportato) e
+    Hirschberg 1992;
+  - punto aperto: l'intervallo non copre l'estrapolazione oltre 500 MeV/cm, dove arriva la fine
+    del range di ogni protone.
+- **Alternative:**
+  - il kB di `G4_POLYSTYRENE` (materiale diverso);
+  - valori da misure con elettroni o gamma, che non sondano l'alto dE/dx dei protoni;
+  - modelli a più parametri (Chou, Voltz), che `G4EmSaturation` non implementa.
+- **Conseguenze:**
+  - la luce visibile simulata dipende dal passo del protone: la funzione di passo diventa un
+    parametro registrato, con studio di convergenza nella fase 2 (superato da D21: per i protoni la
+    luce non dipende più dal passo);
+  - i PDF delle fonti restano fuori dal repo.
+
+## D19 — Schema v2: depositi, traccia del protone e classe dell'evento (2026-11-19)
+
+- **Fatti** (sorgente di Geant4 11.4.1):
+  - `G4EmSaturation` riempie tabelle statiche condivise e non è thread-safe da costruire;
+    `G4EmParameters::GetEmSaturation()` la crea al primo uso e attiva Birks;
+  - i modelli HP anelastici uccidono il neutrone primario ed emettono il neutrone uscente come
+    traccia nuova;
+  - `G4NuclearStopping::AlongStepDoIt` limita la perdita del passo all'energia cinetica *prima*
+    del passo, non a quella rimasta dopo la ionizzazione, e `G4ParticleChangeForLoss` porta poi
+    l'energia a 0 depositando comunque l'intera perdita. Sull'ultimo passo di un protone che si
+    ferma, la traccia può quindi depositare un po' più dell'energia con cui è nata: 1.9·10⁻⁴ MeV
+    su un protone da 11.6 MeV in un run di prova a 14 MeV (perdita nucleare del passo
+    1.3·10⁻³ MeV, energia residua 1.1·10⁻³ MeV).
+- **Decisione:**
+  - `G4EmSaturation` si crea una volta sul master in `DetectorConstruction::Construct()`, dopo
+    materiali e kB; i worker la usano in sola lettura per `VisibleEnergyDepositionAtAStep`.
+  - Il protone di rinculo è il secondario protone del passo del **primo** n–p (D7), marcato con
+    un `G4VUserTrackInformation`; il ruolo si legge dal marcatore, mai confrontando energie.
+  - `det_Edep` e `det_Evis` sommano i passi di **tutte** le particelle nello scintillatore;
+    `truth_p_*` solo quelli della traccia marcata (i suoi secondari no).
+  - Le colonne del vertice n–p e del protone valgono 0 se `truth_valid_np` = 0, per costruzione.
+  - La classe dell'evento viene dalle interazioni adroniche del neutrone **primario** nello
+    scintillatore, con precedenza dall'alto:
+
+    | Codice | Classe | Condizione |
+    |---|---|---|
+    | 6 | altro | almeno un'interazione che non è n–p, n–C elastico o n–C anelastico |
+    | 5 | misto | almeno un n–p e almeno un n–C |
+    | 1 | singolo n–p | esattamente un n–p, nient'altro |
+    | 2 | n–p multiplo | due o più n–p, nient'altro |
+    | 4 | n–C anelastico senza n–p | almeno un n–C anelastico (n–C elastici ammessi) |
+    | 3 | solo n–C elastico | solo n–C elastici |
+    | 0 | nessuna | il primario attraversa senza interagire |
+
+    I codici sono Int32 dello schema e non si riusano mai. Come in D17, n–p comprende lo
+    scattering su H-2 (Z = 1).
+  - Nei confronti fra `truth_p_Edep` e `truth_Ep` si ammette un margine di 0.01 MeV per l'effetto
+    di `G4NuclearStopping` (molto sopra l'eccesso visto, molto sotto l'errore di MeV di una
+    traccia sbagliata). La distribuzione dell'eccesso si misura nelle verifiche della fase 2.
+- **Limite noto:** le interazioni dei neutroni secondari (per esempio un n–p dopo un n–C
+  anelastico) non entrano nella classe; `truth_n_secondary_n_hadronic` dice quanto spesso
+  accade.
+- **Alternative:**
+  - riconoscere il protone confrontando energia e direzione dei secondari, fragile;
+  - creare `G4EmSaturation` in ogni worker, che non è sicuro con le tabelle statiche;
+  - seguire nella classe anche i neutroni secondari, che richiede di marcare la catena delle
+    tracce: rimandato finché il contatore non mostra che serve.
+- **Conseguenze:** lo schema passa alla versione 2 (18 colonne in coda); il lettore accetta
+  ancora la versione 1, quindi `riptide_sim_check` legge i run della fase 1b.
+
+## D20 — Riferimento PSTAR per range e luce dei protoni (2026-11-20)
+
+- **Dati:** tabella PSTAR del NIST per il materiale 216, "PLASTIC SCINTILLATOR
+  (vinyltoluene-based)": stopping power elettronico, nucleare e totale, range CSDA e proiettato,
+  132 energie da 1 keV a 10 GeV. Scaricata il 2026-11-20 da
+  https://physics.nist.gov/cgi-bin/Star/apdata.pl (formato testo) e salvata in
+  `reference/pstar/`, sola lettura, con origine e sha256 in `architecture/data_layout.md`.
+- **Materiale a confronto:**
+
+  | | PSTAR 216 | `G4_PLASTIC_SC_VINYLTOLUENE` (Geant4 11.4.1) |
+  |---|---|---|
+  | densità | 1.032 g/cm³ | 1.032 g/cm³ |
+  | I | 64.7 eV | 64.7 eV |
+  | composizione | H 0.085000, C 0.915000 in peso | C9H10 per numero di atomi |
+
+  C9H10 con le masse atomiche standard dà circa 0.0853 di H in peso. Il sorgente di
+  `G4NistMaterialBuilder.cc` lascia commentate le frazioni NIST e annota che non corrispondono al
+  PVT puro: la differenza è nota a Geant4 e qui si dichiara, senza stimarne l'effetto a occhio.
+- **Fatti** (sorgente di Geant4 11.4.1, `QGSP_BIC_HP` con `G4EmStandardPhysics_option4`):
+  - per il protone `G4hIonisation` usa `G4BraggModel` sotto 2 MeV e `G4BetheBlochModel` sopra;
+  - `G4BraggModel` legge `G4PSTARStopping`, e per questo materiale la tabella (60 punti da 1 keV
+    a 2 MeV) coincide **valore per valore** con lo stopping elettronico della tabella scaricata;
+  - `G4BetheBlochModel` calcola la formula di Bethe con correzione di densità, di shell e le
+    correzioni di ordine superiore di `G4EmCorrections` (Barkas, Bloch, Mott), con la stessa I;
+    i dati ICRU90 non si applicano (coprono solo acqua, aria e grafite);
+  - nella tabella di dE/dx, `G4EmModelManager::FillDEDXVector` moltiplica il modello alto per
+    1 + (S_Bragg(E_lim)/S_BB(E_lim) − 1)·E_lim/E, con E_lim = 2 MeV: sopra 2 MeV Geant4 resta agganciato a
+    PSTAR, con un peso che decresce come 1/E;
+  - lo stopping nucleare viene da un processo separato (`G4NuclearStopping`), non da PSTAR.
+- **Decisione:**
+  - PSTAR è il riferimento (c) per il range CSDA e per la luce attesa da Birks dei protoni
+    contenuti senza interazioni adroniche:
+    - ⟨`truth_p_length`⟩ contro R_CSDA(E_p);
+    - ⟨`truth_p_Evis`⟩ contro L(E_p) = ∫₀^E_p dE / (1 + kB·S(E)), con S totale e kB di D18;
+  - in entrambi si usa lo stopping **totale** (elettronico + nucleare), perché la simulazione
+    deposita anche la perdita nucleare;
+  - tra i punti della tabella si interpola in log-log;
+  - le soglie di accordo si fissano nelle previsioni della fase 2, prima dei run.
+- **Limite di indipendenza:**
+  - sotto 2 MeV il confronto verifica solo l'implementazione (interpolazione, passo, raccordo fra
+    i modelli), non la fisica: Geant4 usa la stessa tabella;
+  - sopra 2 MeV il confronto è indipendente solo in parte: stessa I, correzioni implementate in
+    modo diverso, aggancio a PSTAR a 2 MeV;
+  - un accordo dice quindi che la simulazione trasporta il protone come previsto da questi dati,
+    non che i dati descrivono bene il PVT reale.
+- **Alternative:**
+  - tabelle ICRU49 lette direttamente (stessa origine di PSTAR);
+  - SRIM, con un modello diverso, ma senza una tabella pubblica con origine fissata come PSTAR;
+  - il solo `G4EmCalculator`, che confronterebbe Geant4 con sé stesso.
+- **Conseguenze:**
+  - nuovo lettore della tabella in `sim/validation` (senza Geant4, compilato anche in `ci`);
+  - la sezione `pstar` delle verifiche arriva con `checks_version` 7.
+
+## D21 — Luce dei protoni continua e funzione di passo (2026-11-20)
+
+- **Problema:** con `G4EmSaturation` Birks si applica step per step, eloss/(1 + kB·eloss/ℓ). La
+  luce di un protone che si ferma dipende allora dalla funzione di passo. Il confronto PSTAR
+  (D20) sullo smoke test dava +0.57% ± 0.04% di luce sopra L(E_p; kB).
+- **Scan** (fuori dal repo, mono 14 MeV, 10⁴ eventi, 1 thread, seme 20260907, circa 2770 protoni
+  contenuti senza interazioni adroniche per run; config uguali a `config/mono_14MeV.json` salvo
+  `proton_step_function`). Residuo relativo medio di `truth_p_Evis` contro L di PSTAR e di
+  `truth_p_length` contro R_CSDA, (c):
+
+  | (dRoverRange, finalRange) | luce, Birks per step | luce, L continua (questa decisione) | range |
+  |---|---|---|---|
+  | (0.2, 0.1 mm) | +0.511% ± 0.012% | −0.062% ± 0.001% | −0.101% ± 0.029% |
+  | (0.1, 0.1 mm) | +0.471% | −0.062% | −0.100% |
+  | (0.05, 0.1 mm) | +0.447% | −0.062% | −0.103% |
+  | (0.02, 0.1 mm) | +0.442% | −0.062% | −0.099% |
+  | (0.01, 0.1 mm) | +0.439% | −0.062% | −0.099% |
+  | (0.01, 0.01 mm) | −0.167% | −0.062% | −0.183% |
+  | (0.01, 1 µm) | −0.392% ± 0.016% | −0.062% ± 0.001% | +0.065% ± 0.032% |
+  | piatto 10–20 MeV, (0.2, 0.1 mm) | +0.495% | −0.060% | −0.066% |
+  | piatto 10–20 MeV, (0.01, 1 µm) | −0.377% | −0.060% | +0.108% |
+
+  Il range non dipende dalla definizione della luce: i due scan danno gli stessi valori, perché il
+  trasporto è lo stesso evento per evento.
+- **Diagnosi** (c), con le fluttuazioni di perdita spente in un binario di prova fuori dal repo:
+  (0.2, 0.1 mm) +0.481%, (0.01, 1 µm) +0.068%. Gli effetti sono due, di segno opposto, entrambi
+  da concavità di S/(1 + kB·S):
+  - step lunghi: la media di S sullo step dà più luce dell'integrale (+);
+  - step corti con perdite fluttuanti: la luce media per step cala (−).
+
+  Birks per step con fluttuazioni non ha quindi un limite per step → 0.
+- **Previsioni scritte prima dello scan, ed esito:**
+  - P1 (luce monotona verso 0 al calare di dRoverRange, |·| < 0.05% al passo più fine):
+    **fallita**, plateau +0.44% e cambio di segno con finalRange;
+  - P2 (range insensibile al passo entro 2·10⁻⁴): **fallita**, si sposta fino a circa 0.25%,
+    soprattutto sotto 2 MeV (+0.78% → +0.34% fra il passo più grosso e il più fine);
+  - P3 (finalRange sotto 0.1 mm cambia la luce di meno di 0.05%): **fallita**, −0.83 punti;
+  - P4 (eccesso a fine range di `ionIoni` invariato dalla config MuHad): **passata**; gli ioni
+    hanno già finalRange 1 µm da `G4EmStandardPhysics_option4`;
+  - P5 (costo circa 1/dRoverRange): **fallita**, 2.0–2.8 s per 10⁴ eventi su tutta la griglia,
+    RSS < 92 MiB.
+- **Decisione:**
+  - per i **protoni** la luce di uno step è L(K_pre) − L(K_pre − E_dep), con
+    L(K) = ∫₀^K dE / (1 + kB·S(E)) e S lo stopping elettronico medio delle tabelle di
+    ionizzazione del protone in Geant4 (`G4EmCalculator::GetDEDX`), su una griglia logaritmica
+    da 1 keV a 100 MeV con 50 punti per decade, interpolata log-log, con Simpson a 8 pannelli per
+    intervallo (`sim/truth`, senza Geant4, con test). La luce di un protone che si ferma è L(E_p)
+    qualunque siano gli step, che è la definizione con cui kB è misurato (D18: fit su stopping
+    NIST); il deposito tiene le sue fluttuazioni;
+  - un deposito oltre K_pre (stopping nucleare a fine range, deposito locale di un'interazione
+    adronica) ha l'eccesso quenchato come le energie più basse della tabella; con kB = 0 la luce
+    è esattamente il deposito;
+  - le **altre particelle** restano su `G4EmSaturation`: per gli elettroni kB·S è piccolo, per
+    gli ioni un solo kB non vale comunque (D18);
+  - la funzione di passo resta **(0.2, 0.1 mm)**: la luce non ne dipende più e il costo del passo
+    più fine non serve a nulla.
+- **Residuo che resta** (−0.062%, uguale per tutte le config): differenza fra lo S di Geant4 e lo
+  S totale di PSTAR del checker.
+  - Sotto 2 MeV +0.13%: lo stopping nucleare (`G4NuclearStopping`, attivo sotto 1 MeV) deposita ma
+    non è nella tabella del protone. Su PSTAR stesso L_elec/L_tot − 1 vale +0.17% a 1 MeV e
+    +0.03% a 13 MeV (c, calcolo fuori dal repo).
+  - Sopra 2 MeV circa −0.07%, quindi circa −0.1% al netto della parte nucleare: lo S di Bethe di
+    Geant4 un po' sopra PSTAR (d), da non correggere; vale 1/8 della σ_Ep relativa attesa a
+    10 MeV.
+- **Alternative:**
+  - Birks per step con passo più fine: escluso, non converge;
+  - stopping totale nella tabella: richiederebbe `ComputeNuclearDEDX`, che spegne le
+    fluttuazioni del modello condiviso e cambierebbe la simulazione;
+  - luce calcolata in analisi da `truth_Ep`: perde la luce dei protoni che escono o interagiscono.
+- **Conseguenze:**
+  - stesso schema (v2) e stesse colonne: cambia il significato di `det_Evis` e `truth_p_Evis` per
+    i run dal commit 3af4c3a in poi. I run precedenti con kB > 0 erano solo di prova;
+  - la funzione di passo resta un parametro registrato, ma non è più una sistematica della luce dei
+    protoni;
+  - D18, "Conseguenze": la frase sulla dipendenza dal passo è superata da questa decisione.
+
+## D22 — Rinculi nucleari del protone nello scattering Coulombiano (2026-11-20)
+
+- **Problema:** nel pilota della fase 2 (`pilot2_mono_14MeV_4e5_8t`) un protone contenuto e senza
+  interazioni adroniche ha `truth_p_Edep` − `truth_Ep` = −2.027 MeV (evento 246185, E_p =
+  13.617 MeV). La previsione del bilancio (minimo ≥ −10⁻⁹ MeV) è fallita. Il run ripetuto con la
+  traccia degli step dimostra la causa: uno step `CoulombScat` (scattering Coulombiano singolo,
+  `G4eCoulombScatteringModel`, processo EM e non adronico) ha creato un rinculo di C12 da
+  2.027 MeV. Sopra la soglia di rinculo il modello crea il nucleo bersaglio come secondario
+  (`G4IonTable::GetIon`). Quell'energia lascia la traccia del protone, che per D19 non comprende i
+  secondari, e finisce in `det_Edep` come deposito di uno ione.
+- **Frequenza (d):** 1 caso su 137 806 protoni contenuti nei due piloti a 14 MeV; nessun altro
+  caso fra −10⁻⁹ e −2 MeV.
+- **Decisione:**
+  - nuova colonna `truth_p_n_nuclear_recoil` (schema 3): il numero di step non adronici del
+    protone seguito che hanno fra i secondari una particella con numero barionico > 0. Per un
+    rinculo su H il modello crea un G4Proton, per un rinculo su C uno ione: hanno tutti e due
+    numero barionico 1 o più. Elettroni e fotoni hanno 0. Uno step adronico è già contato in
+    `truth_p_n_hadronic`, quindi i due contatori non contano mai lo stesso step;
+  - le verifiche dei depositi (`checks_version` 8) escludono questi protoni da
+    `contained_balance_MeV` e dal confronto PSTAR, e li contano a parte in
+    `deposits.protons_nuclear_recoil`. Il loro range e la loro luce non sono quelli di un protone
+    che rallenta solo per ionizzazione;
+  - le verifiche dei depositi richiedono lo schema 3. Un file v2 darebbe 0 alla colonna nuova e
+    rimetterebbe questi protoni nel bilancio. Gli unici run v2 sono i due piloti, che non sono run
+    di validazione.
+- **Alternative:**
+  - sommare l'energia del rinculo al deposito del protone: cambierebbe la definizione di D19, e la
+    luce dello ione segue `G4EmSaturation`, non la luce continua dei protoni (D21);
+  - spegnere lo scattering Coulombiano singolo: cambierebbe la fisica di `G4EmStandardPhysics_option4`;
+  - allargare la tolleranza del bilancio: nasconderebbe il caso invece di contarlo.
+- **Conseguenze:**
+  - `docs/validation/2_predictions.md` passa alla versione 2, corretta dopo il pilota e detta tale:
+    l'oracolo del bilancio vale sui protoni senza rinculi nucleari, e il loro conteggio ha una
+    previsione propria;
+  - i piloti vanno ripetuti con lo schema 3 prima della produzione;
+  - `det_Edep` e `det_Evis` non cambiano: il rinculo deposita comunque nello scintillatore.
+
+## D23 — Lettura delle righe in ordine di `event_id` (2026-11-21)
+
+- **Problema:** nei run di sensibilità a kB (`2_mono_14MeV_kB0p{145,155,165}_1e6`, verifiche `c1`)
+  quattro verifiche di identità della §1 di `2_predictions.md` v2 sono fallite:
+  `contained_balance_MeV.mean` e `pstar.range_mm` differiscono fra run che hanno gli stessi eventi.
+  Tutti gli interi sono identici, i float differiscono di al più 1.3·10⁻¹² relativo. Causa: in MT
+  Geant4 assegna gli eventi ai thread dinamicamente, quindi la divisione fra i file
+  `events_t<k>.root` cambia da run a run. Il checker leggeva i file uno dopo l'altro e sommava i
+  double in un ordine che dipendeva da quella divisione.
+- **Decisione:**
+  - il reader (`forEachEventRow`) fonde i file per thread in ordine crescente di `event_id`
+    (`mergeByEventId`, k-way merge). Ogni worker elabora id crescenti, quindi ogni file è già
+    ordinato; il merge rifiuta (`RunReadError`) un file che non sia strettamente crescente, perché
+    l'ordine tornerebbe a dipendere dalla divisione;
+  - un `event_id` presente in due file (run rotto) si visita due volte, nell'ordine dei file, così
+    `row_count` di `loadRun` continua a rivelarlo;
+  - `checks_version` passa a 9. Nuovo oracolo nello smoke test: lo stesso run a 1 e a 2 thread dà
+    CSV identici byte per byte e `checks.json` identico a meno di `run_id`.
+- **Alternative:**
+  - somma compensata (Kahan) o in precisione estesa: riduce la differenza ma non la annulla, e
+    l'identità resterebbe un'approssimazione;
+  - tolleranza relativa sulle verifiche di identità: cambierebbe una soglia dopo il run, cosa
+    esclusa; e nasconderebbe un'eventuale differenza vera;
+  - un solo thread per i run di sensibilità: lento, e non risolve il problema per gli altri run.
+- **Conseguenze:**
+  - le soglie di `2_predictions.md` v2 non cambiano. Il fallimento delle verifiche `c1` resta scritto
+    in `2_results.md`; le verifiche si ripetono come `c2` sugli stessi run, senza nuovi run di
+    simulazione;
+  - il merge legge tutti i file in parallelo (un cursore di riga per ntupla nel reader di Geant4);
+    la memoria resta quella di una riga per file.

@@ -21,7 +21,7 @@ set_tests_properties(sim_integration PROPERTIES
     SKIP_RETURN_CODE 4
     TIMEOUT 300)
 
-# Smoke test of riptide_sim_check on the 1-thread run made by sim_integration.
+# Smoke test of riptide_sim_check on the runs made by sim_integration.
 add_test(NAME sim_check_smoke
     COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/run_check_smoke.sh"
         $<TARGET_FILE:riptide_sim_check> "${PROJECT_SOURCE_DIR}")

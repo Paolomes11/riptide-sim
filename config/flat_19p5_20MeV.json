@@ -1,5 +1,5 @@
 {
-  "config_version": 1,
+  "config_version": 2,
   "geometry": {
     "scint_size_mm": [100.0, 100.0, 100.0]
   },
@@ -10,5 +10,13 @@
     "direction": [0.0, 0.0, 1.0],
     "position_mm": [0.0, 0.0, -100.0]
   },
-  "physics_list": "QGSP_BIC_HP"
+  "physics_list": "QGSP_BIC_HP",
+  "scintillator": {
+    "birks_kB_mm_per_MeV": 0.155,
+    "birks_source": "D18"
+  },
+  "proton_step_function": {
+    "dRoverRange": 0.2,
+    "finalRange_mm": 0.1
+  }
 }

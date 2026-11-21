@@ -14,6 +14,7 @@
 
 #include "riptide/common/np_kinematics.hpp"
 #include "riptide/common/units.hpp"
+#include "riptide/sim/binning.hpp"
 #include "riptide/sim/hp_recoil.hpp"
 
 namespace riptide::sim::checks {
@@ -27,21 +28,6 @@ constexpr int kCaptureMt = 102;
 // Two bins with kMinExpectedCount each are the least a chi^2 with one
 // normalization constraint can use (ndf >= 1).
 constexpr std::size_t kMinChi2Bins = 2;
-
-std::vector<double> uniformEdges(double low, double high, std::size_t bins) {
-    std::vector<double> edges(bins + 1);
-    for (std::size_t i = 0; i <= bins; ++i) {
-        edges.at(i) = low + (high - low) * static_cast<double>(i) / static_cast<double>(bins);
-    }
-    edges.back() = high; // exact upper edge, whatever the rounding of the step
-    return edges;
-}
-
-// Bin of x among `bins` equal bins of [0, high], the upper edge in the last bin.
-std::size_t binIndex(double x, double high, std::size_t bins) {
-    const auto i = static_cast<std::size_t>(std::floor(x / high * static_cast<double>(bins)));
-    return std::min(i, bins - 1);
-}
 
 void addTo(std::vector<double>& sums, const std::vector<double>& values) {
     if (sums.size() < values.size()) {

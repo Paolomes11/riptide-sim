@@ -9,7 +9,30 @@ namespace riptide::sim {
 
 const schema::BranchSpec& columnSpec(std::size_t i) {
     constexpr std::size_t n_meta = schema::kMetaBranches.size();
-    return i < n_meta ? schema::kMetaBranches.at(i) : schema::kTruthBranches.at(i - n_meta);
+    if (i < n_meta) {
+        return schema::kMetaBranches.at(i);
+    }
+    if (i < schema::kV1Columns) {
+        return schema::kTruthBranches.at(i - n_meta);
+    }
+    if (i < schema::kV2Columns) {
+        return schema::kV2Branches.at(i - schema::kV1Columns);
+    }
+    return schema::kV3Branches.at(i - schema::kV2Columns);
+}
+
+std::size_t columnCount(std::int32_t schema_version) {
+    switch (schema_version) {
+    case 1:
+        return schema::kV1Columns;
+    case 2:
+        return schema::kV2Columns;
+    case 3:
+        return schema::kV3Columns;
+    default:
+        throw std::out_of_range("schema version " + std::to_string(schema_version) +
+                                " is not readable by this build");
+    }
 }
 
 std::size_t columnIndex(std::string_view name) {
@@ -21,8 +44,21 @@ std::size_t columnIndex(std::string_view name) {
     throw std::out_of_range("no column named '" + std::string(name) + "' in the event schema");
 }
 
-EventRow eventRow(const EventMeta& meta, const TruthRecord& record) {
-    // Same order as kMetaBranches followed by kTruthBranches; the unit test
+namespace {
+
+std::int32_t flag(bool b) {
+    return b ? 1 : 0;
+}
+
+} // namespace
+
+EventRow eventRow(const EventMeta& meta, const TruthRecord& record, const DepositRecord& deposit) {
+    // Proton-side values pass through only for a valid n-p (D7).
+    const bool np = record.valid_np;
+    const Vec3 vertex = np ? record.np_vertex : Vec3{};
+    const ProtonTrack p = np ? deposit.proton : ProtonTrack{};
+    const auto event_class = static_cast<std::int32_t>(classifyEvent(interactionCounts(record)));
+    // Same order as kMetaBranches, kTruthBranches, kV2Branches, kV3Branches; the unit test
     // checks every alternative against the schema's column type.
     return {
         meta.event_id,
@@ -43,7 +79,26 @@ EventRow eventRow(const EventMeta& meta, const TruthRecord& record) {
         record.p_dir.y,
         record.p_dir.z,
         record.theta_p,
-        static_cast<std::int32_t>(record.valid_np ? 1 : 0),
+        flag(record.valid_np),
+        deposit.Edep,
+        deposit.Evis,
+        vertex.x,
+        vertex.y,
+        vertex.z,
+        p.end.x,
+        p.end.y,
+        p.end.z,
+        p.length,
+        flag(p.exits),
+        p.Edep,
+        p.Evis,
+        p.n_hadronic,
+        record.n_nC_elastic,
+        record.n_nC_inelastic,
+        record.n_other,
+        record.n_secondary_n_hadronic,
+        event_class,
+        p.n_nuclear_recoil,
     };
 }
 
@@ -55,6 +110,14 @@ double doubleColumn(const EventRow& row, std::string_view name) {
 
 std::int32_t intColumn(const EventRow& row, std::string_view name) {
     return std::get<std::int32_t>(row.at(columnIndex(name)));
+}
+
+bool flagColumn(const EventRow& row, std::string_view name) {
+    const std::int32_t v = intColumn(row, name);
+    if (v != 0 && v != 1) {
+        throw std::out_of_range(std::string(name) + ": expected 0 or 1, got " + std::to_string(v));
+    }
+    return v == 1;
 }
 
 schema::FirstInteraction firstInteractionFromCode(std::int32_t code) {
@@ -92,12 +155,33 @@ TruthRecord truthRecord(const EventRow& row) {
     r.p_dir = {doubleColumn(row, "truth_p_dir_x"), doubleColumn(row, "truth_p_dir_y"),
                doubleColumn(row, "truth_p_dir_z")};
     r.theta_p = doubleColumn(row, "truth_theta_p");
-    const std::int32_t valid = intColumn(row, "truth_valid_np");
-    if (valid != 0 && valid != 1) {
-        throw std::out_of_range("truth_valid_np: expected 0 or 1, got " + std::to_string(valid));
-    }
-    r.valid_np = valid == 1;
+    r.valid_np = flagColumn(row, "truth_valid_np");
+    r.np_vertex = {doubleColumn(row, "truth_np_vertex_x"), doubleColumn(row, "truth_np_vertex_y"),
+                   doubleColumn(row, "truth_np_vertex_z")};
+    r.n_nC_elastic = intColumn(row, "truth_n_nC_elastic");
+    r.n_nC_inelastic = intColumn(row, "truth_n_nC_inelastic");
+    r.n_other = intColumn(row, "truth_n_other");
+    r.n_secondary_n_hadronic = intColumn(row, "truth_n_secondary_n_hadronic");
     return r;
+}
+
+DepositRecord depositRecord(const EventRow& row) {
+    DepositRecord d;
+    d.Edep = doubleColumn(row, "det_Edep");
+    d.Evis = doubleColumn(row, "det_Evis");
+    ProtonTrack& p = d.proton;
+    p.seen = flagColumn(row, "truth_valid_np");
+    p.start = {doubleColumn(row, "truth_np_vertex_x"), doubleColumn(row, "truth_np_vertex_y"),
+               doubleColumn(row, "truth_np_vertex_z")};
+    p.end = {doubleColumn(row, "truth_p_end_x"), doubleColumn(row, "truth_p_end_y"),
+             doubleColumn(row, "truth_p_end_z")};
+    p.length = doubleColumn(row, "truth_p_length");
+    p.exits = flagColumn(row, "truth_p_exits");
+    p.Edep = doubleColumn(row, "truth_p_Edep");
+    p.Evis = doubleColumn(row, "truth_p_Evis");
+    p.n_hadronic = intColumn(row, "truth_p_n_hadronic");
+    p.n_nuclear_recoil = intColumn(row, "truth_p_n_nuclear_recoil");
+    return d;
 }
 
 } // namespace riptide::sim

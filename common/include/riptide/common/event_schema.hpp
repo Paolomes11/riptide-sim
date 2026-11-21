@@ -11,14 +11,23 @@
 // column type.
 //
 // v1: first written schema (meta + truth columns).
+// v2: adds kV2Branches (deposits, recoil-proton track, event class). The v1
+//     columns keep name, type and meaning, so a v1 file is read as the first
+//     kV1Columns columns of a v2 row.
+// v3: adds kV3Branches (nuclear recoils made by the recoil proton through
+//     electromagnetic Coulomb scattering). As for v2, older files are read as
+//     the leading columns of a v3 row.
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <string_view>
 
 namespace riptide::schema {
 
-inline constexpr std::int32_t kSchemaVersion = 1;
+inline constexpr std::int32_t kSchemaVersion = 3;
+// Oldest version a reader of this build still accepts.
+inline constexpr std::int32_t kOldestReadableSchemaVersion = 1;
 inline constexpr std::string_view kEventTreeName = "events";
 
 enum class ColumnType : std::uint8_t { Int32, Double };
@@ -38,6 +47,21 @@ enum class FirstInteraction : std::int32_t {
     NCElastic = 2,
     NCInelastic = 3,
     Other = 4,
+};
+
+// Class of an event from all hadronic interactions of the primary neutron
+// inside the scintillator. Stored as Int32 like FirstInteraction: the numeric
+// values are part of the schema and must never be reused. Precedence, highest
+// first: any interaction outside the three below gives Other; then n-p with
+// n-C gives Mixed; then the classes of a single kind.
+enum class EventClass : std::int32_t {
+    NoInteraction = 0,   // the primary neutron crossed without interacting
+    SingleNp = 1,        // exactly one n-p elastic scatter, nothing else
+    MultipleNp = 2,      // two or more n-p elastic scatters, nothing else
+    NCElasticOnly = 3,   // n-C elastic scatters only
+    NCInelasticNoNp = 4, // at least one n-C inelastic, no n-p (n-C elastic allowed)
+    Mixed = 5,           // at least one n-p and at least one n-C
+    Other = 6,           // at least one interaction not n-p or n-C elastic/inelastic
 };
 
 // Event identification. Multithreaded Geant4 runs write one file per thread in
@@ -69,5 +93,49 @@ inline constexpr std::array<BranchSpec, 16> kTruthBranches{{
     {"truth_valid_np", ColumnType::Int32, "1",
      "1 if the truth_Ep/p_dir/theta_p columns are filled"},
 }};
+
+inline constexpr std::size_t kV1Columns = kMetaBranches.size() + kTruthBranches.size();
+
+// Columns added in v2. The truth_np_vertex_* and truth_p_* columns describe
+// the recoil proton of the first n-p scatter: like truth_Ep they are filled
+// only when truth_valid_np is 1 and are 0 otherwise. The truth_p_* track
+// quantities are the part of the proton track inside the scintillator.
+inline constexpr std::array<BranchSpec, 18> kV2Branches{{
+    {"det_Edep", ColumnType::Double, "MeV", "energy deposited in the scintillator, all particles"},
+    {"det_Evis", ColumnType::Double, "MeV", "visible energy (Birks-quenched), all particles"},
+    {"truth_np_vertex_x", ColumnType::Double, "mm", "first n-p scatter vertex, x"},
+    {"truth_np_vertex_y", ColumnType::Double, "mm", "first n-p scatter vertex, y"},
+    {"truth_np_vertex_z", ColumnType::Double, "mm", "first n-p scatter vertex, z"},
+    {"truth_p_end_x", ColumnType::Double, "mm", "recoil proton end point in the scintillator, x"},
+    {"truth_p_end_y", ColumnType::Double, "mm", "recoil proton end point in the scintillator, y"},
+    {"truth_p_end_z", ColumnType::Double, "mm", "recoil proton end point in the scintillator, z"},
+    {"truth_p_length", ColumnType::Double, "mm", "recoil proton path length in the scintillator"},
+    {"truth_p_exits", ColumnType::Int32, "1", "1 if the recoil proton left the scintillator"},
+    {"truth_p_Edep", ColumnType::Double, "MeV", "energy deposited by the recoil proton track"},
+    {"truth_p_Evis", ColumnType::Double, "MeV", "visible energy of the recoil proton track"},
+    {"truth_p_n_hadronic", ColumnType::Int32, "1",
+     "hadronic interactions of the recoil proton in the scintillator"},
+    {"truth_n_nC_elastic", ColumnType::Int32, "1", "number of n-C elastic scatters"},
+    {"truth_n_nC_inelastic", ColumnType::Int32, "1", "number of n-C inelastic interactions"},
+    {"truth_n_other", ColumnType::Int32, "1",
+     "number of other hadronic interactions of the primary neutron"},
+    {"truth_n_secondary_n_hadronic", ColumnType::Int32, "1",
+     "hadronic interactions of non-primary neutrons in the scintillator"},
+    {"truth_event_class", ColumnType::Int32, "1", "EventClass code"},
+}};
+
+inline constexpr std::size_t kV2Columns = kV1Columns + kV2Branches.size();
+
+// Columns added in v3. Single Coulomb scattering of the recoil proton is an
+// electromagnetic process, so truth_p_n_hadronic does not count it, yet it can
+// give a nucleus (or a hydrogen proton) a recoil above threshold, which then
+// carries energy away from the proton track. Like the other truth_p_* columns,
+// filled only when truth_valid_np is 1.
+inline constexpr std::array<BranchSpec, 1> kV3Branches{{
+    {"truth_p_n_nuclear_recoil", ColumnType::Int32, "1",
+     "non-hadronic steps of the recoil proton that made a nuclear recoil"},
+}};
+
+inline constexpr std::size_t kV3Columns = kV2Columns + kV3Branches.size();
 
 } // namespace riptide::schema

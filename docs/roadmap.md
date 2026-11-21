@@ -50,12 +50,22 @@ progetto ricostruisce il neutrone incidente da ciò che interagisce nello scinti
   `estimateRunBytes`).
 - Risultati: `validation/1b_results.md` (tre run da 10⁷, tutte le verifiche passate).
 
-## Fase 2 — Deposito di energia e quenching di Birks
+## Fase 2 — Deposito di energia e quenching di Birks ✅ completata (v0.4.0, 2026-11-21)
 
 - Energia depositata e luce visibile con `G4EmSaturation` (kB da letteratura citata, mai
-  inventato).
-- Traccia del protone: inizio, fine, lunghezza, uscita dal volume.
-- Classificazione dell'evento: singolo n–p, n–p multiplo, n–C elastico/inelastico, misto.
+  inventato): kB = 0.155 mm/MeV, intervallo sistematico [0.145, 0.165] (D18).
+- Luce dei protoni continua, L(K_pre) − L(K_pre − E_dep) dallo S elettronico di Geant4,
+  indipendente dalla funzione di passo (D21).
+- Traccia del protone: inizio, fine, lunghezza, uscita dal volume, interazioni adroniche e
+  rinculi nucleari da scattering Coulombiano (D22).
+- Classificazione dell'evento: singolo n–p, n–p multiplo, n–C elastico/inelastico, misto (D19).
+- Verifiche dei depositi (schema 3, `checks_version` 8, poi 9): oracoli di bilancio, confronto di range
+  e luce con PSTAR per bin di E_p (D20).
+- Lettura delle righe in ordine di `event_id`: le verifiche non dipendono dalla divisione degli
+  eventi fra i thread (D23, `checks_version` 9).
+- Run di validazione: tre da 10⁷ (mono 14 MeV, piatto 10–20 MeV, bordo 19.5–20 MeV) e tre di
+  sensibilità a kB, con previsioni in `validation/2_predictions.md` v2.
+- Risultati: `validation/2_results.md` (tutte le soglie passate nelle verifiche `c2`).
 
 ## Fase 3 — Geometria reale
 

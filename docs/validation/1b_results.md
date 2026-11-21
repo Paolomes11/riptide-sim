@@ -70,7 +70,7 @@ Bonferroni con α_family = 0.01 a run: α per test 1.11·10⁻³ (mono, 3 χ² +
 | spettro u, χ²/ndf (p) | 54.98/49 (0.258) | 54.98/49 (0.258) | 39.60/49 (0.829) | 58.35/49 (0.169) |
 | profondità z, χ²/ndf (p) | 59.75/49 (0.140) | 59.83/49 (0.138) | 50.47/49 (0.415) | 64.78/49 (0.065) |
 | frazioni, χ²/ndf (p) | **28.34/4 (1.1·10⁻⁵)** | 6.33/4 (0.176) | 1.82/4 (0.769) | 0.19/4 (0.996) |
-| pull a₁…a₆ | +0.43 −0.25 −1.83 +1.41 −2.79 +0.06 | uguali | −0.13 +0.13 +0.24 +0.15 +0.08 −0.17 | −1.38 −0.29 −0.56 +1.60 −0.38 +1.14 |
+| pull a₁…a₆ | +0.43 −0.25 −1.83 +1.41 −2.79 +0.06 | uguali | −0.13 +0.13 +0.24 +0.15 +0.08 −0.17 | −1.37 −0.28 −0.56 +1.60 −0.38 +1.14 |
 | `model_mix` pull | — | — | +0.71 (40 837 contro 40 753.5) | −0.53 (819 885 contro 820 163.7) |
 | `model_mix` χ²/ndf (p) | — | — | 7.41/10 (0.686) | 5.51/10 (0.855) |
 
@@ -96,6 +96,27 @@ eventi), come atteso per un difetto sistematico delle attese e non per una flutt
 differenza media: il resto è la fluttuazione comune con `jeff33` (a₃ = −1.83 contro jeff33).
 Si conferma il limite di D13: a 10⁷ eventi la simulazione non distingue le due revisioni di
 H-1, e la fase 1b verifica l'implementazione, non i dati n–p.
+
+## Regressione delle verifiche v7 (`c3`, 2026-11-20)
+
+`riptide_sim_check` al commit `09bef22` (`checks_version` 7, build `release`) sugli stessi tre
+run, con `--check-id c3 --bins-u 50 --bins-z 50` e `scripts/run_capped.sh -m 5G`. Previsione
+scritta prima: stessi numeri di `c2`, `deposits` saltata perché i run hanno schema 1.
+
+**Esito: nessuna regressione.** Per tutti e tre i run (a):
+- i sei CSV (`spectrum_u`, `depth_z`, `fractions`, `legendre`, `model_mix`, `residuals_Ep`)
+  sono identici byte per byte a quelli di `c2`;
+- in `checks.json` gli unici campi diversi sono `check_id`, `checks_version` (5 → 7),
+  `versions.git`, `versions.riptide` (0.2.0 → 0.3.0) e `versions.schema` (1 → 2). Inoltre
+  compare `results.deposits` = `{"skipped": "schema version 1 has no deposit columns"}`;
+- nessun CSV di fase 2 è stato scritto.
+
+`versions.schema` non era nella previsione. È il `kSchemaVersion` compilato nel programma di
+verifica, non lo schema del run letto, e vale 2 da D19. Lo schema del run è quello di
+`run.json`, e qui è 1, come mostra `deposits.skipped`. La descrizione in `data_layout.md` è
+stata corretta.
+
+Tempo 33–47 s, RSS massimo 164 MiB (c), come in `c2`.
 
 ## Punti aperti
 

@@ -46,6 +46,8 @@ struct EventMeta {
 };
 
 // Mirrors the truth_* columns of event_schema.hpp, plus one diagnostic counter.
+// The event class is not stored: it follows from the counters through
+// classifyEvent, so it cannot disagree with them.
 struct TruthRecord {
     double En = 0.0;
     Vec3 omega_n;
@@ -57,12 +59,40 @@ struct TruthRecord {
     Vec3 p_dir;
     double theta_p = 0.0;
     bool valid_np = false;
+    // Vertex of the first n-p scatter [mm]; it differs from r0 when an n-C
+    // interaction came first. Meaningful only with valid_np.
+    Vec3 np_vertex;
+    std::int32_t n_nC_elastic = 0;
+    std::int32_t n_nC_inelastic = 0;
+    // Hadronic interactions of the primary outside the three kinds above
+    // (capture, inelastic on hydrogen, ...).
+    std::int32_t n_other = 0;
+    // Hadronic interactions in the scintillator of neutrons other than the
+    // primary. Geant4's high-precision inelastic models kill the primary and
+    // emit the outgoing neutron as a new track, so its later interactions
+    // (an n-p after n-C inelastic, say) are invisible to the counters above;
+    // this counter says how often that happens.
+    std::int32_t n_secondary_n_hadronic = 0;
     // Elastic scatters on hydrogen whose step had no recoil proton secondary.
     // Expected to stay zero; not written to the ntuple.
     std::int32_t n_np_without_proton = 0;
 };
 
 [[nodiscard]] schema::FirstInteraction classifyFirstInteraction(HadronicKind kind, int target_Z);
+
+// Hadronic interactions of the primary neutron in one event, by kind.
+struct InteractionCounts {
+    std::int32_t np = 0;
+    std::int32_t nC_elastic = 0;
+    std::int32_t nC_inelastic = 0;
+    std::int32_t other = 0;
+};
+
+[[nodiscard]] InteractionCounts interactionCounts(const TruthRecord& record);
+
+// Event class with the precedence documented on schema::EventClass. Throws
+// std::invalid_argument on a negative count, which no recorder can produce.
+[[nodiscard]] schema::EventClass classifyEvent(const InteractionCounts& counts);
 
 // Angle between two non-zero vectors [rad], in [0, pi]. The cosine is clamped
 // to [-1, 1] so rounding on nearly parallel vectors cannot make acos return NaN.
@@ -77,6 +107,9 @@ public:
     // Starts a new event, discarding the previous one.
     void beginEvent(const EventMeta& meta, double En, const Vec3& omega_n);
     void onHadronicStep(const HadronicStep& step);
+    // A hadronic interaction in the scintillator of a neutron that is not the
+    // primary; see TruthRecord::n_secondary_n_hadronic.
+    void onSecondaryNeutronHadronic();
 
     [[nodiscard]] const EventMeta& meta() const {
         return meta_;

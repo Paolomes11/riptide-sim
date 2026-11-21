@@ -1,8 +1,10 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 
+#include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -273,4 +275,131 @@ TEST_CASE("writeJsonAtomically writes once and refuses to overwrite", "[check_re
     CHECK_THROWS_AS(writeJsonAtomically(path, doc), ReportError);
     CHECK_THROWS_AS(writeJsonAtomically(dir / "missing" / kChecksFileName, doc), ReportError);
     fs::remove_all(dir);
+}
+
+namespace {
+
+// Two bins on [0, 20] MeV and a few of each counter, so that every key of the
+// deposits object can be traced to the field it comes from.
+DepositResults sampleDeposits() {
+    DepositResults r;
+    r.events = 10;
+    r.np_events = 4;
+    r.classes = {5, 3, 1, 0, 1, 0, 0};
+    r.protons_exiting = 1;
+    r.protons_hadronic = 2;
+    r.protons_nuclear_recoil = 3;
+    r.contained_balance.samples = 2;
+    r.contained_balance.max = kResidualA;
+    r.contained_balance.positive = 1;
+    r.edges = {0.0, 10.0, 20.0};
+    r.Edep_counts = {3, 1};
+    r.Evis_counts = {4, 0};
+    r.Edep_overflow = 1;
+    r.protons_per_Ep = {1, 3};
+    r.exiting_per_Ep = {0, 1};
+    r.counters.class_mismatch = 2;
+    r.counters.end_outside_box = 1;
+    r.counters.p_Edep_above_Ep = 3;
+    return r;
+}
+
+const DepositSetup kDepositSetup{{50.0, 50.0, 50.0}, 20.0, 0.155, 2};
+
+} // namespace
+
+TEST_CASE("depositsJson reports setup, classes and counters", "[check_report]") {
+    const nlohmann::json doc = depositsJson(kDepositSetup, sampleDeposits());
+    CHECK(doc["skipped"].is_null());
+    CHECK(doc["setup"]["bins"] == 2);
+    CHECK_THAT(doc["setup"]["birks_kB_mm_per_MeV"].get<double>(), WithinULP(0.155, 0));
+    CHECK(doc["setup"]["half_size_mm"].size() == 3);
+    CHECK(doc["events"] == 10);
+    CHECK(doc["np_events"] == 4);
+    CHECK(doc["event_classes"].size() == kEventClasses);
+    CHECK(doc["event_classes"]["no_interaction"] == 5);
+    CHECK(doc["event_classes"]["single_np"] == 3);
+    CHECK(doc["event_classes"]["nc_inelastic_no_np"] == 1);
+    CHECK(doc["protons_exiting"] == 1);
+    CHECK(doc["protons_hadronic"] == 2);
+    CHECK(doc["protons_nuclear_recoil"] == 3);
+    CHECK(doc["contained_balance_MeV"]["positive"] == 1);
+    CHECK(doc["Edep_overflow"] == 1);
+    const auto& must = doc["counters"]["must_be_zero"];
+    CHECK(must["class_mismatch"] == 2);
+    CHECK(must["end_outside_box"] == 1);
+    CHECK(must["total"] == 3);
+    CHECK(doc["counters"]["expected_rare"]["p_Edep_above_Ep"] == 3);
+}
+
+TEST_CASE("depositsSkippedJson carries only the reason", "[check_report]") {
+    const nlohmann::json doc = depositsSkippedJson("schema version 1 has no deposit columns");
+    CHECK(doc["skipped"] == "schema version 1 has no deposit columns");
+    CHECK(doc.size() == 1);
+}
+
+TEST_CASE("deposit CSVs have one row per bin", "[check_report]") {
+    std::ostringstream spectra;
+    writeDepositSpectraCsv(spectra, sampleDeposits());
+    CHECK(lines(spectra.str()) ==
+          std::vector<std::string>{"low,high,Edep,Evis", "0,10,3,4", "10,20,1,0"});
+
+    std::ostringstream exits;
+    writeProtonExitsCsv(exits, sampleDeposits());
+    CHECK(lines(exits.str()) ==
+          std::vector<std::string>{"Ep_low,Ep_high,protons,exiting", "0,10,1,0", "10,20,3,1"});
+}
+
+namespace {
+
+// Two bins: the first with two protons, the second empty.
+PstarResults samplePstar() {
+    PstarResults r;
+    r.samples = 2;
+    r.below_table = 1;
+    r.edges = {0.0, 10.0, 20.0};
+    r.range_bins.assign(2, {});
+    r.light_bins.assign(2, {});
+    for (const double d : {0.25, -0.75}) {
+        r.range_bins.at(0).add(2.0 + d, 2.0);
+        r.light_bins.at(0).add(4.0 - d, 4.0);
+        r.range.add(2.0 + d, 2.0);
+        r.light.add(4.0 - d, 4.0);
+    }
+    return r;
+}
+
+} // namespace
+
+TEST_CASE("pstarJson reports the residuals, null where undefined", "[check_report]") {
+    const nlohmann::json doc = pstarJson(samplePstar());
+    CHECK(doc["samples"] == 2);
+    CHECK(doc["below_table"] == 1);
+    CHECK(doc["range_mm"]["samples"] == 2);
+    CHECK_THAT(doc["range_mm"]["residual_mean"].get<double>(), WithinULP(-0.25, 0));
+    CHECK_THAT(doc["light_MeV"]["residual_mean"].get<double>(), WithinULP(0.25, 0));
+    CHECK_THAT(doc["range_mm"]["relative_residual"].get<double>(), WithinULP(-0.125, 0));
+    CHECK(doc["range_mm"]["residual_sd"].is_number());
+    REQUIRE(doc["bins"].size() == 2);
+    CHECK_THAT(doc["bins"][1]["Ep_low_MeV"].get<double>(), WithinULP(10.0, 0));
+    const auto& empty = doc["bins"][1]["light_MeV"];
+    CHECK(empty["samples"] == 0);
+    CHECK(empty["residual_mean"].is_null());
+    CHECK(empty["residual_sd"].is_null());
+    CHECK(empty["relative_residual"].is_null());
+}
+
+TEST_CASE("the PSTAR CSV has one row per bin, empty fields where undefined", "[check_report]") {
+    std::ostringstream out;
+    writePstarComparisonCsv(out, samplePstar());
+    // d = +0.25, -0.75: mean -0.25, sample sd sqrt(0.5).
+    std::ostringstream sd;
+    sd.precision(std::numeric_limits<double>::max_digits10);
+    sd << std::sqrt(0.5);
+    CHECK(lines(out.str()) ==
+          std::vector<std::string>{"Ep_low,Ep_high,protons,length_mean,R_csda_mean,"
+                                   "length_residual_mean,length_residual_sd,Evis_mean,L_mean,"
+                                   "Evis_residual_mean,Evis_residual_sd",
+                                   "0,10,2,1.75,2,-0.25," + sd.str() + ",4.25,4,0.25," + sd.str(),
+                                   "10,20,0,,,,,,,,"});
 }

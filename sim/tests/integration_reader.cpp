@@ -41,6 +41,18 @@ constexpr double kUnitNormTolerance = 1e-12;
 // The gun energy is written back unchanged, so the relative tolerance only
 // absorbs the MeV conversion.
 constexpr double kEnergyRelTolerance = 1e-12;
+// Sums of per-step deposits compared with each other or with a kinetic energy:
+// each side is a sum of up to a few hundred doubles, so allow far more than
+// their rounding but far less than any physical deposit.
+constexpr double kSumAbsTolerance = 1e-9; // MeV
+// G4NuclearStopping (11.4.1) caps its step loss at the pre-step kinetic energy,
+// not at what ionisation left, and G4ParticleChangeForLoss then clamps the
+// kinetic energy to 0 while still depositing the whole loss: on the last step
+// of a stopping proton the track can deposit slightly more than it started
+// with (1.9e-4 MeV seen at 14 MeV). The excess is bounded by one step of
+// nuclear stopping; 10 keV is far above that and far below the MeV-scale error
+// of tagging the wrong track.
+constexpr double kNuclearStoppingSlack = 0.01; // MeV
 
 std::filesystem::path pathFromEnv(const char* name) {
     const char* value = std::getenv(name); // NOLINT(concurrency-mt-unsafe): single-threaded
@@ -64,6 +76,11 @@ const RunData& run2t() {
     return run;
 }
 
+const RunData& runKB0() {
+    static const RunData run = loadRun(pathFromEnv("RIPTIDE_IT_RUN_KB0"));
+    return run;
+}
+
 void checkRecord(const RunData& run, int threads, const std::filesystem::path& dir) {
     CHECK(run.record.at("events").get<std::size_t>() == expectedEvents());
     CHECK(run.record.at("threads").get<int>() == threads);
@@ -78,6 +95,7 @@ void checkRecord(const RunData& run, int threads, const std::filesystem::path& d
 TEST_CASE("run records match the requested runs", "[integration]") {
     checkRecord(run1t(), 1, pathFromEnv("RIPTIDE_IT_RUN_1T"));
     checkRecord(run2t(), 2, pathFromEnv("RIPTIDE_IT_RUN_2T"));
+    checkRecord(runKB0(), 1, pathFromEnv("RIPTIDE_IT_RUN_KB0"));
 }
 
 TEST_CASE("event ids are unique and cover 0..N-1", "[integration]") {
@@ -123,6 +141,42 @@ TEST_CASE("truth columns are consistent", "[integration]") {
     }
 }
 
+TEST_CASE("deposit and proton-track columns are consistent", "[integration]") {
+    using riptide::schema::EventClass;
+    const RunData& run = run2t();
+    CHECK(run.record.at("schema_version").get<int>() == riptide::schema::kSchemaVersion);
+    for (const auto& [event_id, row] : run.rows) {
+        INFO("event_id " << event_id);
+        const double Edep = doubleAt(row, "det_Edep");
+        const double Evis = doubleAt(row, "det_Evis");
+        CHECK(Edep >= 0.0);
+        CHECK(Evis >= 0.0);
+        // Birks quenching only ever reduces a step's deposit.
+        CHECK(Evis <= Edep + kSumAbsTolerance);
+
+        const auto event_class = intAt(row, "truth_event_class");
+        if (static_cast<FirstInteraction>(intAt(row, "truth_first_interaction")) ==
+            FirstInteraction::Unknown) {
+            CHECK(event_class == static_cast<std::int32_t>(EventClass::NoInteraction));
+            // Nothing interacted, so nothing was deposited: exactly zero.
+            CHECK_THAT(Edep, Catch::Matchers::WithinAbs(0.0, 0.0));
+        }
+        if (intAt(row, "truth_valid_np") == 1) {
+            const double p_Edep = doubleAt(row, "truth_p_Edep");
+            const double p_Evis = doubleAt(row, "truth_p_Evis");
+            CHECK(doubleAt(row, "truth_p_length") > 0.0);
+            CHECK(p_Evis <= p_Edep + kSumAbsTolerance);
+            CHECK(p_Edep <= doubleAt(row, "truth_Ep") + kNuclearStoppingSlack);
+            CHECK(p_Edep <= Edep + kSumAbsTolerance);
+            CHECK(event_class != static_cast<std::int32_t>(EventClass::NoInteraction));
+        } else {
+            CHECK(intAt(row, "truth_p_exits") == 0);
+            CHECK(intAt(row, "truth_p_n_hadronic") == 0);
+            CHECK(intAt(row, "truth_p_n_nuclear_recoil") == 0);
+        }
+    }
+}
+
 TEST_CASE("the same events come out with 1 and 2 threads", "[integration]") {
     const auto& rows1 = run1t().rows;
     const auto& rows2 = run2t().rows;
@@ -141,5 +195,28 @@ TEST_CASE("the same events come out with 1 and 2 threads", "[integration]") {
                            Catch::Matchers::WithinULP(std::get<double>(it->second.at(i)), 0));
             }
         }
+    }
+}
+
+TEST_CASE("with kB = 0 the visible energy is the deposit", "[integration]") {
+    const RunData& run = runKB0();
+    REQUIRE_THAT(run.record.at("config").at("scintillator").at("birks_kB_mm_per_MeV").get<double>(),
+                 Catch::Matchers::WithinAbs(0.0, 0.0));
+    const auto& nominal = run1t().rows;
+    REQUIRE(run.rows.size() == nominal.size());
+    for (const auto& [event_id, row] : run.rows) {
+        INFO("event_id " << event_id);
+        // G4EmSaturation returns each step's deposit unchanged when kB = 0, and
+        // both totals add the same steps in the same order.
+        const double Edep = doubleAt(row, "det_Edep");
+        CHECK_THAT(doubleAt(row, "det_Evis"), Catch::Matchers::WithinAbs(Edep, kSumAbsTolerance));
+        CHECK_THAT(doubleAt(row, "truth_p_Evis"),
+                   Catch::Matchers::WithinAbs(doubleAt(row, "truth_p_Edep"), kSumAbsTolerance));
+        // kB only enters the visible energy, computed after the step: transport
+        // and random numbers are those of the nominal 1-thread run.
+        const auto it = nominal.find(event_id);
+        REQUIRE(it != nominal.end());
+        CHECK_THAT(Edep, Catch::Matchers::WithinULP(doubleAt(it->second, "det_Edep"), 0));
+        CHECK(intAt(row, "truth_event_class") == intAt(it->second, "truth_event_class"));
     }
 }
