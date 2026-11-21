@@ -122,6 +122,16 @@ TEST_CASE("truth columns are consistent", "[integration]") {
                        doubleAt(row, "truth_omega_n_z"));
         CHECK_THAT(norm, Catch::Matchers::WithinAbs(1.0, kUnitNormTolerance));
 
+        // The integration runs are pencil beams: every neutron starts at the
+        // configured point, written exactly as the gun received it.
+        const auto& start = run.record.at("config").at("source").at("position_mm");
+        CHECK_THAT(doubleAt(row, "truth_n_start_x"),
+                   Catch::Matchers::WithinAbs(start.at(0).get<double>(), 0.0));
+        CHECK_THAT(doubleAt(row, "truth_n_start_y"),
+                   Catch::Matchers::WithinAbs(start.at(1).get<double>(), 0.0));
+        CHECK_THAT(doubleAt(row, "truth_n_start_z"),
+                   Catch::Matchers::WithinAbs(start.at(2).get<double>(), 0.0));
+
         const auto first = static_cast<FirstInteraction>(intAt(row, "truth_first_interaction"));
         const bool valid_np = intAt(row, "truth_valid_np") == 1;
         if (valid_np) {

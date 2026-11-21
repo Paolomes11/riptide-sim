@@ -86,14 +86,16 @@ void PrimaryGeneratorAction::GeneratePrimaries(G4Event* event) {
                                 (source_.En_max - source_.En_min) * G4UniformRand());
     }
     Vec3 direction = source_.direction;
+    Vec3 start = source_.position;
     if (source_.beam == BeamMode::FarField) {
         const auto ray = sampleFarField(source_, disk_, [] { return G4UniformRand(); });
         direction = ray.direction;
+        start = ray.position;
         gun_->SetParticleMomentumDirection(G4ThreeVector(direction.x, direction.y, direction.z));
         gun_->SetParticlePosition(G4ThreeVector(ray.position.x, ray.position.y, ray.position.z));
     }
     const EventMeta meta{event->GetEventID(), current_seeds_.seed_0, current_seeds_.seed_1};
-    recorder_->beginEvent(meta, gun_->GetParticleEnergy(), direction);
+    recorder_->beginEvent(meta, gun_->GetParticleEnergy(), direction, start);
     gun_->GeneratePrimaryVertex(event);
 }
 

@@ -398,9 +398,9 @@ Chiavi (versione 1 del formato):
 `git_describe` viene rigenerato a ogni build (`cmake/RiptideGitDescribe.cmake`) e descrive i
 sorgenti al momento della build, non al momento del run.
 
-## Schema degli eventi (v3)
+## Schema degli eventi (v4)
 
-Albero `events`: le 19 colonne della v1, le 18 della v2, poi quella della v3, in quest'ordine. Ci sono solo due tipi, `Int32` (`Int_t`) e `Double`
+Albero `events`: le 19 colonne della v1, le 18 della v2, quella della v3, poi le 3 della v4, in quest'ordine. Ci sono solo due tipi, `Int32` (`Int_t`) e `Double`
 (`Double_t`), perché il writer di Geant4 non ha colonne intere a 64 bit.
 
 | Colonne | Tipo | Contenuto |
@@ -424,6 +424,7 @@ Albero `events`: le 19 colonne della v1, le 18 della v2, poi quella della v3, in
 | `truth_n_secondary_n_hadronic` | Int32 | interazioni adroniche dei neutroni non primari nello scintillatore (v2) |
 | `truth_event_class` | Int32 | codice `EventClass` (D19): 0 nessuna, 1 singolo n–p, 2 n–p multiplo, 3 solo n–C elastico, 4 n–C anelastico senza n–p, 5 misto, 6 altro (v2) |
 | `truth_p_n_nuclear_recoil` | Int32 | step non adronici del protone di rinculo che hanno creato un rinculo nucleare, cioè un secondario con numero barionico > 0 (scattering Coulombiano singolo, D22) (v3) |
+| `truth_n_start_{x,y,z}` | Double | punto di partenza del neutrone primario [mm] (v4): fisso nel fascio pencil, estratto per evento sul disco della sorgente a campo lontano (D27); con `truth_omega_n` dà la corda dell'evento nello scintillatore |
 
 Unità: MeV, mm, ns, rad. Nomi, unità e descrizioni stanno in `event_schema.hpp`, che è l'unica
 fonte: la riga scritta dalla sim (`sim/truth/.../event_row.hpp`) è verificata colonna per colonna
@@ -440,4 +441,4 @@ dettagli e il margine di `G4NuclearStopping` su `truth_p_Edep` stanno in D19.
 
 Le versioni successive aggiungono colonne solo in coda e non cambiano quelle esistenti. Il
 lettore (`sim/reader`) accetta le versioni da 1 a quella della build e collega solo le colonne
-presenti nel file. Le altre restano a zero, quindi in un file v1 le colonne v2 valgono 0 e in un file v2 `truth_p_n_nuclear_recoil` vale 0.
+presenti nel file. Le altre restano a zero, quindi in un file v1 le colonne v2 valgono 0 e in un file v2 `truth_p_n_nuclear_recoil` vale 0. In un file anteriore alla v4 `truth_n_start_*` vale 0: quei run sono tutti pencil, e il punto di partenza si prende da `source.position_mm` del config.

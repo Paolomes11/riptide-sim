@@ -76,6 +76,8 @@ struct TruthRecord {
     // Elastic scatters on hydrogen whose step had no recoil proton secondary.
     // Expected to stay zero; not written to the ntuple.
     std::int32_t n_np_without_proton = 0;
+    // Start point of the primary neutron [mm].
+    Vec3 n_start;
 };
 
 [[nodiscard]] schema::FirstInteraction classifyFirstInteraction(HadronicKind kind, int target_Z);
@@ -105,7 +107,7 @@ struct InteractionCounts {
 class TruthRecorder {
 public:
     // Starts a new event, discarding the previous one.
-    void beginEvent(const EventMeta& meta, double En, const Vec3& omega_n);
+    void beginEvent(const EventMeta& meta, double En, const Vec3& omega_n, const Vec3& n_start);
     void onHadronicStep(const HadronicStep& step);
     // A hadronic interaction in the scintillator of a neutron that is not the
     // primary; see TruthRecord::n_secondary_n_hadronic.

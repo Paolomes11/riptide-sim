@@ -18,7 +18,10 @@ const schema::BranchSpec& columnSpec(std::size_t i) {
     if (i < schema::kV2Columns) {
         return schema::kV2Branches.at(i - schema::kV1Columns);
     }
-    return schema::kV3Branches.at(i - schema::kV2Columns);
+    if (i < schema::kV3Columns) {
+        return schema::kV3Branches.at(i - schema::kV2Columns);
+    }
+    return schema::kV4Branches.at(i - schema::kV3Columns);
 }
 
 std::size_t columnCount(std::int32_t schema_version) {
@@ -29,6 +32,8 @@ std::size_t columnCount(std::int32_t schema_version) {
         return schema::kV2Columns;
     case 3:
         return schema::kV3Columns;
+    case 4:
+        return schema::kV4Columns;
     default:
         throw std::out_of_range("schema version " + std::to_string(schema_version) +
                                 " is not readable by this build");
@@ -58,7 +63,7 @@ EventRow eventRow(const EventMeta& meta, const TruthRecord& record, const Deposi
     const Vec3 vertex = np ? record.np_vertex : Vec3{};
     const ProtonTrack p = np ? deposit.proton : ProtonTrack{};
     const auto event_class = static_cast<std::int32_t>(classifyEvent(interactionCounts(record)));
-    // Same order as kMetaBranches, kTruthBranches, kV2Branches, kV3Branches; the unit test
+    // Same order as kMetaBranches, kTruthBranches, kV2Branches ... kV4Branches; the unit test
     // checks every alternative against the schema's column type.
     return {
         meta.event_id,
@@ -99,6 +104,9 @@ EventRow eventRow(const EventMeta& meta, const TruthRecord& record, const Deposi
         record.n_secondary_n_hadronic,
         event_class,
         p.n_nuclear_recoil,
+        record.n_start.x,
+        record.n_start.y,
+        record.n_start.z,
     };
 }
 
@@ -162,6 +170,8 @@ TruthRecord truthRecord(const EventRow& row) {
     r.n_nC_inelastic = intColumn(row, "truth_n_nC_inelastic");
     r.n_other = intColumn(row, "truth_n_other");
     r.n_secondary_n_hadronic = intColumn(row, "truth_n_secondary_n_hadronic");
+    r.n_start = {doubleColumn(row, "truth_n_start_x"), doubleColumn(row, "truth_n_start_y"),
+                 doubleColumn(row, "truth_n_start_z")};
     return r;
 }
 

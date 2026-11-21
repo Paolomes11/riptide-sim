@@ -33,6 +33,7 @@ constexpr double kAngleTol = 1e-12;
 constexpr int kOxygenZ = 8;
 constexpr double kEn = 14.0 * u::MeV;
 const Vec3 kBeam{0.0, 0.0, 1.0};
+const Vec3 kStart{0.0, 0.0, -100.0};
 constexpr riptide::sim::EventMeta kMeta{7, 11, 13};
 
 HadronicStep step(HadronicKind kind, int Z, std::optional<RecoilProton> proton = std::nullopt) {
@@ -82,15 +83,18 @@ TEST_CASE("thetaP clamps a cosine rounded above 1", "[truth]") {
 
 TEST_CASE("recorder: new event starts clean", "[truth]") {
     TruthRecorder rec;
-    rec.beginEvent(kMeta, kEn, kBeam);
+    rec.beginEvent(kMeta, kEn, kBeam, kStart);
     rec.onHadronicStep(step(HadronicKind::Elastic, kHydrogenZ, RecoilProton{5.0, {1.0, 0.0, 0.0}}));
-    rec.beginEvent({8, 17, 19}, 10.0 * u::MeV, {1.0, 0.0, 0.0});
+    rec.beginEvent({8, 17, 19}, 10.0 * u::MeV, {1.0, 0.0, 0.0}, {-40.0, 2.0, 3.0});
     CHECK(rec.meta().event_id == 8);
     CHECK(rec.meta().rng_seed_0 == 17);
     CHECK(rec.meta().rng_seed_1 == 19);
     const auto& r = rec.record();
     CHECK_THAT(r.En, WithinAbs(10.0 * u::MeV, 0.0));
     CHECK_THAT(r.omega_n.x, WithinAbs(1.0, 0.0));
+    CHECK_THAT(r.n_start.x, WithinAbs(-40.0, 0.0));
+    CHECK_THAT(r.n_start.y, WithinAbs(2.0, 0.0));
+    CHECK_THAT(r.n_start.z, WithinAbs(3.0, 0.0));
     CHECK(r.first_interaction == FirstInteraction::Unknown);
     CHECK(r.n_np_scatters == 0);
     CHECK_FALSE(r.valid_np);
@@ -99,7 +103,7 @@ TEST_CASE("recorder: new event starts clean", "[truth]") {
 
 TEST_CASE("recorder: n-C elastic then n-p", "[truth]") {
     TruthRecorder rec;
-    rec.beginEvent(kMeta, kEn, kBeam);
+    rec.beginEvent(kMeta, kEn, kBeam, kStart);
     rec.onHadronicStep(step(HadronicKind::Elastic, kCarbonZ));
     rec.onHadronicStep(
         step(HadronicKind::Elastic, kHydrogenZ, RecoilProton{7.0 * u::MeV, {0.6, 0.0, 0.8}}));
@@ -115,7 +119,7 @@ TEST_CASE("recorder: n-C elastic then n-p", "[truth]") {
 
 TEST_CASE("recorder: the first n-p defines the proton", "[truth]") {
     TruthRecorder rec;
-    rec.beginEvent(kMeta, kEn, kBeam);
+    rec.beginEvent(kMeta, kEn, kBeam, kStart);
     rec.onHadronicStep(
         step(HadronicKind::Elastic, kHydrogenZ, RecoilProton{7.0 * u::MeV, {0.0, 0.0, 1.0}}));
     rec.onHadronicStep(
@@ -129,7 +133,7 @@ TEST_CASE("recorder: the first n-p defines the proton", "[truth]") {
 
 TEST_CASE("recorder: inelastic gives no n-p", "[truth]") {
     TruthRecorder rec;
-    rec.beginEvent(kMeta, kEn, kBeam);
+    rec.beginEvent(kMeta, kEn, kBeam, kStart);
     rec.onHadronicStep(step(HadronicKind::Inelastic, kCarbonZ));
     const auto& r = rec.record();
     CHECK(r.first_interaction == FirstInteraction::NCInelastic);
@@ -139,7 +143,7 @@ TEST_CASE("recorder: inelastic gives no n-p", "[truth]") {
 
 TEST_CASE("recorder: n-p without a recoil proton", "[truth]") {
     TruthRecorder rec;
-    rec.beginEvent(kMeta, kEn, kBeam);
+    rec.beginEvent(kMeta, kEn, kBeam, kStart);
     rec.onHadronicStep(step(HadronicKind::Elastic, kHydrogenZ));
     // A later n-p with a proton does not replace the first one.
     rec.onHadronicStep(
@@ -153,12 +157,12 @@ TEST_CASE("recorder: n-p without a recoil proton", "[truth]") {
 TEST_CASE("tally counts events per first interaction", "[truth]") {
     TruthRecorder rec;
     TruthTally tally;
-    rec.beginEvent(kMeta, kEn, kBeam); // no interaction
+    rec.beginEvent(kMeta, kEn, kBeam, kStart); // no interaction
     tally.add(rec.record());
-    rec.beginEvent(kMeta, kEn, kBeam);
+    rec.beginEvent(kMeta, kEn, kBeam, kStart);
     rec.onHadronicStep(step(HadronicKind::Elastic, kHydrogenZ)); // n-p, proton missing
     tally.add(rec.record());
-    rec.beginEvent(kMeta, kEn, kBeam);
+    rec.beginEvent(kMeta, kEn, kBeam, kStart);
     rec.onHadronicStep(step(HadronicKind::Inelastic, kCarbonZ));
     tally.add(rec.record());
     CHECK(tally.events() == 3);
@@ -197,7 +201,7 @@ TEST_CASE("event classification refuses negative counts", "[truth]") {
 
 TEST_CASE("recorder counts every kind of primary interaction", "[truth]") {
     TruthRecorder rec;
-    rec.beginEvent(kMeta, kEn, kBeam);
+    rec.beginEvent(kMeta, kEn, kBeam, kStart);
     rec.onHadronicStep(step(HadronicKind::Elastic, kCarbonZ));
     rec.onHadronicStep(step(HadronicKind::Elastic, kCarbonZ));
     rec.onHadronicStep(
@@ -219,7 +223,7 @@ TEST_CASE("recorder counts every kind of primary interaction", "[truth]") {
 
 TEST_CASE("recorder: n-p vertex is the first n-p, not r0", "[truth]") {
     TruthRecorder rec;
-    rec.beginEvent(kMeta, kEn, kBeam);
+    rec.beginEvent(kMeta, kEn, kBeam, kStart);
     auto carbon = step(HadronicKind::Elastic, kCarbonZ);
     carbon.position = {-4.0 * u::mm, 0.0, 0.0};
     rec.onHadronicStep(carbon);
@@ -239,7 +243,7 @@ TEST_CASE("recorder: n-p vertex is the first n-p, not r0", "[truth]") {
 
 TEST_CASE("recorder: secondary-neutron interactions are counted apart", "[truth]") {
     TruthRecorder rec;
-    rec.beginEvent(kMeta, kEn, kBeam);
+    rec.beginEvent(kMeta, kEn, kBeam, kStart);
     rec.onHadronicStep(step(HadronicKind::Inelastic, kCarbonZ));
     rec.onSecondaryNeutronHadronic();
     rec.onSecondaryNeutronHadronic();
@@ -247,7 +251,7 @@ TEST_CASE("recorder: secondary-neutron interactions are counted apart", "[truth]
     CHECK(r.n_secondary_n_hadronic == 2);
     // They do not change the class, which is about the primary only.
     CHECK(classifyEvent(interactionCounts(r)) == EventClass::NCInelasticNoNp);
-    rec.beginEvent(kMeta, kEn, kBeam);
+    rec.beginEvent(kMeta, kEn, kBeam, kStart);
     CHECK(rec.record().n_secondary_n_hadronic == 0);
     CHECK(rec.record().n_nC_inelastic == 0);
 }
