@@ -304,6 +304,22 @@ fluttuazione dello scan. `Evis_overflow` vale 2 eventi su 10⁷ nel mono.
 Sono gli stessi valori di `c2` della fase 1b: la prima interazione è la stessa. Resta il limite
 di D13: a 10⁷ eventi la simulazione non distingue le due revisioni di H-1.
 
+## 7. Verifiche `c2`, lettura in ordine di `event_id` (D23)
+
+Il checker con `checks_version` 9 rilegge i sei run come `c2`, con gli stessi argomenti di `c1`
+(`--bins-u 50 --bins-z 50`). Non ci sono nuovi run di simulazione e le soglie non cambiano.
+
+**Previsione, scritta prima delle verifiche:**
+
+- run di kB: le quattro verifiche di identità fallite in `c1` passano.
+  `contained_balance_MeV` e `pstar.range_mm` sono identici fra i tre run. Restano identici anche
+  le colonne non `Evis` di `deposit_spectra.csv` e `proton_exits.csv`. Ogni altra verifica dà lo
+  stesso esito di `c1`;
+- tutti i sei run, rispetto a `c1`:
+  - ogni intero (contatori, classi, conteggi dei CSV) è identico;
+  - ogni float differisce di al più 10⁻¹¹ in relativo, perché cambia solo l'ordine delle somme;
+  - ogni soglia delle §1–§3 ha lo stesso esito.
+
 ## Punti aperti
 
 - **Verifica indipendente dall'ordine.** Oggi le medie e i fit di `riptide_sim_check` dipendono
