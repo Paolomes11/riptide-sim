@@ -401,11 +401,14 @@ Dalla versione 2 (2026-11-18):
 
 ```bash
 riptide_analysis_prepare --run-id <run> --analysis-id <id> --seed 20260907 \
-    --sigma-Ep 0.10 --sigma-theta 0.08 --cuts single_np,contained \
+    --sigma-Ep 0.10 --sigma-theta 0.08 --cuts single_np,has_proton,contained \
     [--hp-from-check <check_id>] [--max-events <n>] [--data-dir <radice>]
 ```
 
-Il programma legge i file degli eventi del run e applica la catena di tagli (D30). Poi converte
+Il programma legge i file degli eventi del run e applica la catena di tagli (D30). I tagli
+disponibili sono `single_np` (classe vera), `has_proton` (`truth_valid_np` = 1, D34),
+`contained` (`truth_p_exits` = 0) ed `evis_min=<MeV>`; la catena del Caso A è
+`single_np,has_proton,contained`. Poi converte
 `truth_Ep` nell'E_p fisico con la massa HP (D28) ed estrae la risoluzione con il seme dato (D31).
 Tutti i parametri dell'analisi sono obbligatori e nessuno ha un valore di default.
 `--hp-from-check` serve per i run con `run_record_version` 1. Se la cartella

@@ -71,8 +71,9 @@ EventSample selectEvents(const EventColumns& columns, const Selection& selection
     }
     EventSample sample;
     for (std::size_t i = 0; i < columns.size(); ++i) {
-        const auto failing = selection.firstFailingCut(
-            {columns.truth_event_class[i], columns.truth_p_exits[i], columns.det_Evis[i]});
+        const auto failing =
+            selection.firstFailingCut({columns.truth_event_class[i], columns.truth_p_exits[i],
+                                       columns.det_Evis[i], columns.truth_valid_np[i]});
         cut_flow.record(failing);
         if (failing.has_value()) {
             continue;

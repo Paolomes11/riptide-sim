@@ -14,6 +14,7 @@ namespace riptide::io {
 namespace {
 
 constexpr std::string_view kSingleNpName = "single_np";
+constexpr std::string_view kHasProtonName = "has_proton";
 constexpr std::string_view kContainedName = "contained";
 constexpr std::string_view kEvisMinName = "evis_min";
 constexpr char kCutSeparator = ',';
@@ -50,6 +51,9 @@ CutSpec parseCut(std::string_view item) {
     if (name == kSingleNpName) {
         return {Cut::SingleNp, 0.0};
     }
+    if (name == kHasProtonName) {
+        return {Cut::HasProton, 0.0};
+    }
     if (name == kContainedName) {
         return {Cut::Contained, 0.0};
     }
@@ -60,6 +64,8 @@ bool passes(const CutSpec& spec, const CutInputs& event) {
     switch (spec.cut) {
     case Cut::SingleNp:
         return event.truth_event_class == static_cast<std::int32_t>(schema::EventClass::SingleNp);
+    case Cut::HasProton:
+        return event.truth_valid_np == 1;
     case Cut::Contained:
         return event.truth_p_exits == 0;
     case Cut::EvisMin:
@@ -74,6 +80,8 @@ std::string_view cutName(Cut cut) noexcept {
     switch (cut) {
     case Cut::SingleNp:
         return kSingleNpName;
+    case Cut::HasProton:
+        return kHasProtonName;
     case Cut::Contained:
         return kContainedName;
     case Cut::EvisMin:
