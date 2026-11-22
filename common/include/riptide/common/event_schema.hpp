@@ -17,6 +17,9 @@
 // v3: adds kV3Branches (nuclear recoils made by the recoil proton through
 //     electromagnetic Coulomb scattering). As for v2, older files are read as
 //     the leading columns of a v3 row.
+// v4: adds kV4Branches (start point of the primary neutron), which a
+//     far-field source draws per event (D27). Older files are read as the
+//     leading columns of a v4 row.
 
 #include <array>
 #include <cstddef>
@@ -25,7 +28,7 @@
 
 namespace riptide::schema {
 
-inline constexpr std::int32_t kSchemaVersion = 3;
+inline constexpr std::int32_t kSchemaVersion = 4;
 // Oldest version a reader of this build still accepts.
 inline constexpr std::int32_t kOldestReadableSchemaVersion = 1;
 inline constexpr std::string_view kEventTreeName = "events";
@@ -137,5 +140,17 @@ inline constexpr std::array<BranchSpec, 1> kV3Branches{{
 }};
 
 inline constexpr std::size_t kV3Columns = kV2Columns + kV3Branches.size();
+
+// Columns added in v4. The checks need the chord of each neutron line through
+// the scintillator, which with a far-field source changes from event to event
+// and follows from the start point and truth_omega_n. Always filled; in a file
+// older than v4 they read as 0, and the start point comes from the config.
+inline constexpr std::array<BranchSpec, 3> kV4Branches{{
+    {"truth_n_start_x", ColumnType::Double, "mm", "primary neutron start point, x"},
+    {"truth_n_start_y", ColumnType::Double, "mm", "primary neutron start point, y"},
+    {"truth_n_start_z", ColumnType::Double, "mm", "primary neutron start point, z"},
+}};
+
+inline constexpr std::size_t kV4Columns = kV3Columns + kV4Branches.size();
 
 } // namespace riptide::schema

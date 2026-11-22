@@ -3,7 +3,7 @@ add_executable(sim_validation_tests
     expected_distributions_test.cpp sha256_test.cpp beam_geometry_test.cpp
     check_accumulator_test.cpp check_cli_options_test.cpp check_report_test.cpp
     hp_recoil_test.cpp hp_data_test.cpp run_prediction_test.cpp deposit_checks_test.cpp
-    pstar_test.cpp pstar_checks_test.cpp)
+    pstar_test.cpp pstar_checks_test.cpp far_field_geometry_test.cpp)
 target_link_libraries(sim_validation_tests PRIVATE
     riptide::sim_validation riptide::options riptide::warnings Catch2::Catch2WithMain)
 catch_discover_tests(sim_validation_tests PROPERTIES SKIP_RETURN_CODE 4)

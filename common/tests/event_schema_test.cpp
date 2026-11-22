@@ -78,6 +78,18 @@ TEST_CASE("v3 branches carry the truth_ prefix, a unit and an integer type", "[s
     }
 }
 
+TEST_CASE("v4 branches are the neutron start point in mm", "[schema]") {
+    using namespace riptide::schema;
+    STATIC_REQUIRE(kV4Columns == kV3Columns + kV4Branches.size());
+    for (const auto& b : kV4Branches) {
+        INFO(std::string{b.name});
+        CHECK(b.name.substr(0, 14) == "truth_n_start_");
+        CHECK(b.type == ColumnType::Double);
+        CHECK(b.unit == "mm");
+        CHECK_FALSE(b.description.empty());
+    }
+}
+
 TEST_CASE("first-interaction codes are stable", "[schema]") {
     using riptide::schema::FirstInteraction;
     // Stored in files: changing a value would silently relabel old data.
@@ -101,7 +113,7 @@ TEST_CASE("event-class codes are stable", "[schema]") {
 
 TEST_CASE("schema uses only the column types Geant4 can write", "[schema]") {
     using namespace riptide::schema;
-    STATIC_REQUIRE(kSchemaVersion == 3);
+    STATIC_REQUIRE(kSchemaVersion == 4);
     STATIC_REQUIRE(kOldestReadableSchemaVersion == 1);
     STATIC_REQUIRE(kV2Columns == kV1Columns + kV2Branches.size());
     for (const auto& b : kV2Branches) {

@@ -6,6 +6,7 @@
 #include <initializer_list>
 #include <iterator>
 #include <limits>
+#include <optional>
 #include <set>
 #include <stdexcept>
 #include <string>
@@ -41,6 +42,22 @@ void addTo(std::vector<double>& sums, const std::vector<double>& values) {
 bool sameDirection(const Vec3& a, const Vec3& b) {
     return std::abs(a.x - b.x) <= kDirectionTolerance &&
            std::abs(a.y - b.y) <= kDirectionTolerance && std::abs(a.z - b.z) <= kDirectionTolerance;
+}
+
+double dot(const Vec3& a, const Vec3& b) {
+    return a.x * b.x + a.y * b.y + a.z * b.z;
+}
+
+// Mean chord of the rays that cross the box. A parallel flux sweeps the
+// volume over the projected area; an isotropic uniform flux on a convex body
+// gives the Cauchy mean chord 4 V / S.
+double expectedMeanChord(bool isotropic, const Vec3& direction, const Vec3& half) {
+    const double volume = 8.0 * half.x * half.y * half.z;
+    if (isotropic) {
+        const double surface = 8.0 * (half.x * half.y + half.y * half.z + half.x * half.z);
+        return 4.0 * volume / surface;
+    }
+    return volume / projectedBoxArea(direction, half);
 }
 
 HistogramResult compareBinned(const std::vector<double>& edges, const std::vector<double>& observed,
@@ -285,19 +302,30 @@ CheckSetup makeCheckSetup(const RunConfig& config, double hp_target_mass, std::s
     }
     const Vec3 half{0.5 * config.geometry.scint_size.x, 0.5 * config.geometry.scint_size.y,
                     0.5 * config.geometry.scint_size.z};
+    CheckSetup setup;
+    setup.position = config.source.position;
+    setup.direction = config.source.direction;
+    setup.half_size = half;
+    setup.En_min = config.source.En_min;
+    setup.En_max = config.source.En_max;
+    setup.hp_target_mass = hp_target_mass;
+    setup.bins_u = bins_u;
+    setup.bins_z = bins_z;
+    setup.beam = config.source.beam;
+    if (setup.beam == BeamMode::FarField) {
+        setup.isotropic = config.source.isotropic;
+        setup.disk = farFieldDisk(config.source, half);
+        setup.acceptance = farFieldAcceptance(config.source, half);
+        setup.expected_mean_chord = expectedMeanChord(setup.isotropic, setup.direction, half);
+        return setup;
+    }
     const auto chord = rayBoxChord(config.source.position, config.source.direction, half);
     if (!chord) {
         throw std::invalid_argument("makeCheckSetup: the beam misses the scintillator");
     }
-    return CheckSetup{config.source.position,
-                      config.source.direction,
-                      half,
-                      config.source.En_min,
-                      config.source.En_max,
-                      *chord,
-                      hp_target_mass,
-                      bins_u,
-                      bins_z};
+    setup.chord = *chord;
+    setup.expected_mean_chord = chord->length();
+    return setup;
 }
 
 CheckAccumulator::CheckAccumulator(CheckSetup setup, std::vector<ReferenceModel> models)
@@ -319,7 +347,11 @@ CheckAccumulator::CheckAccumulator(CheckSetup setup, std::vector<ReferenceModel>
         throw std::invalid_argument("CheckAccumulator: the HP target mass must be positive");
     }
     u_edges_ = uniformEdges(0.0, 1.0, setup_.bins_u);
-    z_edges_ = uniformEdges(0.0, setup_.chord.length(), setup_.bins_z);
+    z_edges_ = uniformEdges(0.0, 1.0, setup_.bins_z);
+    if (!isFarField(setup_)) {
+        // The one chord of the run: its edges are computed once.
+        z_pencil_edges_ = uniformEdges(0.0, setup_.chord.length(), setup_.bins_z);
+    }
     const std::size_t n_models = models_.size();
     category_expected_.assign(n_models, {});
     u_observed_.assign(setup_.bins_u, 0.0);
@@ -348,28 +380,43 @@ void CheckAccumulator::add(const TruthRecord& record) {
         ++counters_.En_outside_source;
         return;
     }
-    if (!sameDirection(record.omega_n, setup_.direction)) {
-        ++counters_.omega_not_beam;
+    const auto ray = eventRay(record);
+    if (!ray) {
+        return;
     }
     if (record.valid_np && record.n_np_scatters < 1) {
         ++counters_.valid_np_without_scatter;
     }
+    addChord(ray->chord);
+    const auto category = static_cast<std::size_t>(record.first_interaction);
+    if (!ray->chord) {
+        // A ray that misses the box crosses no material: the first
+        // interaction is Unknown with certainty, for every model.
+        for (std::size_t m = 0; m < models_.size(); ++m) {
+            category_expected_.at(m).at(
+                static_cast<std::size_t>(schema::FirstInteraction::Unknown)) += 1.0;
+        }
+        ++category_counts_.at(category);
+        if (record.first_interaction != schema::FirstInteraction::Unknown) {
+            ++counters_.interaction_off_chord;
+        }
+        return;
+    }
 
+    const double L = ray->chord->length();
     std::vector<double> sigma_totals;
     sigma_totals.reserve(models_.size());
     for (std::size_t m = 0; m < models_.size(); ++m) {
-        const auto probabilities =
-            firstInteraction(models_.at(m).mediumAt(record.En), setup_.chord.length());
+        const auto probabilities = firstInteraction(models_.at(m).mediumAt(record.En), L);
         for (std::size_t c = 0; c < kFirstInteractionCategories; ++c) {
             category_expected_.at(m).at(c) += probabilities.unconditional.at(c);
         }
         sigma_totals.push_back(probabilities.sigma_total);
     }
-    const auto category = static_cast<std::size_t>(record.first_interaction);
     ++category_counts_.at(category);
 
     if (record.first_interaction != schema::FirstInteraction::Unknown) {
-        addDepth(record, sigma_totals);
+        addDepth(record, *ray, sigma_totals);
     }
     if (record.first_interaction == schema::FirstInteraction::NpElastic) {
         if (record.valid_np) {
@@ -380,21 +427,111 @@ void CheckAccumulator::add(const TruthRecord& record) {
     }
 }
 
-void CheckAccumulator::addDepth(const TruthRecord& record,
+std::optional<CheckAccumulator::Ray> CheckAccumulator::eventRay(const TruthRecord& record) {
+    if (!isFarField(setup_)) {
+        // As before the far-field source: a direction off the beam is
+        // counted, and the event is still checked along the beam.
+        if (!sameDirection(record.omega_n, setup_.direction)) {
+            ++counters_.omega_not_beam;
+        }
+        return Ray{setup_.position, setup_.direction, setup_.chord};
+    }
+    const Vec3& omega = record.omega_n;
+    const bool unit = std::abs(std::sqrt(dot(omega, omega)) - 1.0) <= kDirectionTolerance;
+    if (!unit || (!setup_.isotropic && !sameDirection(omega, setup_.direction))) {
+        ++counters_.omega_not_beam;
+        return std::nullopt;
+    }
+    // The start point lies on the disk perpendicular to omega, centred at
+    // -distance * omega, within its radius.
+    const double d = setup_.disk.distance;
+    const Vec3 offset{record.n_start.x + d * omega.x, record.n_start.y + d * omega.y,
+                      record.n_start.z + d * omega.z};
+    const bool on_plane = std::abs(dot(offset, omega)) <= kVertexTolerance;
+    const bool in_disk = std::sqrt(dot(offset, offset)) <= setup_.disk.radius + kVertexTolerance;
+    if (!on_plane || !in_disk) {
+        ++counters_.start_not_on_source;
+        return std::nullopt;
+    }
+    return Ray{record.n_start, omega, rayBoxChord(record.n_start, omega, setup_.half_size)};
+}
+
+void CheckAccumulator::addChord(const std::optional<BeamChord>& chord) {
+    ++rays_;
+    if (!chord) {
+        return;
+    }
+    const double length = chord->length();
+    chord_min_ = hits_ == 0 ? length : std::min(chord_min_, length);
+    chord_max_ = hits_ == 0 ? length : std::max(chord_max_, length);
+    ++hits_;
+    const double delta = length - chord_mean_;
+    chord_mean_ += delta / static_cast<double>(hits_);
+    chord_m2_ += delta * (length - chord_mean_);
+}
+
+void CheckAccumulator::addDepth(const TruthRecord& record, const Ray& ray,
                                 const std::vector<double>& sigma_totals) {
     if (!insideBox(record.r0, setup_.half_size, kVertexTolerance)) {
         ++counters_.vertex_outside_box;
         return;
     }
-    const double L = setup_.chord.length();
+    const BeamChord& chord = *ray.chord;
+    const double L = chord.length();
     // A vertex within the tolerance outside a face belongs to the edge bin.
-    const double depth = std::clamp(
-        depthAlongBeam(record.r0, setup_.position, setup_.direction, setup_.chord), 0.0, L);
-    z_observed_.at(binIndex(depth, L, setup_.bins_z)) += 1.0;
+    const double depth =
+        std::clamp(depthAlongBeam(record.r0, ray.start, ray.direction, chord), 0.0, L);
+    // floor(depth / L * bins) is the bin of depth on [0, L] as well, so a
+    // pencil run bins exactly as with edges in mm.
+    z_observed_.at(binIndex(depth / L, 1.0, setup_.bins_z)) += 1.0;
+    std::vector<double> event_edges;
+    if (isFarField(setup_)) {
+        event_edges = uniformEdges(0.0, L, setup_.bins_z);
+    }
+    const std::vector<double>& edges = isFarField(setup_) ? event_edges : z_pencil_edges_;
     for (std::size_t m = 0; m < models_.size(); ++m) {
         addTo(z_expected_.at(m),
-              truncatedExponentialBinProbabilities(sigma_totals.at(m), L, z_edges_));
+              truncatedExponentialBinProbabilities(sigma_totals.at(m), L, edges));
     }
+}
+
+AcceptanceResult CheckAccumulator::finishAcceptance() const {
+    AcceptanceResult result;
+    ChordSummary& c = result.chords;
+    c.rays = rays_;
+    c.hits = hits_;
+    c.min = chord_min_;
+    c.max = chord_max_;
+    if (hits_ > 0) {
+        c.mean = chord_mean_;
+        if (hits_ > 1) {
+            c.sd = std::sqrt(chord_m2_ / static_cast<double>(hits_ - 1));
+        }
+    }
+    result.expected_fraction = setup_.acceptance;
+    result.expected_mean_chord = setup_.expected_mean_chord;
+    if (!isFarField(setup_)) {
+        result.skipped = "pencil beam: every ray crosses the box";
+        result.mean_chord_skipped = "pencil beam: one chord";
+        return result;
+    }
+    const auto rays = static_cast<double>(rays_);
+    const double p = setup_.acceptance;
+    const double variance = rays * p * (1.0 - p);
+    if (variance < kMinExpectedCount) {
+        result.skipped = "binomial variance of the hit count below the minimum expected count";
+    } else {
+        result.pull = (static_cast<double>(hits_) - rays * p) / std::sqrt(variance);
+    }
+    if (hits_ < 2) {
+        result.mean_chord_skipped = "fewer than two rays cross the box";
+    } else if (c.sd <= kChordSpreadTolerance) {
+        result.mean_chord_skipped = "the chords have no spread";
+    } else {
+        result.mean_chord_pull =
+            (c.mean - setup_.expected_mean_chord) / (c.sd / std::sqrt(static_cast<double>(hits_)));
+    }
+    return result;
 }
 
 void CheckAccumulator::addNpEvent(const TruthRecord& record) {
@@ -537,6 +674,7 @@ CheckResults CheckAccumulator::finish() const {
     results.model_mix = finishModelMix();
     results.spectrum_u = compareBinned(u_edges_, u_observed_, models_, u_expected_);
     results.depth_z = compareBinned(z_edges_, z_observed_, models_, z_expected_);
+    results.acceptance = finishAcceptance();
     results.Ep_residuals = summarize(Ep_residuals_);
     results.Ep_physical_offset = summarizeOffset(Ep_physical_offsets_, Ep_physical_relative_,
                                                  Ep_physical_, results.Ep_residuals.max_abs);

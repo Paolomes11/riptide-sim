@@ -51,10 +51,14 @@ void resetNeutronCrossSectionCaches(double dummy_energy) {
 
 } // namespace
 
-PrimaryGeneratorAction::PrimaryGeneratorAction(const SourceConfig& source, std::uint64_t run_seed,
-                                               TruthRecorder& recorder)
+PrimaryGeneratorAction::PrimaryGeneratorAction(const SourceConfig& source,
+                                               const GeometryConfig& geometry,
+                                               std::uint64_t run_seed, TruthRecorder& recorder)
     : source_(source), run_seed_(run_seed), recorder_(&recorder),
       gun_(std::make_unique<G4ParticleGun>(1)) {
+    if (source_.beam == BeamMode::FarField) {
+        disk_ = farFieldDisk(source_, scintHalfSize(geometry));
+    }
     gun_->SetParticleDefinition(G4Neutron::Definition());
     const auto& d = source_.direction;
     const auto& p = source_.position;
@@ -81,8 +85,17 @@ void PrimaryGeneratorAction::GeneratePrimaries(G4Event* event) {
         gun_->SetParticleEnergy(source_.En_min +
                                 (source_.En_max - source_.En_min) * G4UniformRand());
     }
+    Vec3 direction = source_.direction;
+    Vec3 start = source_.position;
+    if (source_.beam == BeamMode::FarField) {
+        const auto ray = sampleFarField(source_, disk_, [] { return G4UniformRand(); });
+        direction = ray.direction;
+        start = ray.position;
+        gun_->SetParticleMomentumDirection(G4ThreeVector(direction.x, direction.y, direction.z));
+        gun_->SetParticlePosition(G4ThreeVector(ray.position.x, ray.position.y, ray.position.z));
+    }
     const EventMeta meta{event->GetEventID(), current_seeds_.seed_0, current_seeds_.seed_1};
-    recorder_->beginEvent(meta, gun_->GetParticleEnergy(), source_.direction);
+    recorder_->beginEvent(meta, gun_->GetParticleEnergy(), direction, start);
     gun_->GeneratePrimaryVertex(event);
 }
 

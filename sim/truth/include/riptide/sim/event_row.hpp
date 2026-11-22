@@ -1,7 +1,7 @@
 #pragma once
 
 // One ntuple row of an event, in the column order of event_schema.hpp (meta
-// columns, truth columns, then the v2 and v3 columns). Geant4-free, so the mapping from the
+// columns, truth columns, then the v2, v3 and v4 columns). Geant4-free, so the mapping from the
 // in-memory record to the schema is unit-tested on its own; the Geant4 writer only iterates over
 // the row.
 
@@ -20,7 +20,7 @@ namespace riptide::sim {
 // Value of one column; the alternative matches schema::ColumnType (Int32 first).
 using ColumnValue = std::variant<std::int32_t, double>;
 
-inline constexpr std::size_t kEventColumns = schema::kV3Columns;
+inline constexpr std::size_t kEventColumns = schema::kV4Columns;
 
 using EventRow = std::array<ColumnValue, kEventColumns>;
 
@@ -48,7 +48,8 @@ using EventRow = std::array<ColumnValue, kEventColumns>;
 // (in a v1 file it is 0 although the event may have interacted). Throws
 // std::bad_variant_access for a value of the wrong type and std::out_of_range
 // for a first-interaction code outside the schema or a valid_np flag other
-// than 0 and 1: such a row cannot come from eventRow.
+// than 0 and 1: such a row cannot come from eventRow. In a file older than v4
+// n_start reads as 0.
 [[nodiscard]] TruthRecord truthRecord(const EventRow& row);
 
 // Inverse of eventRow for the deposit part. proton.seen is not a column: it is

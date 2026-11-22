@@ -128,7 +128,7 @@ Il `check_id` `ctest_smoke` è riservato allo smoke test di `riptide_sim_check`
 (`sim/tests/run_check_smoke.sh`), che ricrea solo `validation/ctest_it_1t/ctest_smoke` e
 `validation/ctest_it_2t/ctest_smoke`. I due run contengono gli stessi eventi, divisi in uno e in
 due file: i CSV devono essere identici byte per byte e `checks.json` identico a meno di `run_id`
-(D23). Lo smoke test controlla `checks_version` = 9, i file JEFF-3.3 letti (H-1, C-0, C-13, D15) e lo
+(D23). Lo smoke test controlla `checks_version` = 10, la modalità del fascio, `geometric_acceptance` (raggi = eventi, colpi ≤ raggi, colpi = raggi nel pencil), i file JEFF-3.3 letti (H-1, C-0, C-13, D15) e lo
 sha256 del primo, l'AWR di H-1 (0.999167, D14), il residuo di E_p all'arrotondamento, lo scarto
 dalla cinematica fisica in [5.3, 5.5]·10⁻⁴, i contatori di coerenza a zero e, a 14 MeV, nessun
 evento n–p con la cinematica non HP (D16). Controlla anche la sezione `deposits`: fatta, con kB
@@ -218,7 +218,8 @@ n_H2/n_H1 (circa 1.15·10⁻⁴) come sistematica nota.
 I CSV, a precisione piena (`max_digits10`):
 
 - `spectrum_u.csv`, `depth_z.csv`: `low,high,observed,expected_<lib>…`, una riga per bin
-  originale (u = (1 − μ)/2, con μ ricavato da E_p con la cinematica HP di D14; profondità del primo vertice lungo il fascio, in mm);
+  originale (u = (1 − μ)/2, con μ ricavato da E_p con la cinematica HP di D14; profondità s = z/L_i
+  del primo vertice lungo la corda L_i dell'evento, adimensionale su [0, 1]);
 - `fractions.csv`: `code,category,observed,expected_<lib>…` per i 5 codici di
   `FirstInteraction`;
 - `legendre.csv`: `l,value,error,expected_<lib>,pull_<lib>…` per l ≥ 1 (solo intestazione se la
@@ -249,7 +250,7 @@ Il checker legge le righe dei file per thread fuse in ordine crescente di `event
 (`mergeByEventId`, D23): ogni somma, e quindi ogni output, dipende solo dagli eventi e non da come
 Geant4 li ha divisi fra i thread.
 
-`checks.json` (versione `checks_version` = 9) si scrive per ultimo, con tmp + rename. Chiavi:
+`checks.json` (versione `checks_version` = 10) si scrive per ultimo, con tmp + rename. Chiavi:
 
 | Chiave | Contenuto |
 |---|---|
@@ -259,8 +260,8 @@ Geant4 li ha divisi fra i thread.
 | `hp_elastic_H1` | `file`, `sha256`, `rep_flag`, `awr`, `frame_flag`, `target_mass_MeV` dell'intestazione G4NDL di H-1 (D14) |
 | `hp_deuterium` | per file: `file`, `sha256` delle sezioni d'urto G4NDL di H-2 (elastica, anelastica, cattura; D17) |
 | `medium` | `material`, `density_g_cm3`, `n_H1_per_mm3`, `n_H2_per_mm3`, `n_C12_per_mm3`, `n_C13_per_mm3`, `H2_over_H1` |
-| `beam` | `L_mm` (corda del fascio nel blocco), `En_min_MeV`, `En_max_MeV`, `bins_u`, `bins_z` |
-| `results` | `events`, `np_events`, `np_hp_events`, `spectrum_u`, `depth_z`, `fractions`, `legendre`, `Ep_residuals`, `Ep_physical_offset`, `model_mix`, `counters`, `deposits` |
+| `beam` | `mode` (`pencil` o `far_field`), `En_min_MeV`, `En_max_MeV`, `bins_u`, `bins_z`; pencil: `L_mm` (corda del fascio nel blocco); far-field: `direction` (vettore oppure `"isotropic"`), `disk_radius_mm`, `disk_distance_mm`, `expected_acceptance`, `expected_mean_chord_mm` (D27) |
+| `results` | `events`, `np_events`, `np_hp_events`, `geometric_acceptance`, `spectrum_u`, `depth_z`, `fractions`, `legendre`, `Ep_residuals`, `Ep_physical_offset`, `model_mix`, `counters`, `deposits` |
 
 In `results`, ogni verifica riporta per libreria `skipped` (`null` oppure il motivo). Se la
 verifica è stata fatta, riporta anche χ², `ndf`, `p_value` e i pull; per gli istogrammi pure i
@@ -275,6 +276,27 @@ con `rounding_free_relative_min` e `rounding_free_relative_max`: gli stessi estr
 dell'arrotondamento, cioè min(rel + R/E_p,fis) e max(rel − R/E_p,fis) con R =
 `Ep_residuals.max_abs`. Sono questi che si confrontano con il range previsto, perché a E_p di pochi
 eV un residuo di arrotondamento di 10⁻¹⁵ MeV sposta da solo lo scarto relativo di ~10⁻¹⁰.
+
+Ogni evento ha la sua corda L_i = `rayBoxChord(truth_n_start, truth_omega_n)` nel blocco (D27).
+Nel fascio pencil è la corda del config, uguale per tutti, e una direzione diversa da quella del
+fascio va in `must_be_zero.omega_not_beam` (l'evento resta verificato lungo il fascio). Nella
+sorgente a campo lontano, invece:
+- una direzione non unitaria, o diversa da quella fissa del config, va in `omega_not_beam`;
+- un punto di partenza fuori dal disco ⟂ Ω_n (piano e raggio entro 10⁻⁶ mm) va in
+  `must_be_zero.start_not_on_source`.
+In entrambi i casi l'evento è escluso da ogni altra verifica. Un raggio che manca il blocco ha
+prima interazione Unknown con certezza: entra in `fractions` con attesa 1 in Unknown, e una prima
+interazione diversa va in `must_be_zero.interaction_off_chord`. Le attese delle frazioni e della
+profondità usano L_i evento per evento: la profondità è binnata come frazione s = z/L_i, e l'attesa
+di ogni evento è l'esponenziale troncato su [0, L_i] diviso negli stessi bin. Nel pencil s è z/L
+e i numeri coincidono con la versione 9.
+
+`geometric_acceptance` riporta `rays` (eventi con raggio verificato), `hits` (raggi con corda > 0),
+`expected_fraction` (accettanza in forma chiusa: area proiettata media su πR²), `skipped` e
+`pull` binomiale dei colpi, `chord_mm` (`mean`, `sd`, `min`, `max` delle corde dei colpi, media e
+varianza di Welford, e `expected_mean`: la corda fissa, oppure 4V/S per la sorgente isotropa,
+formula di Cauchy) e `mean_chord_skipped` / `mean_chord_pull` = (media − attesa)/(sd/√colpi). Nel
+pencil entrambi i pull sono saltati (`null`): ogni raggio colpisce e la corda è una sola.
 
 Ogni evento n–p con protone valido (`np_events`) è classificato dalla cinematica (D16), con
 tolleranza 10⁻¹¹·E_n su E_p:
@@ -325,6 +347,27 @@ verifiche restano invariate. Lo schema 2 è escluso perché il lettore darebbe 0
   `light_MeV`). Ogni riassunto ha `samples`, `observed_mean`, `expected_mean`, `residual_mean`,
   `residual_sd`, `residual_sem`, `relative_residual` (Σd / Σatteso) e `relative_sem`; `null`
   quando non è definito (medie senza protoni, deviazioni ed errori con meno di due).
+
+`riptide_sim_predict` scrive su stdout la previsione delle stesse verifiche prima del run (le copie
+committate stanno in `docs/validation/predictions/`). In `prediction.chords`:
+- `mode`, `acceptance`, `expected_mean_chord_mm`; nel pencil anche `L_mm`;
+- nel campo lontano, la distribuzione delle corde di `--chord-samples` raggi (default 10⁸) estratti
+  con il seme comune: `samples`, `seed`, `bins`, `bin_width_mm` (10⁻² mm), `sample_hits`,
+  `sample_acceptance_pull`, `sample_mean_chord_mm`, `sample_sd_chord_mm`, `min_chord_mm`,
+  `max_chord_mm`. I pesi dei colpi sommano all'accettanza in forma chiusa, quindi la frazione dei
+  raggi che mancano non ha errore di campionamento.
+`prediction.chord_sample_shift` ripete la previsione con un secondo campione (seme + 1) e ne
+riporta `seed`, `fractions_in_sigma`, `legendre_in_sigma` e `u_noncentrality`: quanto pesa la
+dimensione finita del campione; nel pencil è la stringa `"pencil beam: one chord, no sampling"`.
+
+Dalla versione 10 (2026-11-21):
+- la corda è calcolata per evento da `truth_n_start_{x,y,z}` (schema 4) e la profondità è la
+  frazione s = z/L_i, con `depth_z.high` = 1 invece della corda in mm;
+- c'è `results.geometric_acceptance`; `beam` ha `mode` e, per il campo lontano, la sorgente;
+- `must_be_zero` ha `start_not_on_source` e `interaction_off_chord`.
+Oracolo: sulle corse `c2` della fase 2 (pencil, 50 bin) i CSV e `checks.json` sono identici bit per
+bit a meno delle chiavi nuove, delle versioni e dei bordi di `depth_z` divisi per L (scarto
+≤ 1.3·10⁻¹⁶ in relativo).
 
 Dalla versione 8 (2026-11-20): c'è `results.deposits.protons_nuclear_recoil`; i protoni con un
 rinculo nucleare sono esclusi da `contained_balance_MeV` e da `pstar` (D22); le verifiche dei
@@ -398,9 +441,9 @@ Chiavi (versione 1 del formato):
 `git_describe` viene rigenerato a ogni build (`cmake/RiptideGitDescribe.cmake`) e descrive i
 sorgenti al momento della build, non al momento del run.
 
-## Schema degli eventi (v3)
+## Schema degli eventi (v4)
 
-Albero `events`: le 19 colonne della v1, le 18 della v2, poi quella della v3, in quest'ordine. Ci sono solo due tipi, `Int32` (`Int_t`) e `Double`
+Albero `events`: le 19 colonne della v1, le 18 della v2, quella della v3, poi le 3 della v4, in quest'ordine. Ci sono solo due tipi, `Int32` (`Int_t`) e `Double`
 (`Double_t`), perché il writer di Geant4 non ha colonne intere a 64 bit.
 
 | Colonne | Tipo | Contenuto |
@@ -424,6 +467,7 @@ Albero `events`: le 19 colonne della v1, le 18 della v2, poi quella della v3, in
 | `truth_n_secondary_n_hadronic` | Int32 | interazioni adroniche dei neutroni non primari nello scintillatore (v2) |
 | `truth_event_class` | Int32 | codice `EventClass` (D19): 0 nessuna, 1 singolo n–p, 2 n–p multiplo, 3 solo n–C elastico, 4 n–C anelastico senza n–p, 5 misto, 6 altro (v2) |
 | `truth_p_n_nuclear_recoil` | Int32 | step non adronici del protone di rinculo che hanno creato un rinculo nucleare, cioè un secondario con numero barionico > 0 (scattering Coulombiano singolo, D22) (v3) |
+| `truth_n_start_{x,y,z}` | Double | punto di partenza del neutrone primario [mm] (v4): fisso nel fascio pencil, estratto per evento sul disco della sorgente a campo lontano (D27); con `truth_omega_n` dà la corda dell'evento nello scintillatore |
 
 Unità: MeV, mm, ns, rad. Nomi, unità e descrizioni stanno in `event_schema.hpp`, che è l'unica
 fonte: la riga scritta dalla sim (`sim/truth/.../event_row.hpp`) è verificata colonna per colonna
@@ -440,4 +484,4 @@ dettagli e il margine di `G4NuclearStopping` su `truth_p_Edep` stanno in D19.
 
 Le versioni successive aggiungono colonne solo in coda e non cambiano quelle esistenti. Il
 lettore (`sim/reader`) accetta le versioni da 1 a quella della build e collega solo le colonne
-presenti nel file. Le altre restano a zero, quindi in un file v1 le colonne v2 valgono 0 e in un file v2 `truth_p_n_nuclear_recoil` vale 0.
+presenti nel file. Le altre restano a zero, quindi in un file v1 le colonne v2 valgono 0 e in un file v2 `truth_p_n_nuclear_recoil` vale 0. In un file anteriore alla v4 `truth_n_start_*` vale 0: quei run sono tutti pencil, e il punto di partenza si prende da `source.position_mm` del config.

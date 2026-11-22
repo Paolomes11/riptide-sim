@@ -139,6 +139,8 @@ nlohmann::json countersJson(const ConsistencyCounters& c) {
               {"theta_p_beyond_half_pi", c.theta_p_beyond_half_pi},
               {"np_kinematics_unmatched", c.np_kinematics_unmatched},
               {"np_non_hp_outside_window", c.np_non_hp_outside_window},
+              {"start_not_on_source", c.start_not_on_source},
+              {"interaction_off_chord", c.interaction_off_chord},
               {"total", c.mustBeZeroTotal()}}},
             {"expected_rare",
              {{"np_first_without_proton", c.np_first_without_proton},
@@ -147,6 +149,26 @@ nlohmann::json countersJson(const ConsistencyCounters& c) {
 
 nlohmann::json residualJson(const ResidualSummary& r) {
     return {{"samples", r.samples}, {"mean", r.mean}, {"rms", r.rms}, {"max_abs", r.max_abs}};
+}
+
+nlohmann::json acceptanceJson(const AcceptanceResult& a) {
+    const ChordSummary& c = a.chords;
+    const bool any = c.hits > 0;
+    nlohmann::json doc;
+    doc["rays"] = c.rays;
+    doc["hits"] = c.hits;
+    doc["expected_fraction"] = a.expected_fraction;
+    doc["skipped"] = skippedJson(a.skipped);
+    doc["pull"] = a.skipped.empty() ? nlohmann::json(a.pull) : nlohmann::json(nullptr);
+    doc["chord_mm"] = {{"mean", any ? nlohmann::json(c.mean) : nlohmann::json(nullptr)},
+                       {"sd", c.hits > 1 ? nlohmann::json(c.sd) : nlohmann::json(nullptr)},
+                       {"min", any ? nlohmann::json(c.min) : nlohmann::json(nullptr)},
+                       {"max", any ? nlohmann::json(c.max) : nlohmann::json(nullptr)},
+                       {"expected_mean", a.expected_mean_chord}};
+    doc["mean_chord_skipped"] = skippedJson(a.mean_chord_skipped);
+    doc["mean_chord_pull"] =
+        a.mean_chord_skipped.empty() ? nlohmann::json(a.mean_chord_pull) : nlohmann::json(nullptr);
+    return doc;
 }
 
 nlohmann::json modelMixJson(const ModelMixResult& mix) {
@@ -239,6 +261,28 @@ std::string_view categoryName(std::int32_t code) {
     return kCategoryNames.at(static_cast<std::size_t>(code));
 }
 
+nlohmann::json beamJson(const CheckSetup& setup) {
+    nlohmann::json doc;
+    doc["En_min_MeV"] = setup.En_min;
+    doc["En_max_MeV"] = setup.En_max;
+    doc["bins_u"] = setup.bins_u;
+    doc["bins_z"] = setup.bins_z;
+    if (!isFarField(setup)) {
+        doc["mode"] = "pencil";
+        doc["L_mm"] = setup.chord.length();
+        return doc;
+    }
+    doc["mode"] = "far_field";
+    const Vec3& d = setup.direction;
+    doc["direction"] =
+        setup.isotropic ? nlohmann::json("isotropic") : nlohmann::json{d.x, d.y, d.z};
+    doc["disk_radius_mm"] = setup.disk.radius;
+    doc["disk_distance_mm"] = setup.disk.distance;
+    doc["expected_acceptance"] = setup.acceptance;
+    doc["expected_mean_chord_mm"] = setup.expected_mean_chord;
+    return doc;
+}
+
 nlohmann::json resultsJson(const CheckResults& results) {
     nlohmann::json doc;
     doc["events"] = results.events;
@@ -247,6 +291,7 @@ nlohmann::json resultsJson(const CheckResults& results) {
     doc["spectrum_u"] = histogramJson(results.spectrum_u);
     doc["depth_z"] = histogramJson(results.depth_z);
     doc["fractions"] = fractionsJson(results.fractions);
+    doc["geometric_acceptance"] = acceptanceJson(results.acceptance);
     doc["legendre"] = legendreJson(results.legendre);
     doc["Ep_residuals"] = residualJson(results.Ep_residuals);
     const OffsetSummary& offset = results.Ep_physical_offset;

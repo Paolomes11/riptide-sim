@@ -28,7 +28,8 @@ void ActionInitialization::Build() const {
     SetUserAction(new EventAction(run_action->recorder(), run_action->deposits(),
                                   run_action->tally(), run_action->writer()));
     SetUserAction(new SteppingAction(run_action->recorder(), run_action->deposits(), *detector_));
-    SetUserAction(new PrimaryGeneratorAction(config_.source, run_seed_, run_action->recorder()));
+    SetUserAction(new PrimaryGeneratorAction(config_.source, config_.geometry, run_seed_,
+                                             run_action->recorder()));
 }
 
 } // namespace riptide::sim

@@ -48,6 +48,7 @@ TruthRecord knownRecord() {
     r.n_nC_inelastic = 0;
     r.n_other = 0;
     r.n_secondary_n_hadronic = 3;
+    r.n_start = {-41.0 * u::mm, 7.0 * u::mm, -8.0 * u::mm};
     return r;
 }
 
@@ -111,6 +112,9 @@ TEST_CASE("event row: values land in the column of the same name", "[row]") {
     CHECK_THAT(asDouble(row, "truth_r0_y"), WithinAbs(-2.0, kExact));
     CHECK_THAT(asDouble(row, "truth_r0_z"), WithinAbs(3.0, kExact));
     CHECK_THAT(asDouble(row, "truth_t0"), WithinAbs(0.25, kExact));
+    CHECK_THAT(asDouble(row, "truth_n_start_x"), WithinAbs(-41.0, kExact));
+    CHECK_THAT(asDouble(row, "truth_n_start_y"), WithinAbs(7.0, kExact));
+    CHECK_THAT(asDouble(row, "truth_n_start_z"), WithinAbs(-8.0, kExact));
     CHECK(asInt(row, "truth_first_interaction") ==
           static_cast<std::int32_t>(FirstInteraction::NCElastic));
     CHECK(asInt(row, "truth_n_np_scatters") == 2);
@@ -161,15 +165,17 @@ TEST_CASE("event row: proton columns are 0 unless valid_np", "[row]") {
     CHECK_THAT(asDouble(row, "det_Evis"), WithinAbs(4.25, kExact));
 }
 
-TEST_CASE("event row: older files are leading blocks of a v3 row", "[row]") {
+TEST_CASE("event row: older files are leading blocks of a v4 row", "[row]") {
     using namespace riptide::schema;
     CHECK(columnCount(1) == kV1Columns);
     CHECK(columnCount(2) == kV2Columns);
-    CHECK(columnCount(3) == kEventColumns);
+    CHECK(columnCount(3) == kV3Columns);
+    CHECK(columnCount(4) == kEventColumns);
     CHECK(columnSpec(kV1Columns - 1).name == "truth_valid_np");
     CHECK(columnSpec(kV1Columns).name == "det_Edep");
     CHECK(columnSpec(kV2Columns - 1).name == "truth_event_class");
     CHECK(columnSpec(kV2Columns).name == "truth_p_n_nuclear_recoil");
+    CHECK(columnSpec(kV3Columns).name == "truth_n_start_x");
     CHECK_THROWS_AS(columnCount(0), std::out_of_range);
     CHECK_THROWS_AS(columnCount(kSchemaVersion + 1), std::out_of_range);
 }
@@ -204,6 +210,9 @@ TEST_CASE("truth record: reading a row back gives the written record", "[row]") 
     CHECK(out.n_nC_inelastic == in.n_nC_inelastic);
     CHECK(out.n_other == in.n_other);
     CHECK(out.n_secondary_n_hadronic == in.n_secondary_n_hadronic);
+    CHECK_THAT(out.n_start.x, WithinAbs(in.n_start.x, kExact));
+    CHECK_THAT(out.n_start.y, WithinAbs(in.n_start.y, kExact));
+    CHECK_THAT(out.n_start.z, WithinAbs(in.n_start.z, kExact));
     // Not a schema column, so it cannot survive the round trip.
     CHECK(out.n_np_without_proton == 0);
 }

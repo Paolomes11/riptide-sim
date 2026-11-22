@@ -22,12 +22,16 @@ namespace riptide::sim {
 // Version of the JSON layout below. New runs need exactly this version
 // (loadRunConfig); parseRunConfig also reads the older layouts still found in
 // the run.json of existing runs, from kOldestConfigVersion on.
-inline constexpr int kConfigVersion = 2;
+inline constexpr int kConfigVersion = 3;
 inline constexpr int kOldestConfigVersion = 1;
 
 // Version 2 added the Birks constant and the step function of the scintillator
 // physics; a version 1 file has neither.
 inline constexpr int kFirstBirksConfigVersion = 2;
+
+// Version 3 added source.beam (pencil or far-field); an older file always
+// describes a pencil beam.
+inline constexpr int kFirstBeamConfigVersion = 3;
 
 // Unit of the Birks constant in the JSON file (key suffix _mm_per_MeV).
 inline constexpr double kBirksUnit = units::mm / units::MeV;
@@ -59,16 +63,24 @@ struct Vec3 {
 
 enum class SourceMode { Mono, Flat };
 
+// Pencil: every neutron starts at one point along one direction. FarField: a
+// parallel beam from a distant source, uniform over a disk perpendicular to the
+// direction that covers the whole scintillator (source_sampling.hpp).
+enum class BeamMode { Pencil, FarField };
+
 struct GeometryConfig {
     Vec3 scint_size; // full edge lengths of the scintillator box, centred at the origin [mm]
 };
 
 struct SourceConfig {
+    BeamMode beam = BeamMode::Pencil;
     SourceMode mode = SourceMode::Mono;
-    double En_min = 0.0; // [MeV]; equal to En_max for a monoenergetic beam
-    double En_max = 0.0; // [MeV]
-    Vec3 direction;      // unit vector
-    Vec3 position;       // gun position [mm], outside the scintillator
+    double En_min = 0.0;    // [MeV]; equal to En_max for a monoenergetic beam
+    double En_max = 0.0;    // [MeV]
+    bool isotropic = false; // far-field only: a new direction per event, uniform on the sphere
+    Vec3 direction;         // unit vector; unused when isotropic
+    Vec3 position;          // pencil only: gun position [mm], outside the scintillator
+    double margin = 0.0;    // far-field only: start-disk distance beyond the half-diagonal [mm]
 };
 
 struct ScintillatorConfig {
@@ -96,9 +108,13 @@ struct RunConfig {
     std::optional<StepFunction> proton_step_function;
 };
 
+// Half edge lengths of the scintillator box [mm].
+[[nodiscard]] Vec3 scintHalfSize(const GeometryConfig& geometry);
+
 // Half-size of the cubic vacuum world: it must contain both the scintillator
-// and the gun position, with room to spare so the gun never sits on the world
-// boundary (a primary starting on the boundary is killed at the first step).
+// and every start point of the source, with room to spare so no primary sits
+// on the world boundary (a primary starting on the boundary is killed at the
+// first step).
 inline constexpr double kWorldScale = 1.5;
 inline constexpr double kWorldMargin = 10.0 * units::mm;
 [[nodiscard]] double worldHalfSize(const RunConfig& config);
