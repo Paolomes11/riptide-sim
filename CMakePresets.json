@@ -23,11 +23,12 @@
     },
     {
       "name": "ci",
-      "displayName": "CI (common + analysis/stats only, no Geant4/ROOT, sanitizers, -Werror)",
+      "displayName": "CI (no Geant4/ROOT: common, sim config/truth/validation, analysis/stats and io/core, sanitizers, -Werror)",
       "inherits": "base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "RIPTIDE_BUILD_SIM": "OFF",
+        "RIPTIDE_BUILD_ROOT_IO": "OFF",
         "RIPTIDE_ENABLE_SANITIZERS": "ON",
         "RIPTIDE_WARNINGS_AS_ERRORS": "ON"
       }

@@ -14,6 +14,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(RIPTIDE_BUILD_SIM "Build the Geant4 application (requires Geant4)" ON)
+option(RIPTIDE_BUILD_ROOT_IO "Build the ROOT reader of the analysis (requires ROOT 6.36)" ON)
 option(RIPTIDE_BUILD_TESTS "Build the Catch2 unit tests" ON)
 option(RIPTIDE_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 option(RIPTIDE_ENABLE_SANITIZERS "Build with AddressSanitizer and UBSan" OFF)
@@ -35,6 +36,7 @@ endif()
 # Dependency direction (only downwards):
 #   common  <- sim
 #   common  <- analysis/stats   (pure C++: no ROOT, no Geant4)
+#   common  <- analysis/io/core <- analysis/io/root (the only ROOT user)
 # sim/config, sim/truth and sim/validation have no Geant4 dependency and are
 # built (and tested) in every preset.
 add_subdirectory(external)
