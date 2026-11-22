@@ -164,4 +164,12 @@ inline std::filesystem::path validationDir(const std::filesystem::path& root,
     return root / "validation" / std::string{run_id} / std::string{check_id};
 }
 
+// <root>/stats/<calibration_id>: outputs of the statistics stage that do not
+// belong to one simulation run (pseudo-experiment calibrations).
+inline std::filesystem::path statsDir(const std::filesystem::path& root,
+                                      std::string_view calibration_id) {
+    requireValidId(calibration_id, "calibration id");
+    return root / "stats" / std::string{calibration_id};
+}
+
 } // namespace riptide::data

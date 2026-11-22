@@ -113,4 +113,7 @@ TEST_CASE("ids are validated before building paths", "[data_paths]") {
     CHECK(riptide::data::validationDir(root, "r1", "c1") == fs::path{"/data/validation/r1/c1"});
     CHECK_THROWS_AS(riptide::data::validationDir(root, "..", "c1"), DataPathError);
     CHECK_THROWS_AS(riptide::data::validationDir(root, "r1", ".c"), DataPathError);
+    CHECK(riptide::data::statsDir(root, "cal1") == fs::path{"/data/stats/cal1"});
+    CHECK_THROWS_AS(riptide::data::statsDir(root, "../x"), DataPathError);
+    CHECK_THROWS_AS(riptide::data::statsDir(root, ""), DataPathError);
 }

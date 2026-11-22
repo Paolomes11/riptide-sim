@@ -1,4 +1,5 @@
 add_executable(stats_tests
+    calibration_test.cpp
     case_a_test.cpp
     grid_test.cpp
     log_sum_exp_test.cpp
