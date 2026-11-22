@@ -5,6 +5,7 @@ add_library(riptide_io_core STATIC
     src/analysis_record.cpp
     src/event_columns.cpp
     src/response.cpp
+    src/response_summary.cpp
     src/run_info.cpp
     src/selection.cpp)
 add_library(riptide::io_core ALIAS riptide_io_core)
