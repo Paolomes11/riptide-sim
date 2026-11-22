@@ -137,3 +137,41 @@ TEST_CASE("Legendre polynomials are orthogonal on -1 <= x <= 1", "[kinematics][l
         }
     }
 }
+
+TEST_CASE("the proton angle inverts protonEnergy", "[kinematics]") {
+    const double En = GENERATE(10.0, 14.0, 20.0);
+    constexpr int kSteps = 32;
+    for (int k = 0; k <= kSteps; ++k) {
+        const double theta = 0.5 * u::pi * k / kSteps;
+        const double Ep = kin::protonEnergy(En * u::MeV, theta);
+        INFO("En = " << En << ", theta = " << theta);
+        // cos^2 is the well-conditioned quantity; the angle itself loses
+        // digits near 0, where d(cos^2)/d(theta) vanishes.
+        CHECK_THAT(kin::protonCos2FromEnergy(Ep, En * u::MeV),
+                   WithinAbs(std::cos(theta) * std::cos(theta), 1e-12));
+        if (k > 0) {
+            CHECK_THAT(kin::protonAngleFromEnergy(Ep, En * u::MeV), WithinAbs(theta, 1e-12));
+        }
+    }
+}
+
+TEST_CASE("the proton angle at the ends of the kinematic range", "[kinematics]") {
+    const double En = GENERATE(10.0, 14.0, 20.0);
+    CHECK_THAT(kin::protonAngleFromEnergy(kin::maxProtonEnergy(En), En), WithinAbs(0.0, 1e-6));
+    CHECK_THAT(kin::protonAngleFromEnergy(0.0, En), WithinAbs(0.5 * u::pi, 1e-15));
+}
+
+TEST_CASE("the proton angle tends to the non-relativistic inverse", "[kinematics]") {
+    // At En -> 0 the masses drop out and cos^2(theta_p) -> Ep / En.
+    constexpr double kEn = 1e-6 * u::MeV;
+    const double fraction = GENERATE(0.1, 0.5, 0.9);
+    CHECK_THAT(kin::protonCos2FromEnergy(fraction * kEn, kEn), WithinRel(fraction, 1e-5));
+}
+
+TEST_CASE("equal masses reduce the inverse to the toy closed form", "[kinematics]") {
+    const double m = kin::kProtonMass;
+    const double En = 20.0;
+    const double Ep = 7.3;
+    CHECK_THAT(kin::recoilCos2FromEnergy(Ep, En, m, m),
+               WithinRel(Ep * (2.0 * m + En) / (En * (2.0 * m + Ep)), 1e-14));
+}

@@ -19,6 +19,7 @@ struct EventColumns {
     std::vector<std::int32_t> event_id;
     std::vector<std::int32_t> truth_event_class;
     std::vector<std::int32_t> truth_p_exits;
+    std::vector<std::int32_t> truth_valid_np;
 
     std::vector<double> truth_En;
     std::vector<double> truth_omega_n_x;
@@ -42,6 +43,7 @@ struct EventColumns {
         visit(std::string_view{"event_id"}, event_id);
         visit(std::string_view{"truth_event_class"}, truth_event_class);
         visit(std::string_view{"truth_p_exits"}, truth_p_exits);
+        visit(std::string_view{"truth_valid_np"}, truth_valid_np);
     }
     template <typename F> void forEachDoubleColumn(F&& visit) {
         visit(std::string_view{"truth_En"}, truth_En);

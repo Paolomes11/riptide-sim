@@ -905,3 +905,109 @@ cancellano: se cambiano, se ne aggiunge una nuova che rimanda alla vecchia.
     `events_without_track`, per cui `analysis_record_version` passa a 2;
   - nel campione restano eventi con `truth_Ep_phys` = 0. Il loro peso nella verosimiglianza del
     Caso A va deciso nella fase 5.
+
+## D32 — Cinematica e griglie del Caso A (2026-11-22)
+
+- **Decisione:**
+  - la verosimiglianza usa `riptide::kinematics::protonEnergy`, la cinematica esatta con le masse
+    di n e p diverse, la stessa che dà `truth_Ep_phys` nella fase 4;
+  - l'inversa si aggiunge in `common/np_kinematics.hpp`: con X = p²cos²θ_p ed S = E_tot + m_t,
+    dalla formula di `recoilEnergy` si ha X = Ep·S²/(2m_t + Ep), quindi cos²θ_p = X/p². Per masse
+    uguali si riduce a quella del toy, Ep(2m + En)/(En(2m + Ep));
+  - griglia di E_n: [E_min, E_max], parametro, default [10, 20] MeV con 500 punti. Il dominio del
+    prior su E_n lasciato aperto da D25 è quindi deciso: default come il toy, con la sorgente
+    della fase 6 (E_n ≤ 19.5 MeV) tutta all'interno;
+  - griglia di θ_p: [0, π/2] con 500 punti;
+  - griglie contigue, in doppia precisione, immutabili dopo la costruzione. Niente float32.
+- **Motivo:** la cinematica del toy usa masse uguali, con uno scarto relativo ~5·10⁻⁷, ma la
+  verosimiglianza deve essere coerente con la verità della fase 4. Il float32 del toy era una
+  scelta di velocità di numpy; in C++ la doppia precisione non costa abbastanza da giustificarlo.
+- **Alternative:** masse uguali come il toy (scarto trascurabile, ma una seconda cinematica da
+  mantenere); dominio fisso [10, 20] (un dominio largo serve alla prova di robustezza al prior).
+- **Conseguenze:** il confronto con il toy è entro la tolleranza statistica, non bit per bit.
+
+## D33 — Modello e API del Caso A (2026-11-22)
+
+- **Decisione:**
+  - `CaseAModel` riceve griglie, σ_Ep, σ_θ e il log-prior su θ_p, e precalcola una volta la
+    tabella Ep(E_n,i, θ_j);
+  - `logLikelihood(Êp, θ̂)` restituisce un vettore sulla griglia di E_n:
+    `log Σ_j exp[−½((Êp − Ep(E_n, θ_j))/σ_Ep)² − ½((θ̂ − θ_j)/σ_θ)² + log π(θ_j)]`, con un
+    logsumexp stabile. Le costanti comuni a tutte le E_n sono omesse, come nel toy;
+  - `singleEventLogPosterior` = loglik + log prior su E_n;
+  - `combineLogLikelihoods(loglik_k, log_prior)` = log_prior + Σ_k loglik_k: il prior si conta una
+    volta sola;
+  - i prior sono funzioni con nome passate come argomento: `flatEnergyPrior` su E_n,
+    `physicalRecoilAnglePrior` (massa esatta della cella, ½(cos 2lo − cos 2hi), da sin 2θ_p) e
+    `flatRecoilAnglePrior` su θ_p. Nessun ramo sul tipo di prior;
+  - ingresso: due span (`reco_Ep`, `reco_theta_p`), presi da un `EventSample`. Un valore non
+    finito o una σ ≤ 0 sono errori;
+  - nessun ROOT e nessun Geant4 in `analysis/stats`.
+- **Motivo:** la tabella non dipende dagli eventi, quindi il costo per evento è un solo
+  passaggio sulla griglia 500×500. Il prior come argomento evita gli `if` sul caso e permette la
+  prova di robustezza senza toccare il modello.
+- **Alternative:** ricalcolare Ep per ogni evento come il toy (più lento, stessi numeri).
+
+## D34 — Taglio `has_proton` (2026-11-22, aggiunta a D30)
+
+- **Decisione:**
+  - un nuovo taglio con nome, `has_proton`: `truth_valid_np == 1`. Sta sulla verità, come
+    `single_np`, e lascia il suo conteggio nel cut-flow;
+  - il default del Caso A diventa `single_np,has_proton,contained`;
+  - lo schema non cambia: `truth_valid_np` è già una colonna letta.
+- **Motivo:** un evento `single_np` senza protone tracciato ha `truth_Ep_phys` = 0 e un `reco_Ep`
+  fatto di solo rumore (fase 4, §2–§3: 89 / 17 / 19 eventi). Tenerlo nella verosimiglianza del
+  Caso A darebbe un evento a Ep ≈ 0, cioè una misura che il modello non sa descrivere.
+- **Alternative:** tenerli come parte della risposta del rivelatore (servirebbe un modello della
+  loro distribuzione); escluderli in silenzio nella statistica (il conteggio sparirebbe dal
+  cut-flow).
+- **Conseguenze:** il motore per evento (D31) lascia identiche bit per bit le estrazioni degli
+  altri eventi. La frazione persa (~10⁻⁴) si annota come sistematica per la fase 9.
+
+## D35 — Pseudo-esperienze e prestazioni del Caso A (2026-11-22)
+
+- **Decisione:**
+  - `analysis/stats` contiene un generatore del modello del toy, che serve solo a validare il
+    port: E_n uniforme sul dominio; cos θ_CM uniforme in [−1, 1], poi `protonEnergyFromCosCm`, poi
+    θ_p dall'inversa di D32; infine Êp e θ̂ con il rumore gaussiano 1D di D31. Il motore di ogni
+    evento viene da `perEventEngine(seme, k)`;
+  - target: ≤ 0.10 s per la verosimiglianza di 1000 eventi, a thread singolo, nella build
+    `release`. Prima un'implementazione semplice; poi profilo (`perf`) e ottimizzazioni esatte
+    (layout, precalcolo, riuso dei buffer), rilanciando gli oracoli dopo ogni passo;
+  - i tempi vanno in `docs/validation/5_results.md`, non in un test con soglia;
+  - il parallelismo sugli eventi entra solo se il profilo lo giustifica, con una decisione a
+    parte. Una finestra su θ_p attorno a θ̂ non è ammessa senza un limite d'errore dimostrato.
+- **Motivo:** la calibrazione con verità dal prior è la prova più diretta che il port è corretto:
+  i suoi numeri (pull, coverage, contrazione) si confrontano con quelli del toy.
+- **Alternative:** generare con Geant4 (è la fase 6; qui mescolerebbe port e rivelatore).
+
+### Addendum a D35 — Finestra su θ_p con limite d'errore (2026-11-22)
+
+- **Finestra:** per ogni riga E_n,i e ogni evento la somma su θ_j si limita alle celle che possono
+  contare.
+  - **Limite inferiore:** sia L il valore più grande fra i termini delle celle più vicine a Êp
+    lungo la riga e a θ̂. Allora L ≤ max_j t_ij.
+  - **Celle tenute:** sia a_max = max_j log π(θ_j), e sia C = 50. Un termine
+    t_ij = −½z_E² − ½z_θ² + log π(θ_j) può essere ≥ L − C solo se |z_E| ≤ r e |z_θ| ≤ r, con
+    r = √(2(a_max + C − L)). Le celle fuori da queste due bande hanno t_ij < L − C ≤ max − C.
+  - **Ricerca:** nella tabella Ep(E_n,i, θ_j) ogni riga è non crescente in θ_j. Il costruttore
+    lo verifica e, se non vale, la somma si fa sull'intera riga. Le due bande sono quindi
+    intervalli contigui, trovati per bisezione.
+  - **Errore:** la massa tralasciata, relativa a quella tenuta, è ≤ n_θ·e^(−C) ≈ 10⁻¹⁹ con
+    n_θ = 500. È anche il limite dell'errore assoluto sulla log-verosimiglianza, ed è sotto
+    l'arrotondamento di un double.
+  - **Ripiego:** se L non è finito (prior −inf su quelle celle) si somma l'intera riga.
+- **Altre ottimizzazioni esatte:** precalcolo di 1/σ; logsumexp senza ricontrollo dentro il
+  ciclo, perché gli ingressi sono validati prima; buffer riusati fra gli eventi.
+- **Profilo:** `perf` non è disponibile su questa macchina, perché `perf_event_paranoid` vale 4.
+  Le ottimizzazioni vengono dalla struttura del ciclo, misurando ogni passo con
+  `riptide_stats_bench`. Il costo è dominato da `exp`, circa 3.7 ns a chiamata.
+- **Esito:** 0.17 s per 1000 eventi, contro 1.18 s dell'implementazione semplice, quindi il target
+  di 0.10 s non è raggiunto. I numeri sono in `docs/validation/5_results.md`. Con C = 50 la
+  finestra tiene in media circa 95 celle per riga, cioè ±10σ_Ep lungo la cinematica. Scendere
+  sotto 0.10 s richiederebbe un `exp` vettoriale, che non è esatto, oppure il parallelismo sugli
+  eventi. Il parallelismo resta, come sopra, una decisione a parte.
+- **Verifica:** un test Catch2 confronta la finestra con la somma su tutte le celle, con due prior,
+  tre risoluzioni ed eventi ai bordi (Êp < 0, Êp sopra ogni Ep_max, θ̂ fuori da [0, π/2]). Lo
+  scarto relativo è < 10⁻¹³. Sulla matrice del benchmark (1000 × 500) la finestra coincide bit per
+  bit con la somma completa.

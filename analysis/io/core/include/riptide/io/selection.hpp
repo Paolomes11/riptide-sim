@@ -19,6 +19,7 @@ namespace riptide::io {
 
 enum class Cut {
     SingleNp,  // truth_event_class == SingleNp
+    HasProton, // truth_valid_np == 1
     Contained, // truth_p_exits == 0
     EvisMin,   // det_Evis > threshold
 };
@@ -35,11 +36,15 @@ struct CutInputs {
     std::int32_t truth_event_class = 0;
     std::int32_t truth_p_exits = 0;
     double det_Evis = 0.0; // MeV
+    // A single n-p event can still lack its proton track (the first n-p
+    // produced no tracked proton); its truth Ep is then 0 and Case A cannot
+    // describe its measured Ep, so the has_proton cut removes it.
+    std::int32_t truth_valid_np = 0;
 };
 
 class Selection {
 public:
-    // Parses "single_np,contained,evis_min=0.5": comma-separated cut names,
+    // Parses "single_np,has_proton,contained,evis_min=0.5": comma-separated cut names,
     // applied in the given order. evis_min needs an explicit threshold in MeV,
     // finite and >= 0. Throws IoError on an empty chain, an unknown or
     // repeated cut, or a malformed threshold.

@@ -91,13 +91,17 @@ progetto ricostruisce il neutrone incidente da ciò che interagisce nello scinti
 - Risultati: `validation/4_results.md` (tutte le soglie passate in `a2`, dopo la correzione degli
   eventi senza traccia del protone), con D28–D31.
 
-## Fase 5 — Port del motore statistico (Caso A)
+## Fase 5 — Port del motore statistico (Caso A) ✅ completata (v0.7.0, 2026-11-22)
 
-- `analysis/stats`: kinematics, forward_model, posterior_A, combine, validate.
+- `analysis/stats`: griglie, prior, logsumexp, modello del Caso A (D33), combinazione,
+  validazione, generatore di pseudo-esperienze (D35).
 - Oracoli R1/R2/R3 e test di limite come test Catch2.
-- Sorgente con E_n ≤ 19.5 MeV nei run delle fasi 5–6 (D25); dominio del prior da decidere qui.
-- Target di prestazione più stretti del toy (log-verosimiglianza N = 1000 ≪ 0.71 s), griglie
-  contigue, parallelismo sugli eventi (TBB) solo dopo aver profilato.
+- Sorgente con E_n ≤ 19.5 MeV nei run delle fasi 5–6 (D25). Dominio del prior: parametro, default
+  [10, 20] MeV (D32).
+- Taglio `has_proton` per gli eventi `single_np` senza protone tracciato (D34).
+- Calibrazione C++ (`riptide_stats_calibrate`) confrontata con i numeri del toy.
+- Target di prestazione più stretti del toy (log-verosimiglianza N = 1000 ≤ 0.10 s, contro
+  0.71 s), griglie contigue, parallelismo sugli eventi solo dopo aver profilato (D35).
 
 ## Fase 6 — Caso A su dati Geant4
 

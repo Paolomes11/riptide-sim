@@ -1,13 +1,13 @@
 # Stato
 
-**v0.6.0 — 2026-11-22 — Fase 4 (I/O dell'analisi) completata, prossima la fase 5.**
+**v0.7.0 — 2026-11-22 — Fase 5 (port del motore statistico, Caso A) completata, prossima la fase 6.**
 
-`master` è a v0.5.0 (fase 3 completata, tag `v0.5.0`). La fase 4 è completata sul branch
-`feat/analysis-io`, non ancora unito: `run.json` v2 con la massa HP (D28), librerie `io_core` e
-`io_root` (D29), selezione a catena di tagli (D30), risposta del rivelatore con motore per evento
-(D31) e l'app `riptide_analysis_prepare`. Sui tre run della fase 3 tutte le soglie passano
-(`validation/4_results.md`), dopo la correzione degli eventi senza traccia del protone. Prossimo:
-unire la fase 4 e pianificare la fase 5 (Caso A in `analysis/stats`).
+`master` è a v0.6.0 (fase 4 unita con la PR #2, tag `v0.6.0`). La fase 5 è completata sul branch
+`feat/stats-case-a`, non ancora unito: taglio `has_proton` (D34), cinematica inversa del rinculo,
+motore del Caso A in `analysis/stats` (D32, D33), generatore di pseudo-esperienze e finestra su
+θ_p (D35), app `riptide_stats_bench` e `riptide_stats_calibrate`. La calibrazione C++ passa tutte
+le 71 soglie contro il toy (`validation/5_results.md`). Prossimo: unire la fase 5 e pianificare
+la fase 6 (Caso A su dati Geant4).
 
 ## Fatto
 
@@ -265,12 +265,43 @@ I/O dell'analisi, vedi `roadmap.md`.
     0.3 GB.
 - **Test:** `debug` 321/321, `ci` 299/299, clang-format pulito.
 
+### Fase 5 (v0.7.0, branch `feat/stats-case-a`, `calibration_version` 1)
+
+Port del motore statistico del Caso A, vedi `roadmap.md`.
+
+- **D32:** cinematica esatta `riptide::protonEnergy` con masse n ≠ p e l'inversa
+  `recoilCos2FromEnergy` / `protonAngleFromEnergy` in `common/np_kinematics.hpp`; griglie in
+  double, E_n su un dominio parametrico (default [10, 20] MeV, 500 punti) e θ_p su [0, π/2]
+  (500 punti). Niente float32.
+- **D33:** `CaseAModel` con la tabella Ep(E_n, θ_p) precalcolata e la marginalizzazione di θ_p con
+  logsumexp; posterior per evento e combinato con il prior contato una volta; prior su θ_p come
+  argomento (sin 2θ_p con celle esatte, oppure piatto), prior su E_n piatto e proprio.
+- **D34:** taglio `has_proton` (`truth_valid_np == 1`) nella catena D30; il default del Caso A
+  diventa `single_np,has_proton,contained`. Le estrazioni degli altri eventi non cambiano.
+- **D35:** generatore delle pseudo-esperienze del modello del toy, motore per evento; finestra su
+  θ_p con limite d'errore C = 50, identica bit per bit alla somma completa sul benchmark.
+- **`analysis/stats`:** griglie, prior, logsumexp, modello, combinazione, validazione (momenti,
+  intervalli a code uguali, coverage, pull, curva del bias, checklist), pseudo-esperienze e
+  calibrazione. Nessun ROOT né Geant4; compila in `ci`.
+- **Oracoli (c):** R1, R2, R3 e i test di limite del Caso A in Catch2, verdi.
+- **Previsioni (`validation/5_predictions.md`):** v1 a `c9e7669`, prima dei run.
+- **Calibrazione (2026-11-22, `validation/5_results.md`):** `riptide_stats_calibrate` `c1`.
+  - Tutte le 71 soglie passano, scarto massimo 1.75σ.
+  - Checklist dal prior: pull −0.002 / 1.001, coverage 0.680 / 0.900 / 0.953; bias per bin
+    entro la soglia dal toy.
+  - `std_sqrt_N` 1.36 / 0.945 / 0.925 a N = 10 / 100 / 1000.
+  - Prior piatto su θ_p: bias −0.097 ± 0.006 MeV a 15 MeV (toy −0.101 ± 0.009).
+  - Spostamento dal prior su [10, 30]: +0.93 / +0.35 / +0.11 / +0.03 / +0.01 std a
+    N = 1 / 3 / 10 / 30 / 100.
+  - 39.6 s e 19 MB per il run completo.
+- **Prestazioni (c):** 0.174 s per 1000 eventi a thread singolo, contro 0.71 s del toy. Il target
+  D35 (≤ 0.10 s) è mancato; il tempo residuo è dominato da `exp` scalare.
+- **Test:** `debug` 367/367, `ci` 345/345, clang-format pulito.
+
 **Prossimi passi, nell'ordine:**
 
-1. Solo su richiesta: push di `feat/analysis-io`, PR, merge in `master` e tag `v0.6.0`.
-2. Fase 5 (Caso A in `analysis/stats`): piano dettagliato e decisioni prima del codice, compreso
-   come entrano nella verosimiglianza gli eventi selezionati senza protone tracciato
-   (`validation/4_results.md`).
+1. Solo su richiesta: push di `feat/stats-case-a`, PR, merge in `master` e tag `v0.7.0`.
+2. Fase 6 (Caso A su dati Geant4): piano dettagliato e decisioni prima del codice.
 3. Da studiare prima della fase 6: n–C non elastico lungo +X (`validation/3_results.md`, §2).
 
 ## Punti aperti
@@ -285,8 +316,12 @@ I/O dell'analisi, vedi `roadmap.md`.
 - **Fase 2, deciso (D24, D28):** la verità di Geant4 ha un E_p più alto della cinematica fisica
   di circa 5.4·10⁻⁴ in relativo (D14). `analysis/io` lo corregge con `physicalProtonEnergyFromHp`,
   con la massa HP da `run.json` v2 o da una verifica dello stesso run (D28).
-- **Fase 4:** 89 / 17 / 19 eventi `single_np` contenuti non hanno un protone tracciato
-  (`truth_Ep_phys` = 0). La fase 5 deve decidere come entrano nel Caso A.
+- **Fase 4, deciso (D34):** 89 / 17 / 19 eventi `single_np` contenuti non hanno un protone
+  tracciato (`truth_Ep_phys` = 0). Escono con il taglio `has_proton`; la frazione persa (~10⁻⁴)
+  è una sistematica per la fase 9.
+- **Fase 5:** il target D35 sulla verosimiglianza (≤ 0.10 s per 1000 eventi) è mancato, con
+  0.174 s. Un `exp` vettoriale o il parallelismo sugli eventi richiedono una decisione separata
+  e vanno rivisti solo se la fase 6 o i Casi B/C ne avranno bisogno.
 - **Fase 4:** nella build `release` restano `-Wnull-dereference` e `-Warray-bounds` da header
   esterni (libstdc++, nlohmann/json, Geant4); nessuno viene dal codice del progetto.
 - **Fase 2:** il doppio conteggio del C-13 nel modello HP (circa +0.5% sul non elastico del

@@ -43,7 +43,8 @@ lyra::cli makeCli(RawOptions& raw) {
                "Gaussian resolution of theta_p and of each tangent component of the track "
                "direction in rad, >= 0, required") |
            lyra::opt(raw.cuts, "list")["--cuts"](
-               "comma-separated cut chain, e.g. single_np,contained,evis_min=0.5 (MeV), "
+               "comma-separated cut chain from single_np, has_proton, contained, "
+               "evis_min=<MeV>, e.g. single_np,has_proton,contained (the Case A chain), "
                "required") |
            lyra::opt(raw.hp_check_id, "id")["--hp-from-check"](
                "take the HP target mass from <root>/validation/<run-id>/<id>/checks.json; "

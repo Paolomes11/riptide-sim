@@ -35,6 +35,21 @@ TEST_CASE("selections parse in order and print back", "[selection]") {
     CHECK(Selection::parse(selection.toString()).toString() == selection.toString());
 }
 
+TEST_CASE("has_proton parses and reads truth_valid_np", "[selection]") {
+    const auto selection = Selection::parse("single_np,has_proton,contained");
+    REQUIRE(selection.cuts().size() == 3);
+    CHECK(selection.cuts()[1].cut == Cut::HasProton);
+    CHECK(selection.toString() == "single_np,has_proton,contained");
+    CHECK(riptide::io::cutName(Cut::HasProton) == "has_proton");
+    CHECK_FALSE(selection.firstFailingCut({kSingleNp, 0, 2.0, 1}).has_value());
+    CHECK(selection.firstFailingCut({kSingleNp, 0, 2.0, 0}) == std::optional<std::size_t>{1});
+    // The chain order decides which cut an event fails first.
+    CHECK(selection.firstFailingCut({kMultipleNp, 0, 2.0, 0}) == std::optional<std::size_t>{0});
+    CHECK(selection.firstFailingCut({kSingleNp, 1, 2.0, 1}) == std::optional<std::size_t>{2});
+    CHECK_THROWS_AS(Selection::parse("has_proton=1"), IoError);
+    CHECK_THROWS_AS(Selection::parse("has_proton,has_proton"), IoError);
+}
+
 TEST_CASE("malformed selections are refused", "[selection]") {
     for (const char* text :
          {"", "single_np,", ",contained", "single_np,single_np", "evis_min",

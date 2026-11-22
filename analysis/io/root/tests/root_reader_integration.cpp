@@ -66,6 +66,7 @@ void checkIdentical(EventColumns& a, EventColumns& b) {
     CHECK(a.event_id == b.event_id);
     CHECK(a.truth_event_class == b.truth_event_class);
     CHECK(a.truth_p_exits == b.truth_p_exits);
+    CHECK(a.truth_valid_np == b.truth_valid_np);
     std::vector<const std::vector<double>*> a_doubles;
     a.forEachDoubleColumn(
         [&](std::string_view, std::vector<double>& column) { a_doubles.push_back(&column); });

@@ -14,12 +14,14 @@ riptide-sim/
 │   │                senza Geant4
 │   └── apps/    riptide_sim (simulazione), riptide_sim_check (verifiche fisiche di un run)
 ├── analysis/
-│   ├── stats/   motore statistico, C++ puro (niente ROOT, niente Geant4)
+│   ├── stats/   motore statistico, C++ puro (niente ROOT, niente Geant4): griglie, prior,
+│   │            logsumexp, modello e posterior del Caso A, combinazione, validazione,
+│   │            pseudo-esperienze
 │   ├── io/      core/: run.json, selezione, conversione HP, smearing, analysis.json (senza ROOT);
 │   │            root/: lettura RDataFrame → EventColumns, ordinate per event_id; la
 │   │            selezione in core/ ne fa un EventSample (struct-of-arrays, in common)
 │   └── apps/    riptide_analysis_prepare (selezione, conversione HP, risoluzione; con ROOT);
-│                (fase 5) riptide_reco, riptide_validate
+│                riptide_stats_bench, riptide_stats_calibrate (senza ROOT, anche in ci)
 ├── config/      (fase 1) configurazioni di run JSON versionate
 ├── scripts/     wrapper shell; Python solo per figure da risultati ridotti
 ├── docs/

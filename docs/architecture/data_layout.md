@@ -110,6 +110,8 @@ $RIPTIDE_DATA_DIR/
 │   ├── deposit_spectra.csv | proton_exits.csv   # solo per run con schema ≥ 3
 │   ├── pstar_comparison.csv  # solo per run con schema ≥ 3
 │   └── checks.json           # esiti numerici delle verifiche e marcatore di completamento
+├── stats/<calibration_id>/
+│   └── calibration.json      # calibrazione del Caso A con pseudo-esperienze (D35)
 └── reference/                # dati di riferimento, sola lettura
     ├── endfb80/              # file ENDF-6 estratti (D13); download/ con gli originali
     ├── jeff33/
@@ -401,11 +403,14 @@ Dalla versione 2 (2026-11-18):
 
 ```bash
 riptide_analysis_prepare --run-id <run> --analysis-id <id> --seed 20260907 \
-    --sigma-Ep 0.10 --sigma-theta 0.08 --cuts single_np,contained \
+    --sigma-Ep 0.10 --sigma-theta 0.08 --cuts single_np,has_proton,contained \
     [--hp-from-check <check_id>] [--max-events <n>] [--data-dir <radice>]
 ```
 
-Il programma legge i file degli eventi del run e applica la catena di tagli (D30). Poi converte
+Il programma legge i file degli eventi del run e applica la catena di tagli (D30). I tagli
+disponibili sono `single_np` (classe vera), `has_proton` (`truth_valid_np` = 1, D34),
+`contained` (`truth_p_exits` = 0) ed `evis_min=<MeV>`; la catena del Caso A è
+`single_np,has_proton,contained`. Poi converte
 `truth_Ep` nell'E_p fisico con la massa HP (D28) ed estrae la risoluzione con il seme dato (D31).
 Tutti i parametri dell'analisi sono obbligatori e nessuno ha un valore di default.
 `--hp-from-check` serve per i run con `run_record_version` 1. Se la cartella
@@ -457,6 +462,35 @@ d'integrazione (`analysis/apps/tests/run_prepare_it.sh`). Il test ricrea le loro
 - con lo stesso seme, `analysis.json` (a meno di `analysis_id`) e `cutflow.csv` sono identici;
 - con un altro seme cambia `analysis.json` ma non il cut-flow;
 - una cartella esistente è rifiutata.
+
+## Calibrazione del Caso A (`riptide_stats_calibrate`)
+
+`riptide_stats_calibrate --calibration-id <id>` estrae pseudo-esperienze dal modello del toy (D35)
+e scrive `stats/<calibration_id>/calibration.json`. Non legge run e non dipende da ROOT né da
+Geant4. Se la cartella esiste già si ferma. `--pilot` divide per 10 i conteggi, con un minimo di 2
+voci, ma lascia invariato il numero N di eventi per esperimento: serve a misurare tempo e memoria.
+Il file non contiene tempi, quindi due run con le stesse opzioni danno gli stessi byte. I tempi per
+sezione vanno su stdout.
+
+Ogni estrazione usa `perEventEngine(seed, id)`. Gli id sono divisi in blocchi disgiunti: sezione
+(bit 44 e successivi), esperimento (bit 20–43), evento (bit 0–19). La verità di un esperimento usa
+l'ultimo id del suo blocco.
+
+Contenuto (`calibration_version` = 1):
+- `settings`: `seed`, `sigma_Ep_MeV`, `sigma_theta_rad`, `pilot`, livelli credibili
+  (0.68/0.90/0.95), dominio della griglia E_n, `theta_points`;
+- `checklist`: posterior per evento con prior fisico su θ_p e prior piatto su [10, 20] MeV, con
+  la verità dal prior (`truth_from_prior`) oppure da U(11, 19) (`truth_narrow`). Contiene un
+  `ensemble` (`bias_mean`, `bias_error`, `rms_error`, `mean_std`, `std_error`, `pull_mean`,
+  `pull_width`, `coverage`) e `bias_bins` (5 bin, `null` se vuoto);
+- `contraction`: posterior combinati con verità U(11, 19), N/M = 10/400, 100/200, 1000/40, con
+  `std_sqrt_N` = std media·√N e il suo errore;
+- `theta_prior`: 20 esperimenti di N = 1000 a 15 MeV, con gli stessi eventi valutati con il prior
+  fisico e con quello piatto su θ_p;
+- `energy_prior`: verità U(10, 20), prior piatto su [10, 20] (`reference`) contro [10, 30] con lo
+  stesso passo (`alternative`), N/M = 1/400, 3/400, 10/400, 30/200, 100/200. `shift_mean` (con
+  `shift_error`) e `shift_max_abs` misurano lo spostamento (media_alt − media_ref)/std_ref, `std_ratio_mean` il
+  rapporto medio std_alt/std_ref.
 
 ## File degli eventi
 
