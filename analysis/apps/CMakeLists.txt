@@ -13,6 +13,10 @@ target_link_libraries(riptide_analysis_cli
 add_executable(riptide_stats_bench src/riptide_stats_bench.cpp)
 target_link_libraries(riptide_stats_bench PRIVATE
     riptide::stats riptide::common riptide::ext_lyra riptide::options riptide::warnings)
+add_executable(riptide_stats_calibrate src/riptide_stats_calibrate.cpp)
+target_link_libraries(riptide_stats_calibrate PRIVATE
+    riptide::stats riptide::io_core riptide::common riptide::ext_json riptide::ext_lyra
+    riptide::options riptide::warnings)
 
 if(RIPTIDE_BUILD_ROOT_IO)
     add_executable(riptide_analysis_prepare src/riptide_analysis_prepare.cpp)
