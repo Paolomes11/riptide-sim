@@ -1,5 +1,7 @@
 add_library(riptide_stats STATIC
-    src/numerics.cpp)
+    src/grid.cpp
+    src/numerics.cpp
+    src/priors.cpp)
 add_library(riptide::stats ALIAS riptide_stats)
 target_include_directories(riptide_stats PUBLIC
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>")
