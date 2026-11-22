@@ -1,3 +1,9 @@
-# analysis/stats is pure C++ (no ROOT, no Geant4) so it builds and tests anywhere,
-# including CI. The ROOT reader (analysis/io) and the applications come later.
+# analysis/stats and analysis/io/core are pure C++ (no ROOT, no Geant4) so they
+# build and test anywhere, including CI. analysis/io/root is the only part that
+# needs ROOT; analysis/apps builds its executables only with it.
 add_subdirectory(stats)
+add_subdirectory(io/core)
+if(RIPTIDE_BUILD_ROOT_IO)
+    add_subdirectory(io/root)
+endif()
+add_subdirectory(apps)

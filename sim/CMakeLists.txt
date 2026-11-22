@@ -17,7 +17,8 @@ target_include_directories(riptide_sim PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/incl
 # Imported Geant4 targets carry their include directories as SYSTEM, so the
 # project warnings do not fire inside Geant4 headers.
 target_link_libraries(riptide_sim PRIVATE
-    riptide::common riptide::sim_config riptide::sim_truth riptide::options riptide::warnings ${Geant4_LIBRARIES})
+    riptide::common riptide::sim_config riptide::sim_truth riptide::sim_check_inputs riptide::options
+    riptide::warnings ${Geant4_LIBRARIES})
 
 # Inputs of the physics checks that need Geant4 (scintillator material, G4NDL
 # H-1 header) or the reference files; shared by the checks and the predictions.

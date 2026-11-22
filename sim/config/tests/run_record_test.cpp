@@ -39,6 +39,17 @@ RunProvenance sampleRun() {
     return run;
 }
 
+// The checks' hpJson block for G4NDL 4.7.1 H-1 (AWR 0.999167); only awr and
+// target_mass_MeV are validated by runRecordJson, the rest is stored as given.
+json sampleHp() {
+    return json{{"file", "/g4ndl/Elastic/FS/1_1_Hydrogen"},
+                {"sha256", "0123"},
+                {"rep_flag", 1},
+                {"awr", 0.999167},
+                {"frame_flag", 2},
+                {"target_mass_MeV", 938.5}};
+}
+
 // A fresh, empty directory under the system temporary directory (a few bytes
 // are written there; no run data involved).
 std::filesystem::path freshTempDir(const std::string& name) {
@@ -64,7 +75,7 @@ TEST_CASE("event file names follow the Geant4 per-thread rule", "[run_record]") 
 
 TEST_CASE("run record holds provenance with the expected types", "[run_record]") {
     const auto config = shippedConfig("mono_14MeV.json");
-    const auto doc = riptide::sim::runRecordJson(config, sampleRun());
+    const auto doc = riptide::sim::runRecordJson(config, sampleRun(), sampleHp());
 
     const std::vector<std::string> keys{"run_record_version",
                                         "run_id",
@@ -79,7 +90,8 @@ TEST_CASE("run record holds provenance with the expected types", "[run_record]")
                                         "started_utc",
                                         "elapsed_s",
                                         "event_files",
-                                        "config"};
+                                        "config",
+                                        "hp_elastic_H1"};
     CHECK(doc.size() == keys.size());
     for (const auto& key : keys) {
         INFO("key " << key);
@@ -101,13 +113,32 @@ TEST_CASE("run record holds provenance with the expected types", "[run_record]")
     CHECK(doc["started_utc"].get<std::string>() == "2026-09-07T12:34:56Z");
     CHECK_THAT(doc["elapsed_s"].get<double>(), WithinULP(1.5, 0));
     CHECK(doc["event_files"] == json::array({"events_t0.root", "events_t1.root"}));
+    CHECK(doc["hp_elastic_H1"] == sampleHp());
+}
+
+TEST_CASE("run record refuses an HP block without a usable target mass", "[run_record]") {
+    const auto config = shippedConfig("mono_14MeV.json");
+    json hp = sampleHp();
+    SECTION("not an object") {
+        hp = json::array();
+    }
+    SECTION("awr missing") {
+        hp.erase("awr");
+    }
+    SECTION("target_mass_MeV missing") {
+        hp.erase("target_mass_MeV");
+    }
+    SECTION("target_mass_MeV not a number") {
+        hp["target_mass_MeV"] = "938.5";
+    }
+    CHECK_THROWS_AS(riptide::sim::runRecordJson(config, sampleRun(), hp), RunRecordError);
 }
 
 TEST_CASE("run record config parses back to the run config", "[run_record]") {
     for (const char* name : {"mono_14MeV.json", "flat_10_20MeV.json", "flat_19p5_20MeV.json"}) {
         INFO("config " << name);
         const auto config = shippedConfig(name);
-        const auto doc = riptide::sim::runRecordJson(config, sampleRun());
+        const auto doc = riptide::sim::runRecordJson(config, sampleRun(), sampleHp());
         const auto back = riptide::sim::parseRunConfig(doc["config"]);
         CHECK(back.source.mode == config.source.mode);
         CHECK_THAT(back.source.En_min, WithinULP(config.source.En_min, 0));
@@ -121,7 +152,8 @@ TEST_CASE("run record config parses back to the run config", "[run_record]") {
 
 TEST_CASE("run record is written atomically and never overwritten", "[run_record]") {
     const auto dir = freshTempDir("riptide_run_record_test");
-    const auto doc = riptide::sim::runRecordJson(shippedConfig("mono_14MeV.json"), sampleRun());
+    const auto doc =
+        riptide::sim::runRecordJson(shippedConfig("mono_14MeV.json"), sampleRun(), sampleHp());
 
     riptide::sim::writeRunRecord(dir, doc);
     const auto path = dir / riptide::sim::kRunRecordFileName;

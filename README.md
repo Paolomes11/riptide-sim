@@ -18,7 +18,10 @@ riscritto in C++. L'ottica di lettura è fuori scope.
 
 - CMake ≥ 3.25, Ninja, compilatore C++17 (g++ ≥ 11 o clang ≥ 14), Catch2 3.
 - Per la simulazione: Geant4 11.4 (MT) con i dati G4NDL, trovabile da CMake (`geant4-config`
-  nel `PATH` o `CMAKE_PREFIX_PATH`). Dalla fase 4: ROOT ≥ 6.30 (C++17).
+  nel `PATH` o `CMAKE_PREFIX_PATH`).
+- Per il lettore dell'analisi (`analysis/io/root`): ROOT ≥ 6.36 compilato in C++17 con
+  `dataframe`, trovabile da CMake allo stesso modo (`root-config` nel `PATH` o il prefisso
+  d'installazione in `CMAKE_PREFIX_PATH`). Si spegne con `-DRIPTIDE_BUILD_ROOT_IO=OFF`.
 
 ## Build e test
 
@@ -26,7 +29,8 @@ riscritto in C++. L'ottica di lettura è fuori scope.
 cmake --preset release && cmake --build --preset release && ctest --preset release
 ./build/release/sim/riptide_sim --version
 
-# senza Geant4/ROOT (come in CI): solo common + analysis/stats, con sanitizer e -Werror
+# senza Geant4/ROOT (come in CI): common, sim/{config,truth,validation}, analysis/stats e
+# analysis/io/core, con sanitizer e -Werror
 cmake --preset ci && cmake --build --preset ci && ctest --preset ci
 ```
 

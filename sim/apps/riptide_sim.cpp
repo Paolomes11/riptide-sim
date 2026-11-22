@@ -30,6 +30,7 @@
 #include "riptide/common/units.hpp"
 #include "riptide/common/version.hpp"
 #include "riptide/sim/action_initialization.hpp"
+#include "riptide/sim/check_inputs.hpp"
 #include "riptide/sim/cli_options.hpp"
 #include "riptide/sim/detector_construction.hpp"
 #include "riptide/sim/run_config.hpp"
@@ -140,6 +141,9 @@ int main(int argc, char** argv) {
 
     try {
         const auto config = riptide::sim::loadRunConfig(opts.config);
+        // Read before the run, so a missing G4NDL fails at once and not after BeamOn.
+        const auto hp_elastic_H1 =
+            riptide::sim::checks::hpJson(riptide::sim::checks::readHpElasticH1());
         const auto run_dir = prepareRunDir(opts);
         std::cout << "riptide_sim: run directory " << run_dir << " (physics list "
                   << config.physics_list << ", " << opts.events << " events, " << opts.threads
@@ -162,7 +166,8 @@ int main(int argc, char** argv) {
             std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
 
         // Written last: its presence marks the run as complete.
-        riptide::sim::writeRunRecord(run_dir, riptide::sim::runRecordJson(config, run));
+        riptide::sim::writeRunRecord(run_dir,
+                                     riptide::sim::runRecordJson(config, run, hp_elastic_H1));
         std::cout << "riptide_sim: wrote " << (run_dir / riptide::sim::kRunRecordFileName) << '\n';
         return kExitOk;
     } catch (const std::exception& e) {

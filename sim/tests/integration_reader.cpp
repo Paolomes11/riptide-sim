@@ -53,6 +53,8 @@ constexpr double kSumAbsTolerance = 1e-9; // MeV
 // nuclear stopping; 10 keV is far above that and far below the MeV-scale error
 // of tagging the wrong track.
 constexpr double kNuclearStoppingSlack = 0.01; // MeV
+// AWR of H-1 in the G4NDL 4.7.1 elastic file header; run.json copies it as read.
+constexpr double kAwrH1 = 0.999167;
 
 std::filesystem::path pathFromEnv(const char* name) {
     const char* value = std::getenv(name); // NOLINT(concurrency-mt-unsafe): single-threaded
@@ -82,6 +84,9 @@ const RunData& runKB0() {
 }
 
 void checkRecord(const RunData& run, int threads, const std::filesystem::path& dir) {
+    CHECK(run.record.at("run_record_version").get<int>() == riptide::sim::kRunRecordVersion);
+    CHECK_THAT(run.record.at("hp_elastic_H1").at("awr").get<double>(),
+               Catch::Matchers::WithinULP(kAwrH1, 0));
     CHECK(run.record.at("events").get<std::size_t>() == expectedEvents());
     CHECK(run.record.at("threads").get<int>() == threads);
     CHECK(run.record.at("event_files") == json(riptide::sim::eventFileNames(threads)));
