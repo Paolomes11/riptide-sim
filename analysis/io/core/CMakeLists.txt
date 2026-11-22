@@ -3,6 +3,7 @@
 # so that it builds and is tested in CI too.
 add_library(riptide_io_core STATIC
     src/analysis_record.cpp
+    src/event_columns.cpp
     src/response.cpp
     src/run_info.cpp
     src/selection.cpp)
