@@ -3,7 +3,8 @@ add_executable(stats_tests
     grid_test.cpp
     log_sum_exp_test.cpp
     numerics_test.cpp
-    priors_test.cpp)
+    priors_test.cpp
+    validate_test.cpp)
 target_link_libraries(stats_tests PRIVATE
     riptide::stats riptide::options riptide::warnings Catch2::Catch2WithMain)
 catch_discover_tests(stats_tests PROPERTIES SKIP_RETURN_CODE 4)
