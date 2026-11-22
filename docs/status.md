@@ -2,12 +2,12 @@
 
 **v0.7.0 — 2026-11-22 — Fase 5 (port del motore statistico, Caso A) completata, prossima la fase 6.**
 
-`master` è a v0.6.0 (fase 4 unita con la PR #2, tag `v0.6.0`). La fase 5 è completata sul branch
-`feat/stats-case-a`, non ancora unito: taglio `has_proton` (D34), cinematica inversa del rinculo,
-motore del Caso A in `analysis/stats` (D32, D33), generatore di pseudo-esperienze e finestra su
-θ_p (D35), app `riptide_stats_bench` e `riptide_stats_calibrate`. La calibrazione C++ passa tutte
-le 71 soglie contro il toy (`validation/5_results.md`). Prossimo: unire la fase 5 e pianificare
-la fase 6 (Caso A su dati Geant4).
+`master` è a v0.7.0: fase 5 unita con la PR #3 (tag `v0.7.0`), report di progetto in
+`docs/riptide_report.pdf` unito con la PR #4. La fase 5 comprende taglio `has_proton` (D34),
+cinematica inversa del rinculo, motore del Caso A in `analysis/stats` (D32, D33), generatore di
+pseudo-esperienze e finestra su θ_p (D35), app `riptide_stats_bench` e `riptide_stats_calibrate`.
+La calibrazione C++ passa tutte le 71 soglie contro il toy (`validation/5_results.md`).
+Prossimo: piano della fase 6 (Caso A su dati Geant4).
 
 ## Fatto
 
@@ -300,9 +300,13 @@ Port del motore statistico del Caso A, vedi `roadmap.md`.
 
 **Prossimi passi, nell'ordine:**
 
-1. Solo su richiesta: push di `feat/stats-case-a`, PR, merge in `master` e tag `v0.7.0`.
-2. Fase 6 (Caso A su dati Geant4): piano dettagliato e decisioni prima del codice.
-3. Da studiare prima della fase 6: n–C non elastico lungo +X (`validation/3_results.md`, §2).
+1. Da studiare prima dei run della fase 6: pull +3.73σ del n–C non elastico lungo +X
+   (`validation/3_results.md`, §2).
+2. Fase 6 (Caso A su dati Geant4): piano dettagliato e decisioni prima del codice. Checklist
+   bias → risoluzione → pull → coverage → contrazione 1/√N → robustezza al prior, poi confronto
+   toy vs Geant4 sullo stesso motore; previsioni scritte prima dei run.
+3. Ogni run: via dell'utente e stima dell'RSS con `scripts/run_capped.sh`.
+4. A chiusura della fase 6: `status.md` e report a v0.8.0.
 
 ## Punti aperti
 
