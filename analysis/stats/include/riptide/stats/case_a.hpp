@@ -67,16 +67,36 @@ public:
     [[nodiscard]] LogLikelihoodMatrix logLikelihoods(const EventSample& sample) const;
 
 private:
-    void fillLogLikelihood(double Ep_hat, double theta_hat, double* out,
-                           std::vector<double>& scratch) const;
+    // Buffers reused across the events of one call, so the hot loop does not
+    // allocate.
+    struct Workspace {
+        std::vector<double> angular; // theta term + log prior, per theta_j
+        std::vector<double> terms;   // the summands of one E_n row
+    };
+
+    void fillLogLikelihood(double Ep_hat, double theta_hat, double* out, Workspace& work) const;
+
+    // logsumexp of one E_n row over the theta_p cells that can matter. A
+    // lower bound L on the row maximum bounds every term of a cell outside a
+    // window in Ep and in theta below L - C; those cells are skipped.
+    [[nodiscard]] double rowLogSumExp(double Ep_hat, double theta_hat, const double* Ep_row,
+                                      std::size_t j_theta, Workspace& work) const;
 
     Grid En_grid_;
     Grid theta_grid_;
     std::vector<double> log_prior_theta_;
     CaseAResolution resolution_;
+    // Multiplying by the inverse is cheaper than dividing in the hot loop; the
+    // difference is at the last bit of z.
+    double inv_sigma_Ep_;
+    double inv_sigma_theta_;
     // Ep(E_n,i, theta_j) at [i * n_theta + j]: the kinematics is evaluated once
     // per model, not once per event.
     std::vector<double> Ep_table_;
+    // Every row of Ep_table_ is non-increasing in theta_j, so the Ep window is
+    // a contiguous range found by bisection; otherwise rows are summed whole.
+    bool Ep_decreasing_ = true;
+    double max_log_prior_theta_ = 0.0;
 };
 
 // loglik + log prior on the E_n grid: the unnormalised posterior of one event.

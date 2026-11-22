@@ -37,6 +37,25 @@ namespace riptide::stats {
     return max_value + std::log(sum);
 }
 
+// The same sum without the NaN / +inf check, for hot loops whose terms are
+// finite or -inf by construction. A NaN or +inf input gives an unspecified
+// result instead of an exception.
+[[nodiscard]] inline double logSumExpUnchecked(const double* values, std::size_t n) noexcept {
+    constexpr double kMinusInf = -std::numeric_limits<double>::infinity();
+    double max_value = kMinusInf;
+    for (std::size_t i = 0; i < n; ++i) {
+        max_value = std::max(max_value, values[i]);
+    }
+    if (std::isinf(max_value)) {
+        return kMinusInf;
+    }
+    double sum = 0.0;
+    for (std::size_t i = 0; i < n; ++i) {
+        sum += std::exp(values[i] - max_value);
+    }
+    return max_value + std::log(sum);
+}
+
 [[nodiscard]] inline double logSumExp(const std::vector<double>& values) {
     return logSumExp(values.data(), values.size());
 }

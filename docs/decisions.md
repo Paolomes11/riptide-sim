@@ -980,3 +980,34 @@ cancellano: se cambiano, se ne aggiunge una nuova che rimanda alla vecchia.
 - **Motivo:** la calibrazione con verità dal prior è la prova più diretta che il port è corretto:
   i suoi numeri (pull, coverage, contrazione) si confrontano con quelli del toy.
 - **Alternative:** generare con Geant4 (è la fase 6; qui mescolerebbe port e rivelatore).
+
+### Addendum a D35 — Finestra su θ_p con limite d'errore (2026-11-22)
+
+- **Finestra:** per ogni riga E_n,i e ogni evento la somma su θ_j si limita alle celle che possono
+  contare.
+  - **Limite inferiore:** sia L il valore più grande fra i termini delle celle più vicine a Êp
+    lungo la riga e a θ̂. Allora L ≤ max_j t_ij.
+  - **Celle tenute:** sia a_max = max_j log π(θ_j), e sia C = 50. Un termine
+    t_ij = −½z_E² − ½z_θ² + log π(θ_j) può essere ≥ L − C solo se |z_E| ≤ r e |z_θ| ≤ r, con
+    r = √(2(a_max + C − L)). Le celle fuori da queste due bande hanno t_ij < L − C ≤ max − C.
+  - **Ricerca:** nella tabella Ep(E_n,i, θ_j) ogni riga è non crescente in θ_j. Il costruttore
+    lo verifica e, se non vale, la somma si fa sull'intera riga. Le due bande sono quindi
+    intervalli contigui, trovati per bisezione.
+  - **Errore:** la massa tralasciata, relativa a quella tenuta, è ≤ n_θ·e^(−C) ≈ 10⁻¹⁹ con
+    n_θ = 500. È anche il limite dell'errore assoluto sulla log-verosimiglianza, ed è sotto
+    l'arrotondamento di un double.
+  - **Ripiego:** se L non è finito (prior −inf su quelle celle) si somma l'intera riga.
+- **Altre ottimizzazioni esatte:** precalcolo di 1/σ; logsumexp senza ricontrollo dentro il
+  ciclo, perché gli ingressi sono validati prima; buffer riusati fra gli eventi.
+- **Profilo:** `perf` non è disponibile su questa macchina, perché `perf_event_paranoid` vale 4.
+  Le ottimizzazioni vengono dalla struttura del ciclo, misurando ogni passo con
+  `riptide_stats_bench`. Il costo è dominato da `exp`, circa 3.7 ns a chiamata.
+- **Esito:** 0.17 s per 1000 eventi, contro 1.18 s dell'implementazione semplice, quindi il target
+  di 0.10 s non è raggiunto. I numeri sono in `docs/validation/5_results.md`. Con C = 50 la
+  finestra tiene in media circa 95 celle per riga, cioè ±10σ_Ep lungo la cinematica. Scendere
+  sotto 0.10 s richiederebbe un `exp` vettoriale, che non è esatto, oppure il parallelismo sugli
+  eventi. Il parallelismo resta, come sopra, una decisione a parte.
+- **Verifica:** un test Catch2 confronta la finestra con la somma su tutte le celle, con due prior,
+  tre risoluzioni ed eventi ai bordi (Êp < 0, Êp sopra ogni Ep_max, θ̂ fuori da [0, π/2]). Lo
+  scarto relativo è < 10⁻¹³. Sulla matrice del benchmark (1000 × 500) la finestra coincide bit per
+  bit con la somma completa.

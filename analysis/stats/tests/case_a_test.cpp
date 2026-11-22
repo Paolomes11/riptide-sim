@@ -6,12 +6,14 @@
 #include <iterator>
 #include <limits>
 #include <stdexcept>
+#include <utility>
 #include <vector>
 
 #include "riptide/common/np_kinematics.hpp"
 #include "riptide/stats/case_a.hpp"
 #include "riptide/stats/combine.hpp"
 #include "riptide/stats/grid.hpp"
+#include "riptide/stats/log_sum_exp.hpp"
 #include "riptide/stats/priors.hpp"
 
 namespace st = riptide::stats;
@@ -226,4 +228,59 @@ TEST_CASE("invalid Case A input is rejected", "[stats][case_a]") {
                         model.logLikelihoods(std::vector<double>{5.0}, std::vector<double>{0.5}),
                         std::vector<double>(3, 0.0)),
                     std::invalid_argument);
+}
+
+namespace {
+
+// The likelihood summed over every theta cell, with no window: the reference
+// the windowed row sum must reproduce.
+std::vector<double> bruteForceLogLikelihood(const st::Grid& En, const st::Grid& theta,
+                                            const std::vector<double>& log_prior_theta,
+                                            const st::CaseAResolution& res, double Ep_hat,
+                                            double theta_hat) {
+    std::vector<double> result(En.size());
+    std::vector<double> terms(theta.size());
+    for (std::size_t i = 0; i < En.size(); ++i) {
+        for (std::size_t j = 0; j < theta.size(); ++j) {
+            const double zE = (Ep_hat - kin::protonEnergy(En[i], theta[j])) / res.sigma_Ep;
+            const double zt = (theta_hat - theta[j]) / res.sigma_theta;
+            terms[j] = (-0.5 * zE * zE) - (0.5 * zt * zt) + log_prior_theta[j];
+        }
+        result[i] = st::logSumExp(terms);
+    }
+    return result;
+}
+
+} // namespace
+
+TEST_CASE("the theta window reproduces the sum over every cell", "[stats][case_a]") {
+    const st::Grid En = st::energyGrid(st::EnergyDomain{});
+    const st::Grid theta = st::recoilAngleGrid();
+    // Observables across the whole range, including the edges the window
+    // must handle: negative Ep_hat, Ep_hat above every Ep_max, theta_hat
+    // outside [0, pi/2] and an event far from every cell.
+    const std::vector<std::pair<double, double>> events = {{7.3, 0.55}, {0.02, 1.50}, {-0.3, 1.60},
+                                                           {19.9, 0.0}, {25.0, 0.01}, {12.0, -0.2},
+                                                           {3.0, 1.2},  {18.0, 1.4}};
+    const std::vector<std::vector<double>> priors = {st::physicalRecoilAngleLogPrior(theta),
+                                                     st::flatRecoilAngleLogPrior(theta)};
+    const std::vector<st::CaseAResolution> resolutions = {kToyResolution, {0.02, 0.01}, {2.0, 0.5}};
+    for (const auto& prior : priors) {
+        for (const auto& res : resolutions) {
+            const st::CaseAModel model(En, theta, prior, res);
+            for (const auto& [Ep_hat, theta_hat] : events) {
+                const std::vector<double> fast = model.logLikelihood(Ep_hat, theta_hat);
+                const std::vector<double> ref =
+                    bruteForceLogLikelihood(En, theta, prior, res, Ep_hat, theta_hat);
+                double worst = 0.0;
+                for (std::size_t i = 0; i < ref.size(); ++i) {
+                    worst = std::max(worst, std::fabs(fast[i] - ref[i]) /
+                                                std::max(1.0, std::fabs(ref[i])));
+                }
+                // The skipped mass is below 1e-19; what is left is the
+                // rounding of the kept terms.
+                CHECK(worst < 1e-13);
+            }
+        }
+    }
 }
