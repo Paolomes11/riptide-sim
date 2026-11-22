@@ -15,7 +15,8 @@ riptide-sim/
 │   └── apps/    riptide_sim (simulazione), riptide_sim_check (verifiche fisiche di un run)
 ├── analysis/
 │   ├── stats/   motore statistico, C++ puro (niente ROOT, niente Geant4)
-│   ├── io/      (fase 4) lettura ROOT via RDataFrame → struct-of-arrays
+│   ├── io/      core/: run.json, selezione, conversione HP, smearing, analysis.json (senza ROOT);
+│   │            root/: lettura RDataFrame → EventSample (struct-of-arrays, in common)
 │   └── apps/    (fase 5) riptide_reco, riptide_validate
 ├── config/      (fase 1) configurazioni di run JSON versionate
 ├── scripts/     wrapper shell; Python solo per figure da risultati ridotti
@@ -30,7 +31,7 @@ common  ←  sim/config  ←  sim/truth  ←  sim
                            sim/truth  ←  sim/reader  (Geant4)  ←  test d'integrazione, app di verifica
 common  ←  sim/config  ←  sim/validation  ←  riptide_sim_check (con sim/reader e Geant4)
 common  ←  analysis/stats  ←  analysis/apps
-common  ←  analysis/io     ←  analysis/apps
+common  ←  analysis/io/core  ←  analysis/io/root  (ROOT)  ←  analysis/apps
 ```
 
 Note:

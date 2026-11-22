@@ -102,7 +102,8 @@ $RIPTIDE_DATA_DIR/
 │   └── run.json              # provenienza del run e marcatore di completamento
 ├── analysis/<run_id>/<analysis_id>/
 │   ├── results.root | results.csv
-│   └── analysis.json         # parametri, semi dello smearing, versione dello schema letto
+│   ├── cutflow.csv           # eventi rimasti dopo ogni taglio (D30)
+│   └── analysis.json         # parametri, semi dello smearing, massa HP e sua fonte, schema letto (D31)
 ├── validation/<run_id>/<check_id>/
 │   ├── spectrum_u.csv | depth_z.csv | fractions.csv | legendre.csv | residuals_Ep.csv
 │   ├── model_mix.csv
@@ -419,7 +420,7 @@ Il lettore:
 - rifiuta una cartella di run senza `run.json`, perché è un run interrotto;
 - rifiuta un `schema_version` o un `run_record_version` che non conosce.
 
-Chiavi (versione 1 del formato):
+Chiavi (versione 2 del formato; la versione 1 non ha `hp_elastic_H1`, D28):
 
 | chiave | tipo | contenuto |
 |---|---|---|
@@ -437,6 +438,7 @@ Chiavi (versione 1 del formato):
 | `elapsed_s` | double | tempo reale da `Initialize` alla fine di `BeamOn` [s] |
 | `event_files` | array di string | `events_t0.root` … `events_t<N−1>.root` |
 | `config` | object | config effettivo; rileggibile con `parseRunConfig`. Dalla versione 2 contiene kB di Birks con la sua fonte e la funzione di passo applicata |
+| `hp_elastic_H1` | object | dalla versione 2: `file`, `sha256`, `rep_flag`, `awr`, `frame_flag`, `target_mass_MeV` dell'intestazione G4NDL di H-1 letta all'avvio del run, lo stesso blocco di `checks.json` (D14, D28). L'analisi ne usa `target_mass_MeV` per la conversione di D24 |
 
 `git_describe` viene rigenerato a ogni build (`cmake/RiptideGitDescribe.cmake`) e descrive i
 sorgenti al momento della build, non al momento del run.

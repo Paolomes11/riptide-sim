@@ -810,3 +810,85 @@ cancellano: se cambiano, se ne aggiunge una nuova che rimanda alla vecchia.
   - le verifiche della fase 2 che assumevano una sola corda passano a quantità per evento
     (`checks_version` 10). Con la corda costante del fascio a matita devono dare gli stessi
     numeri.
+
+## D28 — Massa del bersaglio HP registrata in `run.json` (2026-11-22)
+
+- **Problema:** D24 converte `truth_Ep` all'E_p fisico con la massa HP di H-1, che va letta dai
+  dati della run e mai scritta a mano. Oggi la massa sta solo in `checks.json`
+  (`hp_elastic_H1`), cioè nell'esito di una verifica, non nella provenienza del run.
+- **Decisione:**
+  - `run.json` passa a `run_record_version` 2. Aggiunge il blocco `hp_elastic_H1`, scritto da
+    `riptide_sim` con le stesse funzioni della verifica (`readHpElasticH1`, `hpJson`): file,
+    sha256, `rep_flag`, `awr`, `frame_flag`, `target_mass_MeV`. È lo stesso blocco di
+    `checks.json`;
+  - le colonne non cambiano, quindi `kSchemaVersion` resta 4;
+  - l'analisi usa `target_mass_MeV` e rifiuta il run se non vale `awr` · m_n entro 10⁻¹² in
+    relativo;
+  - per i run con `run_record_version` 1 (quelli della fase 3) la massa si prende solo dal
+    `checks.json` di una verifica dello stesso run, indicata in modo esplicito
+    (`--hp-from-check <check_id>`), con lo stesso `run_id`. Senza nessuna delle due fonti il
+    run è rifiutato. Non esiste un valore di default.
+- **Alternative:**
+  - leggere G4NDL al momento dell'analisi: lega l'analisi all'installazione di Geant4 e può
+    leggere una libreria diversa da quella usata dal run;
+  - leggere sempre `checks.json`: rende l'analisi dipendente da una verifica che non è
+    obbligatoria.
+- **Conseguenze:** `readRunRecord` di `sim/reader` accetta le versioni 1 e 2; il test
+  d'integrazione controlla `hp_elastic_H1.awr` = 0.999167 in `run.json`.
+
+## D29 — Struttura di `analysis/io` (2026-11-22)
+
+- **Problema:** `sim_reader` legge i file con il lettore ROOT di Geant4, ma l'analisi può
+  dipendere solo da `common` (e da ROOT). La CI non ha né Geant4 né ROOT, ma le parti pure
+  dell'I/O devono essere testate anche lì.
+- **Decisione:**
+  - `riptide::io_core`, senza ROOT, compilata anche in `ci`: lettura di `run.json`, selezione e
+    cut-flow, conversione HP, risposta del rivelatore, scrittura di `analysis.json`;
+  - `riptide::io_root`: solo il lettore `RDataFrame`, che lega le colonne per nome dallo schema
+    di `common/event_schema.hpp`;
+  - il buffer struct-of-arrays `EventSample` sta in `common/event_sample.hpp` e il
+    campionatore gaussiano in `common/random.hpp`, così `analysis/stats` li usa senza dipendere
+    da `analysis/io`;
+  - il campionatore gaussiano è una Box–Muller propria su `std::mt19937_64` con uniforme a 53
+    bit: lo standard fissa la sequenza del motore, non quella di `std::normal_distribution`,
+    che cambia da una libreria standard all'altra;
+  - il lettore rifiuta una colonna richiesta che manca nello schema del run, invece di metterla
+    a 0 come `sim_reader`: nell'analisi uno 0 silenzioso sarebbe un bias;
+  - il lettore riordina per `event_id` e rifiuta id ripetuti (come D23), così lo stesso run a 1 e
+    a 2 thread dà lo stesso campione bit per bit.
+- **Alternative:** riusare `sim_reader` (porta Geant4 nell'analisi); spostare il lettore in
+  `common` (porta ROOT a valle di `analysis/stats`).
+
+## D30 — Selezione dei candidati a singolo n–p (2026-11-22)
+
+- **Decisione:**
+  - la selezione è una catena di tagli con nome, e ognuno lascia il suo conteggio nel cut-flow:
+    - `single_np`: `truth_event_class == SingleNp`;
+    - `contained`: `truth_p_exits == 0`;
+    - `evis_min`: `det_Evis` sopra una soglia data come parametro, senza default;
+  - il default per la fase 5 è `single_np` + `contained`: il port del Caso A si confronta con il
+    toy sulla sola cinematica.
+- **Motivo:** gli eventi a più urti, i protoni che escono (fino al 17% sopra 15.6 MeV nella
+  fase 3) e la soglia sono effetti del rivelatore da misurare dopo come sistematiche, non da
+  mescolare al primo confronto con il toy.
+- **Conseguenze:** il pull aperto della fase 3 sulla frazione n–C non elastica non pesa qui,
+  perché la selezione usa la classe vera e non le frazioni. Resta da indagare prima della
+  fase 6.
+
+## D31 — Risposta del rivelatore in analisi (2026-11-22)
+
+- **Decisione:**
+  - prima la conversione HP, poi il rumore: `Ep_phys = physicalProtonEnergyFromHp(truth_Ep,
+    truth_En, M_T)`, `reco_Ep = Ep_phys + N(0, σ_Ep)`;
+  - Caso A: `reco_theta_p = truth_theta_p + N(0, σ_θ)`, lo stesso modello 1D della sua
+    verosimiglianza;
+  - Casi B e C: `reco_p_dir` è la traccia vera spostata nel piano tangente con due componenti
+    N(0, σ_θ), come nel toy. Le estrazioni sono indipendenti da quelle di θ_p;
+  - il motore è per evento, inizializzato da (seme dell'analisi, `event_id`) attraverso
+    SplitMix64: cambiare un taglio non cambia il rumore degli altri eventi, e l'ordine di
+    lettura non conta. Le funzioni di smearing ricevono il motore come argomento;
+  - `analysis.json` registra seme, σ_Ep, σ_θ, tagli, fonte e valore di M_T, schema letto e
+    `git_describe`.
+- **Alternative:** un solo modello 3D con θ̂_p ricavato da `reco_p_dir`. È più realistico, ma
+  vicino a θ_p ≈ 0 θ̂_p non è più gaussiano e la verosimiglianza del Caso A andrebbe rivista già
+  nella fase 5. Resta il passo successivo, da misurare come sistematica.
