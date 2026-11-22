@@ -223,6 +223,7 @@ json energyPrior(const Models& m, const Options& o) {
         rows.push_back({{"events", row.events},
                         {"experiments", experiments},
                         {"shift_mean", shift.shift_mean},
+                        {"shift_error", shift.shift_error},
                         {"shift_max_abs", shift.shift_max_abs},
                         {"std_ratio_mean", shift.std_ratio_mean},
                         {"reference", ensembleJson(st::summariseEnsemble(reference))},

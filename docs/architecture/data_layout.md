@@ -488,8 +488,8 @@ Contenuto (`calibration_version` = 1):
 - `theta_prior`: 20 esperimenti di N = 1000 a 15 MeV, con gli stessi eventi valutati con il prior
   fisico e con quello piatto su θ_p;
 - `energy_prior`: verità U(10, 20), prior piatto su [10, 20] (`reference`) contro [10, 30] con lo
-  stesso passo (`alternative`), N/M = 1/400, 3/400, 10/400, 30/200, 100/200. `shift_mean` e
-  `shift_max_abs` misurano lo spostamento (media_alt − media_ref)/std_ref, `std_ratio_mean` il
+  stesso passo (`alternative`), N/M = 1/400, 3/400, 10/400, 30/200, 100/200. `shift_mean` (con
+  `shift_error`) e `shift_max_abs` misurano lo spostamento (media_alt − media_ref)/std_ref, `std_ratio_mean` il
   rapporto medio std_alt/std_ref.
 
 ## File degli eventi

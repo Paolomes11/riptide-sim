@@ -132,11 +132,12 @@ EnsembleSummary summariseEnsemble(const PosteriorSummaries& summaries) {
 
 PriorShift priorShift(const PosteriorSummaries& reference, const PosteriorSummaries& alternative) {
     const std::size_t n = reference.size();
-    if (n == 0 || alternative.size() != n) {
-        throw std::invalid_argument("a prior shift needs two non-empty summaries of equal size");
+    if (n < 2 || alternative.size() != n) {
+        throw std::invalid_argument(
+            "a prior shift needs two summaries of equal size, >= 2 entries");
     }
     PriorShift result;
-    double shift_sum = 0.0;
+    std::vector<double> shifts(n);
     double ratio_sum = 0.0;
     for (std::size_t k = 0; k < n; ++k) {
         // Comparing floats exactly is deliberate: the two summaries must come
@@ -149,12 +150,14 @@ PriorShift priorShift(const PosteriorSummaries& reference, const PosteriorSummar
             throw std::invalid_argument("a prior shift needs a positive reference std");
         }
         const double shift = (alternative.mean[k] - reference.mean[k]) / reference.std[k];
-        shift_sum += shift;
+        shifts[k] = shift;
         result.shift_max_abs = std::max(result.shift_max_abs, std::abs(shift));
         ratio_sum += alternative.std[k] / reference.std[k];
     }
-    result.shift_mean = shift_sum / static_cast<double>(n);
-    result.std_ratio_mean = ratio_sum / static_cast<double>(n);
+    const auto count = static_cast<double>(n);
+    result.shift_mean = mean(shifts);
+    result.shift_error = std::sqrt(squares(shifts, result.shift_mean) / (count - 1.0) / count);
+    result.std_ratio_mean = ratio_sum / count;
     return result;
 }
 

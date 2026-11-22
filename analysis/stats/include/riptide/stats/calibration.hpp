@@ -65,11 +65,13 @@ struct EnsembleSummary {
 // of the reference posterior std: (mean_alt - mean_ref) / std_ref.
 struct PriorShift {
     double shift_mean = 0.0;
+    double shift_error = 0.0; // sample std of the shifts / sqrt(entries)
     double shift_max_abs = 0.0;
     double std_ratio_mean = 0.0; // mean of std_alt / std_ref
 };
 
-// Both summaries must describe the same entries (same truths, same order).
+// Both summaries must describe the same entries (same truths, same order),
+// at least two (for shift_error); else std::invalid_argument.
 [[nodiscard]] PriorShift priorShift(const PosteriorSummaries& reference,
                                     const PosteriorSummaries& alternative);
 

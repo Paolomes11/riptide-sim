@@ -87,6 +87,8 @@ TEST_CASE("prior shift of hand-made entries", "[stats][calibration]") {
     push(alt, 20.0, 18.0, 0.5, 1.0); // shift -2, std ratio 1
     const st::PriorShift shift = st::priorShift(ref, alt);
     CHECK_THAT(shift.shift_mean, WithinULP(-0.75, 2));
+    // sample std of {+0.5, -2} = sqrt(3.125), over sqrt(2) entries = 1.25.
+    CHECK_THAT(shift.shift_error, WithinRel(1.25, 1e-15));
     CHECK_THAT(shift.shift_max_abs, WithinULP(2.0, 0));
     CHECK_THAT(shift.std_ratio_mean, WithinULP(1.5, 2));
 
@@ -95,6 +97,11 @@ TEST_CASE("prior shift of hand-made entries", "[stats][calibration]") {
     push(other, 21.0, 18.0, 0.5, 1.0);
     CHECK_THROWS_AS(st::priorShift(ref, other), std::invalid_argument);
     CHECK_THROWS_AS(st::priorShift(ref, st::makeSummaries(kLevels)), std::invalid_argument);
+    st::PosteriorSummaries single_ref = st::makeSummaries(kLevels);
+    st::PosteriorSummaries single_alt = st::makeSummaries(kLevels);
+    push(single_ref, 10.0, 11.0, 2.0, 1.0);
+    push(single_alt, 10.0, 12.0, 4.0, 1.0);
+    CHECK_THROWS_AS(st::priorShift(single_ref, single_alt), std::invalid_argument);
 }
 
 TEST_CASE("pseudo-experiment event ids are disjoint blocks", "[stats][calibration]") {
