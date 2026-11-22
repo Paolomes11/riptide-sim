@@ -4,6 +4,9 @@ Una fase alla volta: si passa alla successiva solo con tutti i test verdi e la f
 `status.md`. Ogni risultato porta un'etichetta (a)–(d) (vedi `toy_model_findings.md`). Le
 previsioni numeriche si scrivono **prima** di ogni run.
 
+A ogni chiusura di fase si aggiorna anche il documento del progetto, `docs/riptide_report.pdf`
+(teoria, scelte e risultati in forma leggibile), con la stessa versione e data di `status.md`.
+
 **Fuori scope (deciso):** ottica di lettura (fotoni di scintillazione, lenti, fotocatodo). Il
 progetto ricostruisce il neutrone incidente da ciò che interagisce nello scintillatore. Niente
 `G4OpticalPhysics`, niente trasporto di fotoni.
