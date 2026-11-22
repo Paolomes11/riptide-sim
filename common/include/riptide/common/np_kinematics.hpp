@@ -9,6 +9,7 @@
 // not expansions: at 20 MeV the non-relativistic recoil energy is off by
 // ~0.5% at 45 deg, far more than the checks in phase 1b can tolerate.
 
+#include <algorithm>
 #include <cmath>
 
 #include "riptide/common/units.hpp"
@@ -60,6 +61,21 @@ inline constexpr double kNeutronMass = 939.56536 * units::MeV;
     return 2.0 * m_target * p2_cos2 / (total_plus_target * total_plus_target - p2_cos2);
 }
 
+// Inverse of recoilEnergy in the angle: cos^2(theta) of the recoil for a
+// recoil kinetic energy T. With X = p^2 cos^2(theta) and S = E + m_t, the
+// forward formula T = 2 m_t X / (S^2 - X) is linear in X once multiplied out:
+//   X = T S^2 / (2 m_t + T),  cos^2(theta) = X / p^2.
+// Exact for 0 <= T <= maxRecoilEnergy; there the result lies in [0, 1] up to
+// rounding. For equal masses it reduces to T (2m + E_k) / (E_k (2m + T)).
+[[nodiscard]] inline double recoilCos2FromEnergy(double recoil_kinetic, double kinetic,
+                                                 double m_projectile, double m_target) noexcept {
+    const double p_squared = momentumSquared(kinetic, m_projectile);
+    const double total_plus_target = kinetic + m_projectile + m_target;
+    const double p2_cos2 =
+        recoil_kinetic * total_plus_target * total_plus_target / (2.0 * m_target + recoil_kinetic);
+    return p2_cos2 / p_squared;
+}
+
 // NOLINTEND(bugprone-easily-swappable-parameters)
 
 // Recoil proton energy Ep for a neutron of energy En and proton lab angle theta_p.
@@ -70,6 +86,21 @@ inline constexpr double kNeutronMass = 939.56536 * units::MeV;
 // Maximum recoil proton energy for a neutron of energy En.
 [[nodiscard]] inline double maxProtonEnergy(double En) noexcept {
     return maxRecoilEnergy(En, kNeutronMass, kProtonMass);
+}
+
+// cos^2(theta_p) of a recoil proton of energy Ep from a neutron of energy En,
+// valid for 0 <= Ep <= maxProtonEnergy(En).
+[[nodiscard]] inline double protonCos2FromEnergy(double Ep, double En) noexcept {
+    return recoilCos2FromEnergy(Ep, En, kNeutronMass, kProtonMass);
+}
+
+// Proton lab angle theta_p in [0, pi/2] for (Ep, En), the inverse of
+// protonEnergy. The clamp only absorbs rounding at the two ends (Ep = 0 and
+// Ep = maxProtonEnergy), where cos^2 can leave [0, 1] by a few ulp and acos of
+// sqrt would turn into NaN; callers must keep Ep inside the kinematic range.
+[[nodiscard]] inline double protonAngleFromEnergy(double Ep, double En) noexcept {
+    const double cos2 = std::clamp(protonCos2FromEnergy(Ep, En), 0.0, 1.0);
+    return std::acos(std::sqrt(cos2));
 }
 
 // The recoil energy is linear in the CM scattering cosine of the projectile,
