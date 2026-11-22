@@ -91,7 +91,7 @@ progetto ricostruisce il neutrone incidente da ciò che interagisce nello scinti
 - Risultati: `validation/4_results.md` (tutte le soglie passate in `a2`, dopo la correzione degli
   eventi senza traccia del protone), con D28–D31.
 
-## Fase 5 — Port del motore statistico (Caso A)
+## Fase 5 — Port del motore statistico (Caso A) ✅ completata (v0.7.0, 2026-11-22)
 
 - `analysis/stats`: griglie, prior, logsumexp, modello del Caso A (D33), combinazione,
   validazione, generatore di pseudo-esperienze (D35).
