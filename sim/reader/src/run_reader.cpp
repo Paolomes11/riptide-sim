@@ -127,7 +127,9 @@ json readRunRecord(const std::filesystem::path& run_dir) {
     json record;
     try {
         record = json::parse(in);
-        if (record.at("run_record_version").get<int>() != kRunRecordVersion) {
+        const auto record_version = record.at("run_record_version").get<int>();
+        if (record_version < kOldestReadableRunRecordVersion ||
+            record_version > kRunRecordVersion) {
             throw RunReadError("unknown run_record_version in " + path.string());
         }
         const auto version = record.at("schema_version").get<std::int32_t>();

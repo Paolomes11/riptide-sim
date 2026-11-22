@@ -68,6 +68,18 @@ TEST_CASE("run records of every readable schema version are accepted", "[run_rea
     }
 }
 
+TEST_CASE("run records of every readable layout version are accepted", "[run_reader]") {
+    const auto dir = freshTempDir("riptide_run_reader_layouts");
+    for (int v = riptide::sim::kOldestReadableRunRecordVersion;
+         v <= riptide::sim::kRunRecordVersion; ++v) {
+        INFO("run_record_version " << v);
+        json doc = validRecord();
+        doc["run_record_version"] = v;
+        writeRecord(dir, doc);
+        CHECK(riptide::sim::readRunRecord(dir) == doc);
+    }
+}
+
 TEST_CASE("a run without run.json is refused", "[run_reader]") {
     const auto dir = freshTempDir("riptide_run_reader_missing");
     CHECK_THROWS_AS(riptide::sim::readRunRecord(dir), RunReadError);
@@ -77,8 +89,11 @@ TEST_CASE("run records of another layout are refused", "[run_reader]") {
     const auto dir = freshTempDir("riptide_run_reader_layout");
     json doc = validRecord();
 
-    SECTION("run_record_version") {
+    SECTION("run_record_version newer than this build") {
         doc["run_record_version"] = riptide::sim::kRunRecordVersion + 1;
+    }
+    SECTION("run_record_version older than the oldest readable") {
+        doc["run_record_version"] = riptide::sim::kOldestReadableRunRecordVersion - 1;
     }
     SECTION("schema_version newer than this build") {
         doc["schema_version"] = riptide::schema::kSchemaVersion + 1;

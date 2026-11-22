@@ -49,7 +49,14 @@ std::vector<std::string> eventFileNames(int threads) {
     return names;
 }
 
-nlohmann::json runRecordJson(const RunConfig& config, const RunProvenance& run) {
+nlohmann::json runRecordJson(const RunConfig& config, const RunProvenance& run,
+                             const nlohmann::json& hp_elastic_H1) {
+    const auto numeric = [&](const char* key) {
+        return hp_elastic_H1.contains(key) && hp_elastic_H1.at(key).is_number();
+    };
+    if (!hp_elastic_H1.is_object() || !numeric("awr") || !numeric("target_mass_MeV")) {
+        throw RunRecordError("hp_elastic_H1 must hold numeric awr and target_mass_MeV");
+    }
     nlohmann::json doc;
     doc["run_record_version"] = kRunRecordVersion;
     doc["run_id"] = run.run_id;
@@ -65,6 +72,7 @@ nlohmann::json runRecordJson(const RunConfig& config, const RunProvenance& run) 
     doc["elapsed_s"] = run.elapsed_s;
     doc["event_files"] = eventFileNames(run.threads);
     doc["config"] = toJson(config);
+    doc["hp_elastic_H1"] = hp_elastic_H1;
     return doc;
 }
 

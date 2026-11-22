@@ -23,7 +23,12 @@
 namespace riptide::sim {
 
 // Version of the run.json layout; bumped on any change of its keys or meaning.
-inline constexpr int kRunRecordVersion = 1;
+// Version 2 adds hp_elastic_H1, the HP target mass the analysis needs.
+inline constexpr int kRunRecordVersion = 2;
+
+// Oldest layout readers still accept: version 1 differs only by lacking
+// hp_elastic_H1, which an analysis then takes from a check of the same run.
+inline constexpr int kOldestReadableRunRecordVersion = 1;
 
 inline constexpr const char* kRunRecordFileName = "run.json";
 
@@ -53,8 +58,13 @@ struct RunProvenance {
 [[nodiscard]] std::vector<std::string> eventFileNames(int threads);
 
 // The full run.json document; the configuration is stored with toJson, so
-// parseRunConfig(doc["config"]) gives back `config`.
-[[nodiscard]] nlohmann::json runRecordJson(const RunConfig& config, const RunProvenance& run);
+// parseRunConfig(doc["config"]) gives back `config`. hp_elastic_H1 is the
+// header of the G4NDL H-1 elastic file the run used, as written by the checks;
+// the analysis converts the proton energy with its target mass, so a record
+// without one would be unusable. Throws RunRecordError unless hp_elastic_H1 is
+// an object holding numeric awr and target_mass_MeV.
+[[nodiscard]] nlohmann::json runRecordJson(const RunConfig& config, const RunProvenance& run,
+                                           const nlohmann::json& hp_elastic_H1);
 
 // Writes run_dir/run.json atomically. Throws RunRecordError if run.json already
 // exists (a completed run is never overwritten) or if writing fails.
