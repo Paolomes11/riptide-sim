@@ -80,14 +80,16 @@ progetto ricostruisce il neutrone incidente da ciò che interagisce nello scinti
 - Risultati: `validation/3_results.md` (tutte le soglie passate in `c1`), con l'effetto dei
   bordi sui protoni che escono.
 
-## Fase 4 — I/O dell'analisi
+## Fase 4 — I/O dell'analisi ✅ completata (v0.6.0, 2026-11-22)
 
 - `analysis/io`: `RDataFrame` → buffer struct-of-arrays (nessun ROOT a valle).
 - Selezione dei candidati a singolo scattering n–p.
 - Risposta del rivelatore (σ_Ep, σ_θ) applicata **in analisi**, con seme registrato: la stessa
   simulazione serve a più risoluzioni.
 - `truth_Ep` convertito all'E_p fisico con `physicalProtonEnergyFromHp` prima di σ_Ep; la massa
-  HP del bersaglio viene dai dati della run, mai scritta a mano (D24).
+  HP del bersaglio viene dai dati della run, mai scritta a mano (D24, D28).
+- Risultati: `validation/4_results.md` (tutte le soglie passate in `a2`, dopo la correzione degli
+  eventi senza traccia del protone), con D28–D31.
 
 ## Fase 5 — Port del motore statistico (Caso A)
 

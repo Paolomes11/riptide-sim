@@ -1,12 +1,13 @@
 # Stato
 
-**v0.5.0 — 2026-11-22 — Fase 3 (geometria reale) completata, prossima la fase 4.**
+**v0.6.0 — 2026-11-22 — Fase 4 (I/O dell'analisi) completata, prossima la fase 5.**
 
-`master` è a v0.4.0 (fase 2 completata, tag `v0.4.0`). La fase 3 è completata sul branch
-`feat/sim-geometry` (PR #1), non ancora unito: blocco 60 × 20 × 20 mm e sorgente a campo lontano
-(D27), config v3, schema 4, `checks_version` 10. I tre run di validazione da 10⁷ eventi passano
-tutte le soglie (`validation/3_results.md`). Prossimo: unire la fase 3 e pianificare la fase 4
-(I/O dell'analisi).
+`master` è a v0.5.0 (fase 3 completata, tag `v0.5.0`). La fase 4 è completata sul branch
+`feat/analysis-io`, non ancora unito: `run.json` v2 con la massa HP (D28), librerie `io_core` e
+`io_root` (D29), selezione a catena di tagli (D30), risposta del rivelatore con motore per evento
+(D31) e l'app `riptide_analysis_prepare`. Sui tre run della fase 3 tutte le soglie passano
+(`validation/4_results.md`), dopo la correzione degli eventi senza traccia del protone. Prossimo:
+unire la fase 4 e pianificare la fase 5 (Caso A in `analysis/stats`).
 
 ## Fatto
 
@@ -227,17 +228,50 @@ Geometria reale e sorgente a campo lontano, vedi `roadmap.md`.
     p = 0.0027). La previsione (d) sul verso del range contro PSTAR non è confermata.
 - **Test:** `debug` 266/266, `ci` 247/247, clang-format pulito.
 
+### Fase 4 (v0.6.0, branch `feat/analysis-io`, `analysis_record_version` 2)
+
+I/O dell'analisi, vedi `roadmap.md`.
+
+- **D28:** `run.json` passa a `run_record_version` 2, con il blocco `hp_elastic_H1` (file,
+  sha256, AWR, `target_mass_MeV`). Per i run v1 la massa si prende da `--hp-from-check <id>` di
+  una verifica dello stesso run, mai da un default.
+- **D29:**
+  - `riptide::io_core` è senza ROOT e compila anche in `ci`;
+  - `riptide::io_root` contiene solo il lettore `RDataFrame`. Rifiuta le colonne mancanti,
+    riordina per `event_id` e verifica che gli id siano unici;
+  - `common/event_sample.hpp` (struct-of-arrays) e `common/random.hpp` (SplitMix64, motore per
+    evento, Box–Muller propria) servono anche a `analysis/stats`;
+  - opzione `RIPTIDE_BUILD_ROOT_IO`, ON per default e OFF nel preset `ci`.
+- **D30:** catena di tagli `single_np`, `contained`, `evis_min=<MeV>` con cut-flow; il default
+  per la fase 5 è `single_np,contained`.
+- **D31:**
+  - `Ep_phys` dalla cinematica HP inversa, poi `reco_Ep = Ep_phys + N(0, σ_Ep)`;
+  - `reco_theta_p = truth_theta_p + N(0, σ_θ)` per il Caso A;
+  - `reco_p_dir` spostato nel piano tangente per i Casi B e C;
+  - motore per evento da (seme, `event_id`);
+  - addendum: un evento senza traccia del protone ha `reco_p_dir` = (0, 0, 0) e nessuna
+    estrazione per la direzione.
+- **`riptide_analysis_prepare`:** scrive `analysis.json` (impostazioni, fonte della massa,
+  cut-flow, riassunti dei residui) e `cutflow.csv` sotto `analysis/<run_id>/<analysis_id>/`. Il
+  campione resta in memoria.
+- **Previsioni (`validation/4_predictions.md`):** v1 a `d19fd67`, prima dei run.
+- **Run di validazione (2026-11-22, `validation/4_results.md`):** i tre run da 10⁷ eventi della
+  fase 3, letti in sola lettura.
+  - Primo giro `a1`: `p_dir.pull_mean` era `null` per un NaN negli eventi senza protone. È un
+    difetto del codice, corretto in `6f8817e`.
+  - Secondo giro `a2`: tutte le soglie passano, senza cambiarle. I conteggi di `single_np` sono
+    esatti, offset HP nella banda analitica, 15 pull sotto 3.3, riproducibilità bit per bit.
+  - 9–10 s e 1.37 GB al massimo per un run da 10⁷ eventi, circa 110 B/evento sopra una base di
+    0.3 GB.
+- **Test:** `debug` 321/321, `ci` 299/299, clang-format pulito.
+
 **Prossimi passi, nell'ordine:**
 
-1. Solo su richiesta: merge della PR #1 in `master` e tag `v0.5.0`.
-2. Fase 4 (`analysis/io`): piano dettagliato e decisioni prima del codice, cioè:
-   - come arriva all'analisi la massa HP di H-1 (oggi l'AWR è solo in `checks.json`, non in
-     `run.json`);
-   - posizione di `sim_reader` rispetto alle dipendenze;
-   - selezione dei candidati a singolo n–p;
-   - σ_Ep / σ_θ in analisi.
-3. Da studiare prima di usare le frazioni nell'analisi: n–C non elastico lungo +X
-   (`validation/3_results.md`, §2).
+1. Solo su richiesta: push di `feat/analysis-io`, PR, merge in `master` e tag `v0.6.0`.
+2. Fase 5 (Caso A in `analysis/stats`): piano dettagliato e decisioni prima del codice, compreso
+   come entrano nella verosimiglianza gli eventi selezionati senza protone tracciato
+   (`validation/4_results.md`).
+3. Da studiare prima della fase 6: n–C non elastico lungo +X (`validation/3_results.md`, §2).
 
 ## Punti aperti
 
@@ -248,10 +282,13 @@ Geometria reale e sorgente a campo lontano, vedi `roadmap.md`.
   `scripts/data_root.sh check` (procedura in `architecture/data_layout.md`).
 - **Fase 2, deciso (D25):** sopra 19.5 MeV lo stato finale elastico è in parte CHIPS (D16):
   sorgente ≤ 19.5 MeV nelle fasi 5–6, bordo come sistematica nella fase 9.
-- **Fase 2, deciso (D24):** la verità di Geant4 ha un E_p più alto della cinematica fisica di
-  circa 5.4·10⁻⁴ in relativo (D14). Si corregge in `analysis/io` con
-  `physicalProtonEnergyFromHp`; resta da fissare nella fase 4 come la massa HP arriva
-  all'analisi.
+- **Fase 2, deciso (D24, D28):** la verità di Geant4 ha un E_p più alto della cinematica fisica
+  di circa 5.4·10⁻⁴ in relativo (D14). `analysis/io` lo corregge con `physicalProtonEnergyFromHp`,
+  con la massa HP da `run.json` v2 o da una verifica dello stesso run (D28).
+- **Fase 4:** 89 / 17 / 19 eventi `single_np` contenuti non hanno un protone tracciato
+  (`truth_Ep_phys` = 0). La fase 5 deve decidere come entrano nel Caso A.
+- **Fase 4:** nella build `release` restano `-Wnull-dereference` e `-Warray-bounds` da header
+  esterni (libstdc++, nlohmann/json, Geant4); nessuno viene dal codice del progetto.
 - **Fase 2:** il doppio conteggio del C-13 nel modello HP (circa +0.5% sul non elastico del
   carbonio) va tenuto fra le sistematiche del fondo da carbonio (D15).
 - Confronto n–p indipendente da JEFF-3.3/ENDF-B-VIII.0 (D13) e verifica di H-2 contro una
