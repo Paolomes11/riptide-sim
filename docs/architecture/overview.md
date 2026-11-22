@@ -18,7 +18,8 @@ riptide-sim/
 │   ├── io/      core/: run.json, selezione, conversione HP, smearing, analysis.json (senza ROOT);
 │   │            root/: lettura RDataFrame → EventColumns, ordinate per event_id; la
 │   │            selezione in core/ ne fa un EventSample (struct-of-arrays, in common)
-│   └── apps/    (fase 5) riptide_reco, riptide_validate
+│   └── apps/    riptide_analysis_prepare (selezione, conversione HP, risoluzione; con ROOT);
+│                (fase 5) riptide_reco, riptide_validate
 ├── config/      (fase 1) configurazioni di run JSON versionate
 ├── scripts/     wrapper shell; Python solo per figure da risultati ridotti
 ├── docs/
@@ -40,6 +41,8 @@ Note:
 - `analysis/io/root` è l'unica parte dell'analisi che usa ROOT (opzione `RIPTIDE_BUILD_ROOT_IO`,
   spenta nel preset `ci`). Riempie solo le colonne: ordine per `event_id`, controllo degli id,
   selezione e risposta stanno in `analysis/io/core` e si provano anche senza ROOT.
+- `analysis/apps` separa il parsing degli argomenti (libreria `riptide::analysis_cli`, senza ROOT,
+  provata anche nel preset `ci`) dagli eseguibili, che si compilano solo con `RIPTIDE_BUILD_ROOT_IO`.
 - `riptide_sim_check` usa Geant4 solo per costruire il materiale NIST dello scintillatore (nome
   in `sim/include/riptide/sim/detector_materials.hpp`, condiviso con la simulazione) e per il
   lettore ROOT; non crea un run manager.

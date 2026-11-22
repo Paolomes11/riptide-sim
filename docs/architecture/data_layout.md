@@ -397,6 +397,59 @@ Dalla versione 2 (2026-11-18):
 - i contatori u > 1 e θ_p > π/2 sono passati in `must_be_zero`;
 - `residuals_Ep.csv` ha la terza colonna.
 
+## Preparazione dell'analisi (`riptide_analysis_prepare`)
+
+```bash
+riptide_analysis_prepare --run-id <run> --analysis-id <id> --seed 20260907 \
+    --sigma-Ep 0.10 --sigma-theta 0.08 --cuts single_np,contained \
+    [--hp-from-check <check_id>] [--max-events <n>] [--data-dir <radice>]
+```
+
+Il programma legge i file degli eventi del run e applica la catena di tagli (D30). Poi converte
+`truth_Ep` nell'E_p fisico con la massa HP (D28) ed estrae la risoluzione con il seme dato (D31).
+Tutti i parametri dell'analisi sono obbligatori e nessuno ha un valore di default.
+`--hp-from-check` serve per i run con `run_record_version` 1. Se la cartella
+`analysis/<run_id>/<analysis_id>/` esiste già, il programma esce con codice 1 senza toccarla.
+Il campione resta in memoria e non va su disco. Il programma scrive solo:
+
+- `cutflow.csv`, con le colonne `index,cut,threshold_MeV,passed,fraction`. La riga 0 è `all`, cioè
+  gli eventi letti. Seguono i tagli nell'ordine in cui sono applicati; `fraction` è relativa alla
+  riga 0.
+- `analysis.json`, scritto per ultimo: la sua presenza segna un'analisi completa. Le chiavi
+  (`analysis_record_version` = 1) sono:
+  - `analysis_id`, `project_version`, `git_describe`.
+  - `input`: `run_id`, `run_record_version`, `schema_version`, `sim_git_describe`,
+    `events_in_run`, `max_events` (0 = tutti).
+  - `hp_target_mass`: `source` (`run.json` o `checks.json`, nel secondo caso con `check_id`),
+    `file`, `sha256`, `awr`, `target_mass_MeV`.
+  - `response`: `seed`, `sigma_Ep_MeV`, `sigma_theta_rad`, `per_event_engine`.
+  - `selection`: `text`, `events_read`, `events_selected`, e `cuts`, con `name`,
+    `threshold_MeV` (solo per `evis_min`) e `passed` per ciascun taglio.
+  - `summaries.hp_conversion`, calcolati sugli eventi selezionati:
+    - `events`;
+    - `events_without_offset`;
+    - `relative_offset` {`min`, `max`, `mean`}, dove l'offset è (`truth_Ep` − `truth_Ep_phys`) /
+      `truth_Ep_phys`;
+    - `lab_angle_relative_max`, lo scarto relativo massimo di `truth_Ep_phys` dalla cinematica n–p
+      fisica in θ_p.
+  - `summaries.resolution`:
+    - `Ep_MeV` e `theta_p_rad`, ciascuno con {`mean`, `std`, `max_abs`, `pull_mean`,
+      `pull_variance`} dei residui reco − truth. Il pull della media è m/(σ/√N), quello della
+      varianza è (s²/σ² − 1)/√(2/(N−1)).
+    - `p_dir`, con {`angle_max`, `norm_deviation_max`, `scaled_angle_squared_mean`, `pull_mean`}.
+      δ è l'angolo fra `reco_p_dir` e la traccia vera. δ²/(2σ_θ²) segue Exp(1) e il suo pull è
+      (media − 1)·√N.
+
+    I pull sono `null` quando σ = 0.
+
+Gli `analysis_id` `ctest_prepare_a`, `ctest_prepare_b` e `ctest_prepare_c` sono riservati al test
+d'integrazione (`analysis/apps/tests/run_prepare_it.sh`). Il test ricrea le loro cartelle sotto
+`analysis/ctest_it_1t/` e controlla tre cose:
+
+- con lo stesso seme, `analysis.json` (a meno di `analysis_id`) e `cutflow.csv` sono identici;
+- con un altro seme cambia `analysis.json` ma non il cut-flow;
+- una cartella esistente è rifiutata.
+
 ## File degli eventi
 
 Il merging delle ntuple di Geant4 è spento: ogni thread worker scrive il proprio file.
