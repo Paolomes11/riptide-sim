@@ -135,3 +135,40 @@ TEST_CASE("the resolution summary needs the reco columns", "[response_summary]")
     CHECK_THROWS_AS(riptide::io::resolutionSummary(single, Resolution{kSigmaEp, kSigmaTheta}),
                     IoError);
 }
+
+TEST_CASE("events without a track leave the direction pull defined", "[response_summary]") {
+    constexpr std::size_t kWithoutTrack = 50;
+    auto sample = hpSample(kSamples);
+    // The first events as the simulation writes them when no proton was made.
+    for (std::size_t i = 0; i < kWithoutTrack; ++i) {
+        sample.truth_Ep[i] = 0.0;
+        sample.truth_Ep_phys[i] = 0.0;
+        sample.truth_theta_p[i] = 0.0;
+        sample.truth_p_dir_x[i] = 0.0;
+        sample.truth_p_dir_y[i] = 0.0;
+        sample.truth_p_dir_z[i] = 0.0;
+    }
+    const Resolution resolution{kSigmaEp, kSigmaTheta};
+    riptide::io::applyResolution(sample, resolution, kProjectSeed);
+    const auto doc = riptide::io::resolutionSummary(sample, resolution);
+    const auto& dir = doc.at("p_dir");
+    CHECK(dir.at("events_without_track") == kWithoutTrack);
+    REQUIRE(dir.at("pull_mean").is_number());
+    CHECK(std::abs(dir.at("pull_mean").get<double>()) < kPullBound);
+    CHECK(riptide::io::hpConversionSummary(sample).at("events_without_offset") == kWithoutTrack);
+}
+
+TEST_CASE("a non-finite residual is refused, not hidden by a maximum", "[response_summary]") {
+    const Resolution resolution{kSigmaEp, kSigmaTheta};
+    auto sample = hpSample(10);
+    riptide::io::applyResolution(sample, resolution, kProjectSeed);
+    auto bad_dir = sample;
+    bad_dir.reco_p_dir_x[3] = NAN;
+    CHECK_THROWS_AS(riptide::io::resolutionSummary(bad_dir, resolution), IoError);
+    auto bad_Ep = sample;
+    bad_Ep.reco_Ep[3] = NAN;
+    CHECK_THROWS_AS(riptide::io::resolutionSummary(bad_Ep, resolution), IoError);
+    auto bad_truth = sample;
+    bad_truth.truth_p_dir_z[3] = 0.5;
+    CHECK_THROWS_AS(riptide::io::resolutionSummary(bad_truth, resolution), IoError);
+}

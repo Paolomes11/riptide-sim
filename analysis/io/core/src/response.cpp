@@ -16,6 +16,11 @@ namespace {
 // product with the helper never comes close to zero.
 constexpr double kHelperSwitch = 0.9;
 
+// Tolerance on the norm of a truth direction: the simulation writes unit
+// vectors to about 1e-16 and exact zeros, so 1e-9 separates the two cases with
+// a wide margin while still catching a damaged column.
+constexpr double kTrackNormTolerance = 1e-9;
+
 Direction cross(const Direction& a, const Direction& b) noexcept {
     return {a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x};
 }
@@ -66,6 +71,18 @@ double smearRecoilAngle(double theta_p, double sigma_theta, random::Engine& engi
     return theta_p + sigma_theta * random::standardNormal(engine);
 }
 
+bool hasTrack(const Direction& track) {
+    const double norm = std::sqrt(track.x * track.x + track.y * track.y + track.z * track.z);
+    if (std::abs(norm - 1.0) < kTrackNormTolerance) {
+        return true;
+    }
+    if (norm < kTrackNormTolerance) {
+        return false;
+    }
+    // Also reached by NaN, for which both comparisons above are false.
+    throw std::invalid_argument("truth proton direction is neither a unit vector nor zero");
+}
+
 Direction smearDirection(const Direction& track, double sigma_theta, random::Engine& engine) {
     // Two draws in a fixed order (first e1, then e2): with a function call per
     // argument the order of evaluation would be unspecified.
@@ -110,9 +127,11 @@ void applyResolution(EventSample& sample, const Resolution& resolution, std::uin
         sample.reco_Ep[i] = smearProtonEnergy(sample.truth_Ep_phys[i], resolution.sigma_Ep, engine);
         sample.reco_theta_p[i] =
             smearRecoilAngle(sample.truth_theta_p[i], resolution.sigma_theta, engine);
-        const auto reco = smearDirection(
-            {sample.truth_p_dir_x[i], sample.truth_p_dir_y[i], sample.truth_p_dir_z[i]},
-            resolution.sigma_theta, engine);
+        const Direction track{sample.truth_p_dir_x[i], sample.truth_p_dir_y[i],
+                              sample.truth_p_dir_z[i]};
+        // No track, no direction to smear: the zero vector stays the marker.
+        const Direction reco =
+            hasTrack(track) ? smearDirection(track, resolution.sigma_theta, engine) : Direction{};
         sample.reco_p_dir_x[i] = reco.x;
         sample.reco_p_dir_y[i] = reco.y;
         sample.reco_p_dir_z[i] = reco.z;

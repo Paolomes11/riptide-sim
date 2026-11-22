@@ -224,3 +224,48 @@ TEST_CASE("the HP conversion removes the expected offset", "[response]") {
                                               kLabAngleTolerance));
     }
 }
+
+TEST_CASE("a zero truth direction means no track", "[response]") {
+    CHECK(riptide::io::hasTrack(Direction{0.0, 0.0, 1.0}));
+    CHECK(riptide::io::hasTrack(Direction{0.6, 0.0, 0.8}));
+    CHECK_FALSE(riptide::io::hasTrack(Direction{0.0, 0.0, 0.0}));
+    CHECK_THROWS_AS(riptide::io::hasTrack(Direction{0.5, 0.0, 0.0}), std::invalid_argument);
+    CHECK_THROWS_AS(riptide::io::hasTrack(Direction{NAN, 0.0, 1.0}), std::invalid_argument);
+}
+
+TEST_CASE("an event without a track gets a zero reco direction", "[response]") {
+    const Resolution resolution{kSigmaEp, kSigmaTheta};
+    auto with_tracks = sampleWithIds({0, 1, 2});
+    auto without = sampleWithIds({0, 1, 2});
+    // Event 1 as the simulation writes it when the first n-p made no proton.
+    without.truth_Ep[1] = 0.0;
+    without.truth_Ep_phys[1] = 0.0;
+    without.truth_theta_p[1] = 0.0;
+    without.truth_p_dir_x[1] = 0.0;
+    without.truth_p_dir_y[1] = 0.0;
+    without.truth_p_dir_z[1] = 0.0;
+    riptide::io::applyResolution(with_tracks, resolution, kProjectSeed);
+    riptide::io::applyResolution(without, resolution, kProjectSeed);
+
+    CHECK_THAT(without.reco_p_dir_x[1], Catch::Matchers::WithinAbs(0.0, 0.0));
+    CHECK_THAT(without.reco_p_dir_y[1], Catch::Matchers::WithinAbs(0.0, 0.0));
+    CHECK_THAT(without.reco_p_dir_z[1], Catch::Matchers::WithinAbs(0.0, 0.0));
+    // Ep and theta_p are drawn before the direction: their noise is the same,
+    // up to the rounding of (truth + noise) - truth.
+    CHECK_THAT(without.reco_Ep[1] - without.truth_Ep_phys[1],
+               Catch::Matchers::WithinAbs(with_tracks.reco_Ep[1] - with_tracks.truth_Ep_phys[1],
+                                          kUnitTolerance));
+    CHECK_THAT(without.reco_theta_p[1] - without.truth_theta_p[1],
+               Catch::Matchers::WithinAbs(
+                   with_tracks.reco_theta_p[1] - with_tracks.truth_theta_p[1], kUnitTolerance));
+    // The other events do not notice.
+    for (const std::size_t i : {std::size_t{0}, std::size_t{2}}) {
+        CHECK(sameBits(without.reco_p_dir_x[i], with_tracks.reco_p_dir_x[i]));
+        CHECK(sameBits(without.reco_p_dir_z[i], with_tracks.reco_p_dir_z[i]));
+    }
+
+    auto damaged = sampleWithIds({0, 1});
+    damaged.truth_p_dir_x[1] = NAN;
+    CHECK_THROWS_AS(riptide::io::applyResolution(damaged, resolution, kProjectSeed),
+                    std::invalid_argument);
+}

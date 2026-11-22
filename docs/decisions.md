@@ -892,3 +892,16 @@ cancellano: se cambiano, se ne aggiunge una nuova che rimanda alla vecchia.
 - **Alternative:** un solo modello 3D con θ̂_p ricavato da `reco_p_dir`. È più realistico, ma
   vicino a θ_p ≈ 0 θ̂_p non è più gaussiano e la verosimiglianza del Caso A andrebbe rivista già
   nella fase 5. Resta il passo successivo, da misurare come sistematica.
+- **Aggiunta (2026-11-22, dopo i run della fase 4):**
+  - un evento `single_np` può non avere il protone (`truth_valid_np` = 0). In quel caso i file
+    scrivono `truth_p_dir` = (0, 0, 0). Nella prima versione lo smearing normalizzava quel
+    vettore nullo e dava `reco_p_dir` = NaN. Il NaN rendeva `null` il pull della direzione, e
+    `std::max` lo nascondeva nei massimi;
+  - ora un vettore nullo significa "nessuna traccia": `reco_p_dir` = (0, 0, 0), senza estrazioni
+    di direzione. Le estrazioni di Ep e θ_p restano invariate;
+  - una direzione vera né unitaria né nulla (entro 10⁻⁹) è un errore. Un residuo non finito nei
+    riassunti è un errore;
+  - i riassunti escludono questi eventi dal solo blocco `p_dir` e li contano in
+    `events_without_track`, per cui `analysis_record_version` passa a 2;
+  - nel campione restano eventi con `truth_Ep_phys` = 0. Il loro peso nella verosimiglianza del
+    Caso A va deciso nella fase 5.

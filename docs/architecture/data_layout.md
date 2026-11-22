@@ -416,7 +416,7 @@ Il campione resta in memoria e non va su disco. Il programma scrive solo:
   gli eventi letti. Seguono i tagli nell'ordine in cui sono applicati; `fraction` è relativa alla
   riga 0.
 - `analysis.json`, scritto per ultimo: la sua presenza segna un'analisi completa. Le chiavi
-  (`analysis_record_version` = 1) sono:
+  (`analysis_record_version` = 2) sono:
   - `analysis_id`, `project_version`, `git_describe`.
   - `input`: `run_id`, `run_record_version`, `schema_version`, `sim_git_describe`,
     `events_in_run`, `max_events` (0 = tutti).
@@ -436,11 +436,19 @@ Il campione resta in memoria e non va su disco. Il programma scrive solo:
     - `Ep_MeV` e `theta_p_rad`, ciascuno con {`mean`, `std`, `max_abs`, `pull_mean`,
       `pull_variance`} dei residui reco − truth. Il pull della media è m/(σ/√N), quello della
       varianza è (s²/σ² − 1)/√(2/(N−1)).
-    - `p_dir`, con {`angle_max`, `norm_deviation_max`, `scaled_angle_squared_mean`, `pull_mean`}.
-      δ è l'angolo fra `reco_p_dir` e la traccia vera. δ²/(2σ_θ²) segue Exp(1) e il suo pull è
-      (media − 1)·√N.
+    - `p_dir`, con {`events_without_track`, `angle_max`, `norm_deviation_max`,
+      `scaled_angle_squared_mean`, `pull_mean`}. δ è l'angolo fra `reco_p_dir` e la traccia vera.
+      δ²/(2σ_θ²) segue Exp(1) e il suo pull è (media − 1)·√N, con N il numero di eventi con
+      traccia.
+    - Gli eventi senza protone (`truth_p_dir` = (0, 0, 0), cioè `truth_valid_np` = 0) hanno
+      `reco_p_dir` = (0, 0, 0). Entrano nei residui di Ep e θ_p, non in `p_dir`, e sono contati
+      in `events_without_track`.
 
-    I pull sono `null` quando σ = 0.
+    I pull sono `null` quando σ = 0, oppure, per `p_dir`, quando nessun evento ha una traccia. Un
+    residuo non finito interrompe il programma, perché nei massimi sparirebbe.
+
+  La versione 1 (fino a `d19fd67`) non aveva `events_without_track`. Normalizzava anche le
+  direzioni nulle, per cui `p_dir.pull_mean` usciva `null` nei run con eventi senza protone.
 
 Gli `analysis_id` `ctest_prepare_a`, `ctest_prepare_b` e `ctest_prepare_c` sono riservati al test
 d'integrazione (`analysis/apps/tests/run_prepare_it.sh`). Il test ricrea le loro cartelle sotto

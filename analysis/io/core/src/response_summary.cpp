@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -28,10 +29,19 @@ struct Moments {
     double max_abs = 0.0;
 };
 
-Moments moments(const std::vector<double>& values) {
+// std::max ignores a NaN in its second argument, so a NaN would vanish from
+// every maximum here instead of showing up: refuse it at the source.
+void requireFinite(double value, const char* what) {
+    if (!std::isfinite(value)) {
+        throw IoError(std::string{"non-finite "} + what);
+    }
+}
+
+Moments moments(const std::vector<double>& values, const char* what) {
     const auto n = static_cast<double>(values.size());
     Moments m;
     for (const double v : values) {
+        requireFinite(v, what);
         m.mean += v;
         m.max_abs = std::max(m.max_abs, std::abs(v));
     }
@@ -45,8 +55,9 @@ Moments moments(const std::vector<double>& values) {
 }
 
 // Summary of N(0, sigma) residuals; the pulls are defined only for sigma > 0.
-nlohmann::json gaussianResidualJson(const std::vector<double>& residuals, double sigma) {
-    const auto m = moments(residuals);
+nlohmann::json gaussianResidualJson(const std::vector<double>& residuals, double sigma,
+                                    const char* what) {
+    const auto m = moments(residuals, what);
     const auto n = static_cast<double>(residuals.size());
     nlohmann::json doc;
     doc["mean"] = m.mean;
@@ -95,12 +106,15 @@ nlohmann::json hpConversionSummary(const EventSample& sample) {
             continue;
         }
         const double offset = (sample.truth_Ep[i] - Ep_phys) / Ep_phys;
+        requireFinite(offset, "HP offset");
         offset_min = std::min(offset_min, offset);
         offset_max = std::max(offset_max, offset);
         offset_sum += offset;
         ++with_offset;
         const double Ep_lab = kinematics::protonEnergy(sample.truth_En[i], sample.truth_theta_p[i]);
-        lab_angle_max = std::max(lab_angle_max, std::abs(Ep_phys - Ep_lab) / Ep_phys);
+        const double lab_angle = std::abs(Ep_phys - Ep_lab) / Ep_phys;
+        requireFinite(lab_angle, "deviation from the n-p kinematics");
+        lab_angle_max = std::max(lab_angle_max, lab_angle);
     }
     nlohmann::json doc;
     doc["events"] = n;
@@ -137,6 +151,7 @@ nlohmann::json resolutionSummary(const EventSample& sample, const Resolution& re
     std::vector<double> Ep_residuals(n);
     std::vector<double> theta_residuals(n);
     double scaled_sum = 0.0; // sum of delta^2 / (2 sigma^2)
+    std::uint64_t with_track = 0;
     double angle_max = 0.0;
     double norm_deviation_max = 0.0;
     const double sigma = resolution.sigma_theta;
@@ -147,22 +162,37 @@ nlohmann::json resolutionSummary(const EventSample& sample, const Resolution& re
                               sample.truth_p_dir_z[i]};
         const Direction reco{sample.reco_p_dir_x[i], sample.reco_p_dir_y[i],
                              sample.reco_p_dir_z[i]};
+        // Events without a proton track have no direction residual.
+        bool track = false;
+        try {
+            track = hasTrack(truth);
+        } catch (const std::invalid_argument& e) {
+            throw IoError(e.what());
+        }
+        if (!track) {
+            continue;
+        }
+        ++with_track;
         const double angle = angleBetween(truth, reco);
+        const double norm_deviation = std::abs(std::sqrt(dot(reco, reco)) - 1.0);
+        requireFinite(angle, "direction residual");
+        requireFinite(norm_deviation, "reco direction");
         angle_max = std::max(angle_max, angle);
-        norm_deviation_max =
-            std::max(norm_deviation_max, std::abs(std::sqrt(dot(reco, reco)) - 1.0));
+        norm_deviation_max = std::max(norm_deviation_max, norm_deviation);
         if (sigma > 0.0) {
             scaled_sum += angle * angle / (2.0 * sigma * sigma);
         }
     }
 
     nlohmann::json direction;
+    direction["events_without_track"] = n - with_track;
     direction["angle_max"] = angle_max;
     direction["norm_deviation_max"] = norm_deviation_max;
-    if (sigma > 0.0) {
-        const double scaled_mean = scaled_sum / static_cast<double>(n);
+    if (sigma > 0.0 && with_track > 0) {
+        const auto tracks = static_cast<double>(with_track);
+        const double scaled_mean = scaled_sum / tracks;
         direction["scaled_angle_squared_mean"] = scaled_mean;
-        direction["pull_mean"] = (scaled_mean - 1.0) * std::sqrt(static_cast<double>(n));
+        direction["pull_mean"] = (scaled_mean - 1.0) * std::sqrt(tracks);
     } else {
         direction["scaled_angle_squared_mean"] = nullptr;
         direction["pull_mean"] = nullptr;
@@ -170,8 +200,9 @@ nlohmann::json resolutionSummary(const EventSample& sample, const Resolution& re
 
     nlohmann::json doc;
     doc["events"] = n;
-    doc["Ep_MeV"] = gaussianResidualJson(Ep_residuals, resolution.sigma_Ep);
-    doc["theta_p_rad"] = gaussianResidualJson(theta_residuals, resolution.sigma_theta);
+    doc["Ep_MeV"] = gaussianResidualJson(Ep_residuals, resolution.sigma_Ep, "Ep residual");
+    doc["theta_p_rad"] =
+        gaussianResidualJson(theta_residuals, resolution.sigma_theta, "theta_p residual");
     doc["p_dir"] = direction;
     return doc;
 }

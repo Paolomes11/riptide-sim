@@ -25,14 +25,17 @@ namespace riptide::io {
 // Relative offset (truth_Ep - truth_Ep_phys) / truth_Ep_phys: min, max, mean;
 // and the largest relative difference between truth_Ep_phys and the
 // bare-proton energy at the true lab angle. Needs truth_Ep_phys filled.
-// Events with truth_Ep_phys = 0 (a recoil at exactly 90 degrees) have no
-// relative offset and are counted apart. Throws IoError on an empty sample or
-// missing columns.
+// Events with truth_Ep_phys = 0 (no proton, or a recoil at exactly 90
+// degrees) have no relative offset and are counted apart. Throws IoError on an
+// empty sample, missing columns or a non-finite offset.
 [[nodiscard]] nlohmann::json hpConversionSummary(const EventSample& sample);
 
 // Residual summaries of reco_Ep, reco_theta_p and reco_p_dir against the
-// truth they were drawn from. Needs at least two events and every reco
-// column filled. Throws IoError otherwise.
+// truth they were drawn from. Events without a proton track (see hasTrack)
+// enter the Ep and theta_p residuals but not the direction ones; they are
+// counted in p_dir.events_without_track. Needs at least two events and every
+// reco column filled; throws IoError otherwise, and on any non-finite residual,
+// which a maximum would otherwise hide.
 [[nodiscard]] nlohmann::json resolutionSummary(const EventSample& sample,
                                                const Resolution& resolution);
 

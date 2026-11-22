@@ -18,7 +18,7 @@
 namespace riptide::io {
 
 // Layout of analysis.json, incremented when its keys change.
-inline constexpr int kAnalysisRecordVersion = 1;
+inline constexpr int kAnalysisRecordVersion = 2;
 inline constexpr std::string_view kAnalysisRecordName = "analysis.json";
 inline constexpr std::string_view kCutFlowName = "cutflow.csv";
 

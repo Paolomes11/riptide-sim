@@ -55,8 +55,14 @@ void requireValidResolution(const Resolution& resolution);
 // case-A likelihood models exactly this Gaussian.
 [[nodiscard]] double smearRecoilAngle(double theta_p, double sigma_theta, random::Engine& engine);
 
+// Whether an event has a proton track. The event files write a zero direction
+// when the first n-p produced no proton (truth_valid_np = 0), so a zero vector
+// means "no track" and a unit vector a track. Anything else is a damaged input
+// and throws std::invalid_argument: smearing it would give NaN silently.
+[[nodiscard]] bool hasTrack(const Direction& track);
+
 // The track moved by a Gaussian offset in the tangent plane, two draws of
-// N(0, sigma_theta); the result is a unit vector.
+// N(0, sigma_theta); `track` must be a unit vector, the result is one.
 [[nodiscard]] Direction smearDirection(const Direction& track, double sigma_theta,
                                        random::Engine& engine);
 
@@ -67,8 +73,11 @@ void convertHpEnergies(EventSample& sample, double target_mass);
 
 // Fills reco_Ep (from truth_Ep_phys), reco_theta_p and reco_p_dir_* with the
 // per-event engine of (seed, event_id). Draw order within an event: Ep, theta_p,
-// then the two direction offsets. Throws std::invalid_argument on an invalid
-// resolution, a negative event_id or missing input columns.
+// then the two direction offsets. An event without a track (see hasTrack) gets
+// reco_p_dir = (0, 0, 0) and no direction draws; its Ep and theta_p draws are
+// unchanged. Throws std::invalid_argument on an invalid resolution, a negative
+// event_id, a truth direction that is neither unit nor zero, or missing input
+// columns.
 void applyResolution(EventSample& sample, const Resolution& resolution, std::uint64_t seed);
 
 } // namespace riptide::io
