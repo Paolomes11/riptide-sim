@@ -67,7 +67,7 @@ progetto ricostruisce il neutrone incidente da ciò che interagisce nello scinti
   sensibilità a kB, con previsioni in `validation/2_predictions.md` v2.
 - Risultati: `validation/2_results.md` (tutte le soglie passate nelle verifiche `c2`).
 
-## Fase 3 — Geometria reale
+## Fase 3 — Geometria reale ✅ completata (v0.5.0, 2026-11-22)
 
 - Solo il blocco scintillatore, senza componenti ottici: 60 × 20 × 20 mm di BC-408, lato lungo
   su X, l'unico volume 3D del progetto di ottimizzazione (D27).
@@ -77,7 +77,8 @@ progetto ricostruisce il neutrone incidente da ciò che interagisce nello scinti
   accettanza geometrica e corda media di Cauchy (`checks_version` 10).
 - Run di validazione: tre da 10⁷ eventi (mono 14 MeV lungo +X, mono 14 MeV isotropo, piatto
   10–19.5 MeV isotropo), con previsioni in `validation/3_predictions.md`.
-- Risultati: `validation/3_results.md`, con l'effetto dei bordi sui protoni che escono.
+- Risultati: `validation/3_results.md` (tutte le soglie passate in `c1`), con l'effetto dei
+  bordi sui protoni che escono.
 
 ## Fase 4 — I/O dell'analisi
 

@@ -1,11 +1,12 @@
 # Stato
 
-**v0.4.0 — 2026-11-21 — Fase 3 (geometria reale) in corso.**
+**v0.5.0 — 2026-11-22 — Fase 3 (geometria reale) completata, prossima la fase 4.**
 
-`master` è a v0.4.0 (fase 2 completata, tag `v0.4.0`). La fase 3 è sul branch
-`feat/sim-geometry`, non ancora unito: blocco 60 × 20 × 20 mm e sorgente a campo lontano (D27),
-config v3, schema 4, `checks_version` 10. Le previsioni sono committate prima dei run
-(`validation/3_predictions.md` v2). Prossimo: i tre run di validazione da 10⁷ eventi.
+`master` è a v0.4.0 (fase 2 completata, tag `v0.4.0`). La fase 3 è completata sul branch
+`feat/sim-geometry` (PR #1), non ancora unito: blocco 60 × 20 × 20 mm e sorgente a campo lontano
+(D27), config v3, schema 4, `checks_version` 10. I tre run di validazione da 10⁷ eventi passano
+tutte le soglie (`validation/3_results.md`). Prossimo: unire la fase 3 e pianificare la fase 4
+(I/O dell'analisi).
 
 ## Fatto
 
@@ -178,7 +179,7 @@ Deposito, Birks, traccia del protone e classificazione dell'evento, vedi `roadma
   nlohmann/GCC 13 in `sim/tests/integration_reader.cpp`, presenti anche con il file di
   `83b959d`.
 
-### Fase 3 (in corso, branch `feat/sim-geometry`, `checks_version` 10)
+### Fase 3 (v0.5.0, branch `feat/sim-geometry`, `checks_version` 10)
 
 Geometria reale e sorgente a campo lontano, vedi `roadmap.md`.
 
@@ -216,17 +217,27 @@ Geometria reale e sorgente a campo lontano, vedi `roadmap.md`.
     piatta), contro lo 0.47% del cubo della fase 2.
   - 7–8 s per 10⁵ eventi, 91 MB, 110–119 B/evento. Stima (b) per un run da 10⁷ a 8 thread:
     2–6 minuti, circa 1.2 GB.
+- **Run di validazione (2026-11-22, `validation/3_results.md`):** tre da 10⁷ eventi, build di
+  `ded6c88`, verifiche `c1`.
+  - Tutte le soglie passano: oracoli, χ² e pull contro `jeff33`, bande e bin di PSTAR.
+  - Frazione di protoni che escono 3.17% / 4.37% / 4.76%, che cresce con E_p fino al 17% sopra
+    15.6 MeV nel piatto isotropo.
+  - 2.4–2.8 minuti e meno di 0.2 GB per run, 110–119 B/evento: `kBytesPerEvent` = 256 resta.
+  - Da guardare: n–C non elastico lungo +X a +3.73σ da `jeff33` (il χ² delle frazioni passa con
+    p = 0.0027). La previsione (d) sul verso del range contro PSTAR non è confermata.
 - **Test:** `debug` 266/266, `ci` 247/247, clang-format pulito.
 
 **Prossimi passi, nell'ordine:**
 
-1. Fase 3, solo con il via dell'utente: i tre run da 10⁷ eventi con i comandi di
-   `validation/3_predictions.md` (§«Run previsti»), uno alla volta, dopo
-   `scripts/data_root.sh check`, sotto `scripts/run_capped.sh -m 5G`, con la build `release` di
-   HEAD; poi le verifiche `c1`.
-2. Valutazione contro le soglie già committate e `validation/3_results.md`, con le etichette
-   (a)–(d).
-3. Stato v0.5.0, roadmap e `build: versione 0.5.0`; merge e tag solo su richiesta.
+1. Solo su richiesta: merge della PR #1 in `master` e tag `v0.5.0`.
+2. Fase 4 (`analysis/io`): piano dettagliato e decisioni prima del codice, cioè:
+   - come arriva all'analisi la massa HP di H-1 (oggi l'AWR è solo in `checks.json`, non in
+     `run.json`);
+   - posizione di `sim_reader` rispetto alle dipendenze;
+   - selezione dei candidati a singolo n–p;
+   - σ_Ep / σ_θ in analisi.
+3. Da studiare prima di usare le frazioni nell'analisi: n–C non elastico lungo +X
+   (`validation/3_results.md`, §2).
 
 ## Punti aperti
 
