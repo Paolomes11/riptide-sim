@@ -117,3 +117,62 @@ TEST_CASE("event file names cannot leave the run directory", "[run_info]") {
     record["event_files"] = json::array();
     CHECK_THROWS_AS(runInfoFromJson(kRunDir, record, std::nullopt, std::nullopt), IoError);
 }
+
+namespace {
+
+using riptide::io::sourceSpectrumFromRunRecord;
+using riptide::io::SpectrumMode;
+
+json withSource(json source) {
+    return {{"config", {{"source", std::move(source)}}}};
+}
+
+} // namespace
+
+TEST_CASE("config.source gives the spectrum of the run", "[run_info][source]") {
+    const auto mono = sourceSpectrumFromRunRecord(withSource({{"mode", "mono"}, {"En_MeV", 14.0}}));
+    CHECK(mono.mode == SpectrumMode::Mono);
+    CHECK_THAT(mono.En_MeV, Catch::Matchers::WithinULP(14.0, 0));
+
+    const auto flat = sourceSpectrumFromRunRecord(
+        withSource({{"mode", "flat"}, {"En_min_MeV", 10.0}, {"En_max_MeV", 19.5}}));
+    CHECK(flat.mode == SpectrumMode::Flat);
+    CHECK_THAT(flat.En_min_MeV, Catch::Matchers::WithinULP(10.0, 0));
+    CHECK_THAT(flat.En_max_MeV, Catch::Matchers::WithinULP(19.5, 0));
+    CHECK(riptide::io::spectrumModeName(flat.mode) == "flat");
+}
+
+TEST_CASE("config.source refuses what it does not know", "[run_info][source]") {
+    CHECK_THROWS_AS(sourceSpectrumFromRunRecord(json::object()), IoError);
+    CHECK_THROWS_AS(sourceSpectrumFromRunRecord({{"config", json::object()}}), IoError);
+    CHECK_THROWS_AS(sourceSpectrumFromRunRecord(withSource({{"mode", "gauss"}, {"En_MeV", 14.0}})),
+                    IoError);
+    CHECK_THROWS_AS(sourceSpectrumFromRunRecord(withSource({{"mode", "mono"}})), IoError);
+    CHECK_THROWS_AS(sourceSpectrumFromRunRecord(withSource({{"mode", "mono"}, {"En_MeV", -1.0}})),
+                    IoError);
+    CHECK_THROWS_AS(sourceSpectrumFromRunRecord(withSource({{"mode", "mono"}, {"En_MeV", "14"}})),
+                    IoError);
+    CHECK_THROWS_AS(
+        sourceSpectrumFromRunRecord(withSource({{"mode", "flat"}, {"En_min_MeV", 10.0}})), IoError);
+    CHECK_THROWS_AS(sourceSpectrumFromRunRecord(
+                        withSource({{"mode", "flat"}, {"En_min_MeV", 20.0}, {"En_max_MeV", 10.0}})),
+                    IoError);
+    CHECK_THROWS_AS(sourceSpectrumFromRunRecord(
+                        withSource({{"mode", "flat"}, {"En_min_MeV", 10.0}, {"En_max_MeV", 10.0}})),
+                    IoError);
+}
+
+TEST_CASE("the source of the shipped configs is understood", "[run_info][source]") {
+    // run.json copies the config file under "config", so a shipped config
+    // nested the same way is what a real run gives the reader.
+    const std::filesystem::path config_dir = RIPTIDE_CONFIG_DIR;
+    const auto mono = sourceSpectrumFromRunRecord(
+        {{"config", riptide::io::readJsonFile(config_dir / "3_ff_mono_14MeV_x.json")}});
+    CHECK(mono.mode == SpectrumMode::Mono);
+    CHECK_THAT(mono.En_MeV, Catch::Matchers::WithinULP(14.0, 0));
+    const auto flat = sourceSpectrumFromRunRecord(
+        {{"config",
+          riptide::io::readJsonFile(config_dir / "3_ff_flat_10_19p5MeV_isotropic.json")}});
+    CHECK(flat.mode == SpectrumMode::Flat);
+    CHECK_THAT(flat.En_max_MeV, Catch::Matchers::WithinULP(19.5, 0));
+}

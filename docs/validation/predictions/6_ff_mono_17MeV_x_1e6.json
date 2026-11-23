@@ -1,0 +1,268 @@
+{
+  "bins_u": 50,
+  "bins_z": 50,
+  "checks_version": 10,
+  "config": "config/6_ff_mono_17MeV_x.json",
+  "hp_deuterium": [
+    {
+      "file": "/home/giulio-mesini/Software/Geant4/geant4-v11.4.1-install/share/Geant4/data/G4NDL4.7.1/Elastic/CrossSection/1_2_Hydrogen.z",
+      "sha256": "ad1e901e2545bd67792d78a2bfb013daca24d47d006d95690e882ef692fde004"
+    },
+    {
+      "file": "/home/giulio-mesini/Software/Geant4/geant4-v11.4.1-install/share/Geant4/data/G4NDL4.7.1/Inelastic/CrossSection/1_2_Hydrogen.z",
+      "sha256": "ebe306167a4dca0a8c5aca39f7b17deeb79c396b286bd0625fb134175290bd1d"
+    },
+    {
+      "file": "/home/giulio-mesini/Software/Geant4/geant4-v11.4.1-install/share/Geant4/data/G4NDL4.7.1/Capture/CrossSection/1_2_Hydrogen.z",
+      "sha256": "e40c5a72fedd83643107c3de866be1538b5048c0d84ddca366e5bdd48422f786"
+    }
+  ],
+  "hp_elastic_H1": {
+    "awr": 0.999167,
+    "file": "/home/giulio-mesini/Software/Geant4/geant4-v11.4.1-install/share/Geant4/data/G4NDL4.7.1/Elastic/FS/1_1_Hydrogen.z",
+    "frame_flag": 2,
+    "rep_flag": 1,
+    "sha256": "768c16753d5df0d5d3e32f1b3bf75db3a7a33730f2e721877710c5c52d719a89",
+    "target_mass_MeV": 938.7827020551201
+  },
+  "medium": {
+    "H2_over_H1": 0.00011501322652104993,
+    "density_g_cm3": 1.032,
+    "material": "G4_PLASTIC_SC_VINYLTOLUENE",
+    "n_C12_per_mm3": 4.682434422487277e+19,
+    "n_C13_per_mm3": 5.064393846215897e+17,
+    "n_H1_per_mm3": 5.258371174375474e+19,
+    "n_H2_per_mm3": 6.047822350102057e+15
+  },
+  "prediction": {
+    "En_max_MeV": 17.0,
+    "En_min_MeV": 17.0,
+    "Ep_physical_offset_relative": {
+      "max": 0.0005494688815683367,
+      "min": 0.0005348963383237186
+    },
+    "chord_sample_shift": {
+      "fractions_in_sigma": 0.0,
+      "legendre_in_sigma": 0.0,
+      "seed": 20260908,
+      "u_noncentrality": 0.0
+    },
+    "chords": {
+      "acceptance": 0.6366197723675807,
+      "bin_width_mm": 0.01,
+      "bins": 1,
+      "expected_mean_chord_mm": 60.0,
+      "max_chord_mm": 59.99999999999999,
+      "min_chord_mm": 59.99999999999999,
+      "mode": "far_field",
+      "sample_acceptance_pull": 0.9318117929087648,
+      "sample_hits": 63666459,
+      "sample_mean_chord_mm": 59.99999999999999,
+      "sample_sd_chord_mm": 0.0,
+      "samples": 100000000,
+      "seed": 20260907
+    },
+    "energy_nodes": 1,
+    "events": 1000000,
+    "libraries": [
+      {
+        "expected_counts": {
+          "nc_elastic": 123153.39463954711,
+          "nc_inelastic": 69001.77426019259,
+          "np_elastic": 86849.50561264221,
+          "other": 35.15626078873906,
+          "unknown": 720960.1692268294
+        },
+        "fraction_sigma": {
+          "nc_elastic": 0.00032861320123863416,
+          "nc_inelastic": 0.0002534571549772032,
+          "np_elastic": 0.00028161439769209574,
+          "other": 5.929167296177973e-06,
+          "unknown": 0.0004485271492510246
+        },
+        "fraction_sigma_relative": {
+          "nc_elastic": 0.0026683243462386026,
+          "nc_inelastic": 0.0036731976488237014,
+          "np_elastic": 0.0032425561401365384,
+          "other": 0.1686518180021338,
+          "unknown": 0.0006221247280997966
+        },
+        "hp_np_events": 86840.4230712725,
+        "legendre_expected": [
+          -0.01587744,
+          0.004303372,
+          -0.001059133,
+          0.0005230817,
+          -2.660348e-05,
+          3.978483e-06
+        ],
+        "legendre_sigma": [
+          0.001966873629014383,
+          0.0015231933583346605,
+          0.0012868207136332633,
+          0.0011347324719045708,
+          0.0010263491578243896,
+          0.0009440758099424865
+        ],
+        "legendre_spread": [
+          0.5796120727685428,
+          0.44886526852975267,
+          0.3792093249449006,
+          0.3343908985184583,
+          0.3024517457427828,
+          0.27820686035920406
+        ],
+        "library": "jeff33",
+        "non_hp_np_events": 0.0,
+        "non_hp_np_sigma": 0.0,
+        "non_hp_share": 0.0,
+        "probabilities": {
+          "nc_elastic": 0.12315339463954711,
+          "nc_inelastic": 0.06900177426019259,
+          "np_elastic": 0.08684950561264221,
+          "other": 3.515626078873906e-05,
+          "unknown": 0.7209601692268294
+        },
+        "sigma_total_per_mm": 0.009613560395079157,
+        "u_min_expected_count": 1684.6309723141762
+      },
+      {
+        "expected_counts": {
+          "nc_elastic": 123921.28273592914,
+          "nc_inelastic": 68192.81391266844,
+          "np_elastic": 86786.766256763,
+          "other": 35.71870421176016,
+          "unknown": 721063.4183904276
+        },
+        "fraction_shift_in_sigma": {
+          "nc_elastic": 2.3367536468031496,
+          "nc_inelastic": -3.1917045214087816,
+          "np_elastic": -0.2227846175244333,
+          "other": 0.09486044075424525,
+          "unknown": 0.2301960177230847
+        },
+        "fraction_sigma": {
+          "nc_elastic": 0.0003294917273938923,
+          "nc_inelastic": 0.0002520764845108338,
+          "np_elastic": 0.00028152233207945864,
+          "other": 5.9764059756620946e-06,
+          "unknown": 0.00044847627033048104
+        },
+        "fraction_sigma_relative": {
+          "nc_elastic": 0.002658879250758119,
+          "nc_inelastic": 0.003696525631478665,
+          "np_elastic": 0.003243839403424258,
+          "other": 0.16731866699952683,
+          "unknown": 0.0006219650850289685
+        },
+        "hp_np_events": 86777.68252942657,
+        "legendre_expected": [
+          -0.01588255,
+          0.004402021,
+          -0.0005159036,
+          0.0002074152,
+          5.745396999999999e-06,
+          2.483493e-06
+        ],
+        "legendre_shift_in_sigma": [
+          -0.0025980316806422416,
+          0.06476459437024802,
+          0.42214847355559226,
+          -0.2781858348251684,
+          0.03151839386566239,
+          -0.0015835486771884088
+        ],
+        "legendre_sigma": [
+          0.0019677766322041407,
+          0.0015232332632605686,
+          0.0012870405401903384,
+          0.001134955171867794,
+          0.0010265604511412918,
+          0.0009442752809560835
+        ],
+        "legendre_spread": [
+          0.5796686627768466,
+          0.4487148461674918,
+          0.37913707107907474,
+          0.33433568425464394,
+          0.3024047111008359,
+          0.27816510291207647
+        ],
+        "library": "endfb80",
+        "non_hp_np_events": 0.0,
+        "non_hp_np_sigma": 0.0,
+        "non_hp_share": 0.0,
+        "probabilities": {
+          "nc_elastic": 0.12392128273592914,
+          "nc_inelastic": 0.06819281391266845,
+          "np_elastic": 0.086786766256763,
+          "other": 3.571870421176016e-05,
+          "unknown": 0.7210634183904276
+        },
+        "shift_from_first_in_sigma": {
+          "fractions": 3.1917045214087816,
+          "legendre": 0.42214847355559226,
+          "u_noncentrality": 0.2544223815613555
+        },
+        "sigma_total_per_mm": 0.00960874868501772,
+        "u_min_expected_count": 1685.641669298585
+      }
+    ],
+    "overlaps_model_window": false,
+    "quadrature_shift_in_sigma": {
+      "fractions": 0.0,
+      "legendre": 0.0,
+      "u_noncentrality": 0.0
+    },
+    "test_plan": {
+      "alpha_family": 0.01,
+      "alpha_per_test": 0.001,
+      "chi2_tests": 3,
+      "pull_tests": 7,
+      "pull_threshold": 3.2905267314918953
+    }
+  },
+  "reference_files": [
+    {
+      "library": "jeff33",
+      "nuclide": "H-1",
+      "path": "/mnt/external_ssd/riptide-sim/reference/jeff33/n_0125_1-H-1.dat",
+      "sha256": "d7dc8efb7bb1284013e7ae233d3d9c7fd1c61dad6fd97bcd29542fdb531ceca8"
+    },
+    {
+      "library": "jeff33",
+      "nuclide": "C-0",
+      "path": "/mnt/external_ssd/riptide-sim/reference/jeff33/n_0600_6-C-0.dat",
+      "sha256": "30ca87a83148abe20653c892bc78ffe762b0cf6757e4ad597197140cfb0c5b0c"
+    },
+    {
+      "library": "jeff33",
+      "nuclide": "C-13",
+      "path": "/mnt/external_ssd/riptide-sim/reference/jeff33/n_0628_6-C-13.dat",
+      "sha256": "c51b1895594c2ee354c2c0c353bf90b7e229fac1154464c88971f200a642d244"
+    },
+    {
+      "library": "endfb80",
+      "nuclide": "H-1",
+      "path": "/mnt/external_ssd/riptide-sim/reference/endfb80/n-001_H_001.endf",
+      "sha256": "e7b76c20c1d61f2cb2621de716d324047fa1f9583bef568f643f8d98094260fb"
+    },
+    {
+      "library": "endfb80",
+      "nuclide": "C-12",
+      "path": "/mnt/external_ssd/riptide-sim/reference/endfb80/n-006_C_012.endf",
+      "sha256": "daa7901e0067f9ac6d9b2392514ba00e71e37d00c8a8ecbbde0620237815f981"
+    },
+    {
+      "library": "endfb80",
+      "nuclide": "C-13",
+      "path": "/mnt/external_ssd/riptide-sim/reference/endfb80/n-006_C_013.endf",
+      "sha256": "abaa8cc34398e6ada0a8c451efd5eef1019a37c7a0a708a4280af71ab77621de"
+    }
+  ],
+  "versions": {
+    "geant4": "11.4.1",
+    "git": "v0.7.0-15-g6055ab1",
+    "riptide": "0.7.0"
+  }
+}

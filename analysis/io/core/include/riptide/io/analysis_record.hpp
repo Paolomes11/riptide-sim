@@ -37,6 +37,11 @@ struct AnalysisSettings {
                                                 const CutFlow& cut_flow,
                                                 const nlohmann::json& summaries);
 
+// The cuts of `selection` in order, each with its name, its threshold when it
+// has one, and the events passing up to it. Throws IoError if `cut_flow` does
+// not belong to `selection`.
+[[nodiscard]] nlohmann::json cutsJson(const Selection& selection, const CutFlow& cut_flow);
+
 // One line per cut: index, name, threshold, events passing up to that cut,
 // fraction of the total. The first line counts all events read.
 [[nodiscard]] std::string cutFlowCsv(const Selection& selection, const CutFlow& cut_flow);

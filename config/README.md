@@ -37,6 +37,15 @@ un nuovo run:
 
 L'energia deve stare in (0, 20] MeV: oltre 20 MeV finiscono i dati valutati di `G4NeutronHP`.
 
+Fase 6, Caso A su eventi Geant4 (D36): stesso blocco, fisica e sorgente di
+`3_ff_mono_14MeV_x.json`, direzione fissa +X; cambia solo lo spettro.
+
+- `6_ff_flat_10_19p5MeV_x.json`: spettro piatto 10–19.5 MeV (D25), 10⁷ eventi; checklist per
+  evento con la verità distribuita sul dominio.
+- `6_ff_mono_11MeV_x.json`, `6_ff_mono_17MeV_x.json`, `6_ff_mono_19MeV_x.json`: 11, 17 e 19 MeV,
+  10⁶ eventi ciascuno; con il run `3_ff_mono_14MeV_x_1e7` danno quattro energie per la contrazione
+  1/√N e la robustezza al prior.
+
 Fase 3, blocco 60 × 20 × 20 mm con il lato lungo su X (D27), sorgente `far_field`:
 
 - `3_ff_mono_14MeV_isotropic.json`: 14 MeV, direzioni isotrope.

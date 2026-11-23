@@ -83,6 +83,17 @@ TEST_CASE("the cut-flow CSV has one line per cut", "[analysis_record]") {
     CHECK_THROWS_AS(riptide::io::cutFlowCsv(sampleSettings().selection, CutFlow(1)), IoError);
 }
 
+TEST_CASE("the cuts block lists each cut with its passing events", "[analysis_record]") {
+    const auto cuts = riptide::io::cutsJson(sampleSettings().selection, sampleFlow());
+    REQUIRE(cuts.size() == 2);
+    CHECK(cuts.at(0).at("name") == "single_np");
+    CHECK(cuts.at(0).at("passed") == 3);
+    CHECK(cuts.at(1).at("name") == "contained");
+    CHECK(cuts.at(1).at("passed") == 2);
+    CHECK_FALSE(cuts.at(1).contains("threshold_MeV"));
+    CHECK_THROWS_AS(riptide::io::cutsJson(sampleSettings().selection, CutFlow(1)), IoError);
+}
+
 TEST_CASE("files are written once and never overwritten", "[analysis_record]") {
     const auto dir = std::filesystem::temp_directory_path() /
                      ("riptide_io_core_test_" + std::to_string(::getpid()));

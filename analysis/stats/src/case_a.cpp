@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <functional>
 #include <stdexcept>
 #include <utility>
@@ -33,13 +34,38 @@ CaseAModel::CaseAModel(Grid En_grid, Grid theta_grid, std::vector<double> log_pr
     : En_grid_(std::move(En_grid)), theta_grid_(std::move(theta_grid)),
       log_prior_theta_(std::move(log_prior_theta)), resolution_(resolution),
       inv_sigma_Ep_(1.0 / resolution.sigma_Ep), inv_sigma_theta_(1.0 / resolution.sigma_theta) {
+    finishConstruction();
+}
+
+CaseAModel::CaseAModel(Grid En_grid, Grid theta_grid,
+                       const std::vector<std::vector<double>>& log_prior_theta_rows,
+                       CaseAResolution resolution)
+    : En_grid_(std::move(En_grid)), theta_grid_(std::move(theta_grid)), resolution_(resolution),
+      inv_sigma_Ep_(1.0 / resolution.sigma_Ep), inv_sigma_theta_(1.0 / resolution.sigma_theta) {
+    if (log_prior_theta_rows.size() != En_grid_.size()) {
+        throw std::invalid_argument("the theta_p prior needs one row per E_n point");
+    }
+    const std::size_t n_theta = theta_grid_.size();
+    prior_stride_ = n_theta;
+    log_prior_theta_.reserve(log_prior_theta_rows.size() * n_theta);
+    for (const auto& row : log_prior_theta_rows) {
+        if (row.size() != n_theta) {
+            throw std::invalid_argument("the theta_p prior does not match the theta_p grid");
+        }
+        log_prior_theta_.insert(log_prior_theta_.end(), row.begin(), row.end());
+    }
+    finishConstruction();
+}
+
+void CaseAModel::finishConstruction() {
     if (!isPositiveFinite(resolution_.sigma_Ep) || !isPositiveFinite(resolution_.sigma_theta)) {
         throw std::invalid_argument("Case A resolutions must be positive and finite");
     }
     if (theta_grid_.front() < 0.0 || theta_grid_.back() > kHalf * units::pi) {
         throw std::invalid_argument("the theta_p grid must lie in [0, pi/2]");
     }
-    if (log_prior_theta_.size() != theta_grid_.size()) {
+    const std::size_t n_theta = theta_grid_.size();
+    if (prior_stride_ == 0 && log_prior_theta_.size() != n_theta) {
         throw std::invalid_argument("the theta_p prior does not match the theta_p grid");
     }
     for (const double value : log_prior_theta_) {
@@ -50,7 +76,6 @@ CaseAModel::CaseAModel(Grid En_grid, Grid theta_grid, std::vector<double> log_pr
     if (!(En_grid_.front() > 0.0)) {
         throw std::invalid_argument("the E_n grid must be positive");
     }
-    const std::size_t n_theta = theta_grid_.size();
     Ep_table_.resize(En_grid_.size() * n_theta);
     for (std::size_t i = 0; i < En_grid_.size(); ++i) {
         for (std::size_t j = 0; j < n_theta; ++j) {
@@ -63,15 +88,25 @@ CaseAModel::CaseAModel(Grid En_grid, Grid theta_grid, std::vector<double> log_pr
         const double* row = Ep_table_.data() + (i * n_theta);
         Ep_decreasing_ = std::is_sorted(row, row + n_theta, std::greater<>());
     }
-    max_log_prior_theta_ = *std::max_element(log_prior_theta_.begin(), log_prior_theta_.end());
+    const std::size_t stored_rows = log_prior_theta_.size() / n_theta;
+    max_log_prior_theta_.resize(stored_rows);
+    for (std::size_t r = 0; r < stored_rows; ++r) {
+        const auto first = log_prior_theta_.begin() + static_cast<std::ptrdiff_t>(r * n_theta);
+        max_log_prior_theta_[r] =
+            *std::max_element(first, first + static_cast<std::ptrdiff_t>(n_theta));
+    }
 }
 
-double CaseAModel::rowLogSumExp(double Ep_hat, double theta_hat, const double* Ep_row,
+double CaseAModel::rowLogSumExp(double Ep_hat, double theta_hat, std::size_t row,
                                 std::size_t j_theta, Workspace& work) const {
     const std::size_t n_theta = theta_grid_.size();
+    const double* Ep_row = Ep_table_.data() + (row * n_theta);
+    const double* prior_row = log_prior_theta_.data() + (row * prior_stride_);
+    // Gaussian + prior is added first, as the shared-row model always did, so
+    // equal rows round exactly like one shared row.
     const auto term = [&](std::size_t j) {
         const double z = (Ep_hat - Ep_row[j]) * inv_sigma_Ep_;
-        return (-kHalf * z * z) + work.angular[j];
+        return (-kHalf * z * z) + (work.angular[j] + prior_row[j]);
     };
     std::size_t begin = 0;
     std::size_t end = n_theta;
@@ -91,7 +126,8 @@ double CaseAModel::rowLogSumExp(double Ep_hat, double theta_hat, const double* E
         if (std::isfinite(lower)) {
             // A term reaching L - C needs both Gaussian exponents within
             // a_max + C - L of 0, since the other part is <= a_max.
-            const double radius = std::sqrt(2.0 * (max_log_prior_theta_ + kWindowCut - lower));
+            const double max_prior = max_log_prior_theta_[prior_stride_ == 0 ? 0 : row];
+            const double radius = std::sqrt(2.0 * (max_prior + kWindowCut - lower));
             const double Ep_hi = Ep_hat + (radius * resolution_.sigma_Ep);
             const double Ep_lo = Ep_hat - (radius * resolution_.sigma_Ep);
             const double theta_lo = theta_hat - (radius * resolution_.sigma_theta);
@@ -129,11 +165,11 @@ void CaseAModel::fillLogLikelihood(double Ep_hat, double theta_hat, double* out,
         throw std::invalid_argument("Case A observables must be finite");
     }
     const std::size_t n_theta = theta_grid_.size();
-    // The angular term and the prior do not depend on E_n: once per event.
+    // The angular Gaussian does not depend on E_n: once per event.
     work.angular.resize(n_theta);
     for (std::size_t j = 0; j < n_theta; ++j) {
         const double z = (theta_hat - theta_grid_[j]) * inv_sigma_theta_;
-        work.angular[j] = (-kHalf * z * z) + log_prior_theta_[j];
+        work.angular[j] = -kHalf * z * z;
     }
     work.terms.resize(n_theta);
     // The theta cell nearest to theta_hat, a candidate for the row maximum.
@@ -146,7 +182,7 @@ void CaseAModel::fillLogLikelihood(double Ep_hat, double theta_hat, double* out,
         --j_theta;
     }
     for (std::size_t i = 0; i < En_grid_.size(); ++i) {
-        out[i] = rowLogSumExp(Ep_hat, theta_hat, Ep_table_.data() + (i * n_theta), j_theta, work);
+        out[i] = rowLogSumExp(Ep_hat, theta_hat, i, j_theta, work);
     }
 }
 

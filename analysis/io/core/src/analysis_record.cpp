@@ -14,7 +14,12 @@ namespace {
 constexpr std::string_view kTemporarySuffix = ".tmp";
 constexpr int kRoundTripDigits = 17;
 
+} // namespace
+
 nlohmann::json cutsJson(const Selection& selection, const CutFlow& cut_flow) {
+    if (cut_flow.cuts() != selection.cuts().size()) {
+        throw IoError("the cut flow does not belong to the selection");
+    }
     auto cuts = nlohmann::json::array();
     for (std::size_t k = 0; k < selection.cuts().size(); ++k) {
         const auto& spec = selection.cuts()[k];
@@ -28,8 +33,6 @@ nlohmann::json cutsJson(const Selection& selection, const CutFlow& cut_flow) {
     }
     return cuts;
 }
-
-} // namespace
 
 nlohmann::json analysisRecordJson(const RunInfo& run, const AnalysisSettings& settings,
                                   const CutFlow& cut_flow, const nlohmann::json& summaries) {

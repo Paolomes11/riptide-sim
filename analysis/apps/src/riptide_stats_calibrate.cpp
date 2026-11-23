@@ -9,7 +9,6 @@
 #include <lyra/lyra.hpp>
 #include <nlohmann/json.hpp>
 
-#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstddef>
@@ -22,6 +21,7 @@
 #include <utility>
 #include <vector>
 
+#include "riptide/apps/case_a_geant4.hpp"
 #include "riptide/common/data_paths.hpp"
 #include "riptide/common/git_info.hpp"
 #include "riptide/common/version.hpp"
@@ -68,11 +68,6 @@ struct SizedRow {
 const std::vector<SizedRow> kContractionRows{{10, 400}, {100, 200}, {1000, 40}};
 const std::vector<SizedRow> kEnergyPriorRows{{1, 400}, {3, 400}, {10, 400}, {30, 200}, {100, 200}};
 
-// The pilot divides every count by ten (at least two entries, so an ensemble
-// keeps its error) but keeps N: it measures time and memory, not the physics.
-constexpr std::size_t kPilotDivisor = 10;
-constexpr std::size_t kMinEntries = 2;
-
 // Disjoint event-id sections, so no two draws of the calibration share an
 // engine; a section of sized rows uses one section per row.
 constexpr std::uint64_t kSectionChecklistPrior = 0;
@@ -89,8 +84,10 @@ struct Options {
     bool pilot = false;
 };
 
+// The pilot divides every count by ten (at least two entries) but keeps N: it
+// measures time and memory, not the physics.
 std::size_t scaled(std::size_t count, bool pilot) {
-    return pilot ? std::max(count / kPilotDivisor, kMinEntries) : count;
+    return riptide::apps::pilotScaled(count, pilot);
 }
 
 json domainJson(const st::EnergyDomain& d) {

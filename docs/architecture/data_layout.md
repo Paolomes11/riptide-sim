@@ -112,6 +112,8 @@ $RIPTIDE_DATA_DIR/
 │   └── checks.json           # esiti numerici delle verifiche e marcatore di completamento
 ├── stats/<calibration_id>/
 │   └── calibration.json      # calibrazione del Caso A con pseudo-esperienze (D35)
+├── stats/<stats_id>/
+│   └── case_a.json           # Caso A su eventi Geant4 o sul toy con la stessa verità (D37, D38)
 └── reference/                # dati di riferimento, sola lettura
     ├── endfb80/              # file ENDF-6 estratti (D13); download/ con gli originali
     ├── jeff33/
@@ -491,6 +493,86 @@ Contenuto (`calibration_version` = 1):
   stesso passo (`alternative`), N/M = 1/400, 3/400, 10/400, 30/200, 100/200. `shift_mean` (con
   `shift_error`) e `shift_max_abs` misurano lo spostamento (media_alt − media_ref)/std_ref, `std_ratio_mean` il
   rapporto medio std_alt/std_ref.
+
+## Caso A su eventi Geant4 (`riptide_case_a_geant4`)
+
+`riptide_case_a_geant4 --stats-id <id> --run-id <run>` legge un run, applica la catena fissa
+`single_np,has_proton,contained` (D30, D34), converte le energie HP, estrae la risoluzione con
+`--seed` e divide gli eventi selezionati in esperienze disgiunte (D37). Con `--hp-from-check <id>`
+la massa HP viene da `checks.json`, come in `riptide_analysis_prepare`: serve per i run con
+`run.json` v1. Con `--toy --truth mono:<E>|flat:<min>:<max> --events <n>` gli eventi vengono
+invece dal generatore del toy, con la stessa verità e lo stesso protocollo (D38). Le due sorgenti
+si escludono a vicenda. Scrive `stats/<stats_id>/case_a.json`, e se la cartella esiste già si
+ferma. `--pilot` e i tempi su stdout funzionano come in `riptide_stats_calibrate`. Il file non
+contiene tempi: due run con le stesse opzioni danno gli stessi byte.
+
+Con `--acceptance <id>` il prior in θ_p del modello di riferimento e di quello con E_n allargato
+diventa l'accettanza misurata in `stats/<id>/acceptance.json` (D40), con una riga per ogni punto
+della griglia E_n. Il toy estrae θ_p con la stessa accettanza, per accept-reject, e resta così il
+gemello di Geant4 (D38). Il prior piatto in θ_p della riga `theta_prior` resta piatto. Senza
+l'opzione il calcolo è quello di prima, e i numeri non cambiano.
+
+La verità viene da `run.json` (`config.source`) oppure da `--truth`. Le righe dipendono dal tipo
+di sorgente:
+- **flat:** `checklist`. È la checklist per evento su un sottoinsieme casuale di 20 000
+  selezionati (2 000 con `--pilot`), con `ensemble` e `bias_bins` in 5 bin di E_n;
+- **mono:** `contraction` (N/M = 10/400, 100/200, 1000/40), `theta_prior` (N = 1000, M = 20) ed
+  `energy_prior` (N/M = 1/400, 3/400, 10/400, 30/200, 100/200), con i campi di
+  `calibration.json`. Prima, ogni `truth_En` selezionata deve essere uguale all'energia del
+  config, entro 10⁻¹² in relativo.
+
+Ogni riga usa un proprio motore, `perEventEngine(split_seed, sezione + riga)`, con le sezioni di
+`riptide_stats_calibrate`. Dentro una riga nessun evento si ripete, fra righe diverse sì. Gli M
+eseguiti sono il minimo fra l'M pianificato (diviso per 10 con `--pilot`) e quanti esperimenti
+disgiunti di N eventi ci stanno. Se ne restano meno di 2 la riga ha `"skipped": "too few
+events"`, con `experiments` = 0 ed `experiments_available`. Altrimenti `skipped` è `null`.
+
+Contenuto (`case_a_version` = 2; la versione 1 non ha `settings.acceptance`):
+- `source`, per Geant4: `kind` = `geant4`, `run_id`, `run_seed`, `run_record_version`,
+  `schema_version`, `run_git_describe`, `hp_mass` (`source`, `check_id`, `target_mass_MeV`),
+  `cuts`, `events_read`, `events_selected` e `cut_flow` (come in `analysis.json`). Per il toy:
+  `kind` = `toy` ed `events`;
+- `truth`: `mode` con `En_MeV`, oppure con `En_min_MeV` ed `En_max_MeV`;
+- `settings`: `seed`, `split_seed`, `sigma_Ep_MeV`, `sigma_theta_rad`, `pilot`, livelli, dominio
+  della griglia E_n, `theta_points`, `acceptance`. Quest'ultimo è `null` senza `--acceptance`;
+  altrimenti contiene `stats_id`, `acceptance_version`, `run_id`, `half`, `entries`, `En_bins`,
+  `theta_bins` e `ratio_max` (il massimo del rapporto di accettanza, il tetto dell'accept-reject);
+- le sezioni dette sopra. Ogni riga ha in più `experiments_planned` e `skipped`.
+
+## Accettanza in θ_p del Caso A (`riptide_acceptance`)
+
+`riptide_acceptance --stats-id <id> --run-id <run> [--half all|even|odd]` legge un run e applica
+la catena del Caso A, `single_np,has_proton,contained`. Poi istogramma `truth_En` e
+`truth_theta_p` degli eventi selezionati. Le due colonne non dipendono dalla convenzione sulla
+massa HP, quindi non serve `--hp-from-check`. Scrive `stats/<id>/acceptance.json` e si ferma se
+la cartella esiste già. Il file non contiene tempi: lo stesso run con le stesse opzioni dà gli
+stessi byte.
+
+La tabella deve venire da un run indipendente da quelli su cui si usa (D40). Così le sue
+fluttuazioni non entrano due volte.
+
+Binning (D40):
+- **θ_p:** 18 bin da 5° su [0, π/2].
+- **E_n, sorgente piatta:** bin da 1 MeV dall'estremo inferiore. L'ultimo può essere più corto,
+  per finire sull'estremo superiore.
+- **E_n, sorgente mono:** un solo bin largo 1 MeV centrato sull'energia, così il centro del bin,
+  dove si valuta il rapporto, è l'energia stessa.
+
+I bin sono [lo, hi), tranne l'ultimo, chiuso in alto. Un evento fuori dai bordi è un errore.
+`--half even|odd` tiene solo gli eventi con `event_id` pari o dispari. Serve per misurare quanto
+la tabella si muove con la propria statistica.
+
+Contenuto (`acceptance_version` = 1):
+- `acceptance_version`, `stats_id`, `project_version`, `git_describe`;
+- `source`: `run_id`, `run_seed`, `run_record_version`, `schema_version`, `run_git_describe`;
+- `cuts`, `cut_flow` (come in `analysis.json`), `events_read`, `events_selected`;
+- `half` ed `entries`, la somma dei conteggi: è `events_selected` con `all`, circa la metà con le
+  altre due;
+- `En_edges_MeV`, `theta_edges_rad`, `counts`. Ci sono n_E × n_θ conteggi, riga per riga in E_n
+  (`counts[k·n_θ + t]`).
+
+Il file conserva i conteggi e non il rapporto, perché il rapporto è una scelta della libreria
+statistica.
 
 ## File degli eventi
 

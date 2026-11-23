@@ -50,6 +50,17 @@ PseudoEvent drawPseudoEvent(double En, const CaseAResolution& resolution, random
     return event;
 }
 
+PseudoEvent drawPseudoEvent(double En, const CaseAResolution& resolution,
+                            const AcceptanceRatio& acceptance, random::Engine& engine) {
+    const double r_max = acceptance.maximum();
+    while (true) {
+        const PseudoEvent event = drawPseudoEvent(En, resolution, engine);
+        if (random::uniform53(engine) * r_max < acceptance(En, event.truth_theta_p)) {
+            return event;
+        }
+    }
+}
+
 PseudoSample pseudoSampleFromPrior(const EnergyDomain& domain, std::size_t n,
                                    const CaseAResolution& resolution, std::uint64_t seed,
                                    std::uint64_t first_event_id) {
@@ -76,6 +87,38 @@ PseudoSample pseudoSampleAtEnergy(double En, std::size_t n, const CaseAResolutio
     for (std::size_t k = 0; k < n; ++k) {
         auto engine = random::perEventEngine(seed, first_event_id + k);
         append(sample, drawPseudoEvent(En, resolution, engine));
+    }
+    return sample;
+}
+
+PseudoSample pseudoSampleFromPrior(const EnergyDomain& domain, std::size_t n,
+                                   const CaseAResolution& resolution, std::uint64_t seed,
+                                   const AcceptanceRatio& acceptance,
+                                   std::uint64_t first_event_id) {
+    requireValid(resolution);
+    if (!(domain.En_min > 0.0 && domain.En_max > domain.En_min)) {
+        throw std::invalid_argument("pseudo-experiments need 0 < En_min < En_max");
+    }
+    PseudoSample sample;
+    reserve(sample, n);
+    for (std::size_t k = 0; k < n; ++k) {
+        auto engine = random::perEventEngine(seed, first_event_id + k);
+        const double En =
+            domain.En_min + ((domain.En_max - domain.En_min) * random::uniform53(engine));
+        append(sample, drawPseudoEvent(En, resolution, acceptance, engine));
+    }
+    return sample;
+}
+
+PseudoSample pseudoSampleAtEnergy(double En, std::size_t n, const CaseAResolution& resolution,
+                                  std::uint64_t seed, const AcceptanceRatio& acceptance,
+                                  std::uint64_t first_event_id) {
+    requireValid(resolution);
+    PseudoSample sample;
+    reserve(sample, n);
+    for (std::size_t k = 0; k < n; ++k) {
+        auto engine = random::perEventEngine(seed, first_event_id + k);
+        append(sample, drawPseudoEvent(En, resolution, acceptance, engine));
     }
     return sample;
 }
