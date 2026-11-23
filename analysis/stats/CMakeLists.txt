@@ -5,7 +5,7 @@ add_library(riptide_stats STATIC
     src/grid.cpp
     src/numerics.cpp
     src/priors.cpp
-    src/pseudo_experiment.cpp
+    src/pseudo_experiment.cpp src/split.cpp
     src/validate.cpp)
 add_library(riptide::stats ALIAS riptide_stats)
 target_include_directories(riptide_stats PUBLIC

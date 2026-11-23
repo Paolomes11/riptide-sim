@@ -6,6 +6,7 @@ add_executable(stats_tests
     numerics_test.cpp
     priors_test.cpp
     pseudo_experiment_test.cpp
+    split_test.cpp
     validate_test.cpp)
 target_link_libraries(stats_tests PRIVATE
     riptide::stats riptide::options riptide::warnings Catch2::Catch2WithMain)
