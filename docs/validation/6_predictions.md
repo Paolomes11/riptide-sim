@@ -313,3 +313,53 @@ senza soglia.
 | Contrazione, θ_p e prior su E_n: le 112 voci Geant4 = toy | (d) |
 | Calibrazione assoluta a N ≥ 100: toy e Geant4 passano | (b) per il toy, (d) per Geant4 |
 | Costo del realismo nel Caso A lungo +X sotto la sensibilità di questi campioni, tranne la forma dello spettro selezionato del piatto | (d) |
+
+## 10. Accettanza (D40) — aggiunta del 2026-11-23, prima del codice e dei run
+
+È scritta dopo la valutazione della fase 6 e la diagnosi a 14 MeV, ma prima di implementare D40 e
+di lanciare i run con `--acceptance`.
+
+**Esito della fase 6 senza accettanza (a).**
+- La famiglia gemella passa 107 voci su 117. Le 10 che falliscono sono:
+  - 9 su `std_sqrt_N`, con Geant4 più largo del 6–11%;
+  - il bias e il pull a 14 MeV, N = 1000.
+- Nella calibrazione assoluta Geant4 passa 28 voci su 32. Falliscono quattro `pull_mean`, fra
+  −0.68 e −0.81.
+- Nel cut-flow per θ_p (`<radice dati>/validation/6_acceptance/`), q/iso a 14 MeV va da 0.59
+  (0–5°) a 1.06 (40–45°) e a 0.91 (85–90°).
+
+**Run (D40).**
+- Un sim piatto 10⁷ lungo +X con seme 20260908, id `6_ff_flat_10_19p5MeV_x_1e7_s20260908`, più
+  la verifica `c1`.
+- `riptide_acceptance` sul run, con stats id `6acc_s20260908`.
+- I 15 record `case_a` con `--acceptance 6acc_s20260908`, stats id `6a_<run_id>{,_pilot,_toy}`.
+- Soglie, famiglie e K uguali alle §§3–7.
+
+**Previsioni.**
+- **`c1` (d).** Il run nuovo passa `c1`. I selezionati sono 799 076 ± 3·√799 076, cioè entro
+  ±2700 dal piatto della fase 6 (b).
+- **Famiglia gemella, Geant4 = toy (d).** Passano tutte le 117 voci. In particolare:
+  - `std_sqrt_N` a N = 100 e 1000;
+  - il bias e il pull a 14 MeV, N = 1000.
+- **Larghezza (b).**
+  - `std_sqrt_N` di Geant4 cambia poco rispetto alla fase 6, entro ±3%. Gli eventi persi in
+    avanti, con E_p ≈ E_n, sono i più informativi, e il modello non li fa ricomparire.
+  - È il toy a convergere verso Geant4: a 14 MeV, N = 100, da 0.920 a ≈ 1.01 (H3 della
+    diagnosi).
+- **Bias a N = 1000 (b).** A 14 MeV, |`bias_mean`| di Geant4 ≲ 0.01 MeV, cioè entro 1.5·σ, contro
+  −0.023 senza accettanza. Il verso residuo non si prevede.
+- **Calibrazione assoluta (d).** Geant4 e toy passano 32 voci su 32 (z = 3.60).
+- **Piatto (b).** La formula del bias globale della §4 resta, con i bias per bin del toy con
+  accettanza. Il residuo è entro la soglia di 3.93·σ_c + 0.03 MeV.
+- **Prior su θ_p (d).** `physical` ora vuol dire q:
+  - `physical.bias_mean`: Geant4 = toy;
+  - `flat.bias_mean`: Geant4 = toy, perché entrambi i campioni hanno la distribuzione q.
+- **Robustezza (d).** q stimato dalla sola metà pari di `event_id` sposta `bias_mean` del 14 MeV
+  a N = 1000 di meno di 0.3·σ_c, cioè ≈ 0.002 MeV.
+- **Tempi (b).**
+  - Il termine angolare passa da n_θ a n_En × n_θ valori per evento. Il tempo di un `case_a`
+    mono 10⁶ cresce di ≤ 30% rispetto ai ~40 s.
+  - `riptide_acceptance` sul piatto 10⁷ impiega ~10 s e ~1.4 GB, come la lettura di
+    `case_a`.
+- **Default invariato (a dopo i test).** Senza `--acceptance`, i record della fase 6 si
+  riproducono bit per bit.

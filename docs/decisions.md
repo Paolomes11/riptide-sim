@@ -1153,3 +1153,74 @@ run.
 - **Fuori dal Caso A.** L'eccesso residuo di n–C non elastico lungo +X (d, fase 3) non conta:
   `single_np` toglie gli eventi n–C. La frazione di eventi senza protone (~10⁻⁴, D34) è tolta
   da `has_proton`.
+
+## D40 — Accettanza in θ_p nel modello del Caso A (2026-11-23)
+
+- **Contesto.**
+  - Fase 6: con Geant4 il posterior è ~10% più largo del toy, e a 14 MeV, N = 1000, c'è un bias di
+    −0.023 MeV.
+  - La diagnosi a 14 MeV mostra che la causa è la distribuzione in θ_p degli eventi selezionati.
+    Rispetto al modello isotropo, il bin 0–5° vale 0.58, i θ intermedi 1.06, gli 85–90° 0.91. Il
+    toy ripesato a quella distribuzione riproduce Geant4. La cinematica è coerente: lo scarto in
+    E_p è ~10⁻⁵ MeV.
+  - Il cut-flow per θ_p (a) attribuisce il deficit:
+    - in avanti, a `single_np`: n–p multiplo e misto toccano il 55% a 0–5°;
+    - in misura minore, a `contained`: al più il 5.6%, a 20–25°;
+    - all'anisotropia del primo urto: ±6%.
+  - La forma dipende da E_n in modo non liscio, χ² = 420/306 per un modello lineare in E_n.
+- **Decisione.**
+  - **Verosimiglianza per evento:**
+    `L_i(E_n) = Σ_j q(θ_j | E_n, sel) · G(Ep_obs; E_p(E_n, θ_j), σ_Ep) · G(θ_obs; θ_j, σ_θ)`,
+    dove q è la probabilità della cella θ_j fra gli eventi selezionati a quella E_n,
+    normalizzata per riga. Prende il posto di `log_prior_theta`: una tabella n_En × n_θ invece di
+    un vettore. q assorbe insieme anisotropia, selezione e cinematica relativistica.
+  - **Niente A(E_n).** La normalizzazione globale della selezione resta fuori: la verosimiglianza
+    è condizionata alla selezione, e il Caso A non usa il tasso. Lo spettro selezionato resta
+    della fase 9 (D39).
+  - **Stima di q.**
+    - **Sorgente.** Il run piatto indipendente `6_ff_flat_10_19p5MeV_x_1e7_s20260908`, separato
+      dai campioni su cui si valuta, con la catena `single_np,has_proton,contained` sulla verità
+      (`truth_En`, `truth_theta_p`).
+    - **Bin.** In E_n, bin da 1 MeV sul dominio della sorgente; l'ultimo è 19–19.5. In θ_p, 18 bin
+      da 5° su [0, π/2]. A 0–5° sono ~140 eventi per bin, cioè l'8.5%, e l'impatto si misura
+      (Conseguenze).
+    - **Rapporto.** Per bin si stima r_kt = (n_kt / N_k) / m_rel(t; E_k): la frazione del bin di
+      θ diviso la massa isotropa in CM con cinematica relativistica (E_p uniforme), al centro E_k
+      del bin di E_n. È più liscio della densità, e vale 1 per un rivelatore ideale isotropo.
+    - **Interpolazione.** r si interpola bilinearmente fra i centri dei bin (E_k, θ_t) e si tiene
+      costante oltre il primo e l'ultimo centro, in E_n come in θ. Fra 19.25 e 20 MeV, e sul
+      dominio largo fino a 30 MeV, vale quindi l'ultima riga: la sorgente si ferma a 19.5 (D25).
+    - **Celle del modello.** Massa della cella j alla riga E_i:
+      `∫_cella r(θ, E_i) dP_rel(θ | E_i)`, con il punto medio su sotto-intervalli uguali in
+      u = E_p / E_p,max, poi normalizzata per riga. Con r ≡ 1 dà la massa relativistica esatta.
+  - **Toy gemello (D38).** Con l'accettanza, il toy estrae l'evento come oggi e lo accetta con
+    probabilità r(θ_p, E_n) / max r. Gli eventi provati usano motori per evento, con il seme
+    registrato. Il toy resta il gemello «modello perfetto» del modello con q.
+  - **Default invariato.** Senza `--acceptance <stats_id>` il modello resta quello attuale, con
+    il prior non relativistico sin 2θ_p, e i record della fase 6 restano riproducibili bit per
+    bit. Con `--acceptance`:
+    - il modello «fisico» e quello del dominio largo usano q;
+    - il confronto col prior piatto in θ resta com'è.
+- **Motivo.**
+  - Il bias e la larghezza in eccesso sono un difetto del modello, non un costo inevitabile del
+    rivelatore. L'accettanza è misurabile con la simulazione e indipendente da E_n vera.
+  - Condizionare sulla selezione evita di modellare il tasso. Un run indipendente evita di
+    stimare q sugli stessi eventi su cui si valuta.
+  - Il rapporto rispetto alla massa relativistica separa la fisica nota (cinematica) da quella
+    misurata (selezione, anisotropia).
+- **Alternative scartate.**
+  - Documentare il bias come costo misurato: lascia nel Caso A un bias noto e correggibile.
+  - q dagli stessi campioni della valutazione: è circolare.
+  - Bin da 2 MeV o un modello lineare in E_n: il primo media via la struttura, il secondo la
+    misura male (χ² = 420/306).
+  - Un run piatto più lungo: rimandato, finché la prova di robustezza non lo chiede.
+  - Correggere sin 2θ_p in relativistico sul percorso di default: cambia i record della fase 6.
+    Lo scarto è ≤ 1% per cella; con `--acceptance` è già assorbito.
+- **Conseguenze.**
+  - Nuova app `riptide_acceptance`, che scrive `stats/<id>/acceptance.json`. Nuova opzione
+    `--acceptance` di `riptide_case_a_geant4`, registrata nel record.
+  - `CaseAModel` accetta un prior in θ per riga di E_n. Con righe uguali dà lo stesso risultato
+    bit per bit del costruttore attuale.
+  - Prova di robustezza: q stimato da metà del run (parità di `event_id`) sposta il bias del
+    14 MeV a N = 1000 meno di 0.3·σ_c.
+  - Lo schema delle colonne non cambia.
