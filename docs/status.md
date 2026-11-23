@@ -1,6 +1,7 @@
 # Stato
 
-**v0.7.0 — 2026-11-23 — Fase 5 (port del motore statistico, Caso A) completata, prossima la fase 6.**
+**v0.7.1 — 2026-11-23 — Fase 6 (Caso A su dati Geant4) in corso: run e valutazione fatti,
+diagnosi dell'anomalia chiusa, codice di D40 pronto; mancano i run del passo D.**
 
 `master` è a v0.7.0: fase 5 unita con la PR #3 (tag `v0.7.0`), report di progetto in
 `docs/riptide_report.pdf` unito con la PR #4. La fase 5 comprende taglio `has_proton` (D34),
@@ -8,10 +9,13 @@ cinematica inversa del rinculo, motore del Caso A in `analysis/stats` (D32, D33)
 pseudo-esperienze e finestra su θ_p (D35), app `riptide_stats_bench` e `riptide_stats_calibrate`.
 La calibrazione C++ passa tutte le 71 soglie contro il toy (`validation/5_results.md`).
 Il pull n–C non elastico lungo +X della fase 3 è chiuso come fluttuazione: con un seme
-indipendente scende da +3.73 a +1.79 (`validation/3_nC_results.md`). Fase 6 (Caso A su dati
-Geant4) avviata sul branch `feat/case-a-geant4`: decisioni D36–D39 scritte. Split in esperienze
-disgiunte e app `riptide_case_a_geant4` con la sorgente `--toy` fatti il 2026-11-23. Mancano i
-config, le previsioni e i run.
+indipendente scende da +3.73 a +1.79 (`validation/3_nC_results.md`).
+
+La fase 6 è sul branch `feat/case-a-geant4` (non ancora unito): decisioni D36–D40, run, 15 record
+del Caso A, valutazione e diagnosi a 14 MeV. Geant4 dà un posterior circa il 10% più largo del toy
+e un bias di −0.023 MeV a 14 MeV, N = 1000. La causa è l'accettanza in θ_p, che la likelihood non
+conteneva; D40 la modella. Il codice di D40 è committato, i run con l'accettanza (passo D)
+attendono il via.
 
 ## Fatto
 
@@ -304,21 +308,65 @@ Port del motore statistico del Caso A, vedi `roadmap.md`.
   D35 (≤ 0.10 s) è mancato; il tempo residuo è dominato da `exp` scalare.
 - **Test:** `debug` 367/367, `ci` 345/345, clang-format pulito.
 
+### Fase 6 (in corso, v0.7.1, branch `feat/case-a-geant4`, `case_a_version` 2)
+
+Caso A sugli eventi di Geant4, vedi `roadmap.md`. Fonti dei numeri: `validation/6_predictions.md`
+e, sulla radice dei dati, `validation/6_eval/`, `validation/6_diag_14MeV/`,
+`validation/6_acceptance/`.
+
+- **D36–D39 (af81a89):** campioni (piatto 10–19.5 MeV +X da 10⁷, mono 11/17/19 MeV da 10⁶, più
+  il 14 MeV della fase 3), esperienze disgiunte da una permutazione, toy gemello `--toy` e effetti
+  attesi da Geant4 che il toy non ha.
+- **Codice:** split in esperienze disgiunte (1738102), sorgente del run da `run.json` (00fa20d),
+  funzioni pure (f080749), app `riptide_case_a_geant4` (7e676ca), config (6055ab1).
+- **Previsioni (`validation/6_predictions.md`, 994ece0), prima dei run:** famiglia gemella
+  K = 117 (soglia z = 3.93), famiglia assoluta K = 32 (z = 3.60), spostamento atteso del bias
+  globale sul piatto +0.19 MeV.
+- **Run (2026-11-23, build 994ece0):** i quattro nuovi run passano `c1`, con l'oracolo HP su
+  `rounding_free_relative_*` (D17). 15 record in `stats/6_<run_id>{,_pilot,_toy}`.
+  Selezionati: piatto 799076, 11 MeV 98693, 14 MeV 826770, 17 MeV 68736, 19 MeV 61069.
+  - **Correzione:** a 14 MeV le previsioni riportano 826859, che è la catena della fase 4 senza
+    `has_proton` (89 eventi in più). Il valore giusto è 826770.
+- **Valutazione (`validation/6_eval/`):**
+  - famiglia gemella 107/117: 9 FAIL su `std_sqrt_N` a N = 100 e 1000 (G4 circa il 10% più
+    largo del toy a tutte le energie, z fino a +8.7) e `bias_mean` a 14 MeV, N = 1000
+    (G4 −0.0227, toy +0.0072, z −4.25);
+  - famiglia assoluta: toy 32/32, G4 28/32 (`pull_mean` a N = 1000 a 11/14/17 MeV e a N = 100 a
+    11 MeV): lì il toy è circolare (D38);
+  - bias globale sul piatto: osservato +0.166, atteso +0.180, residuo −0.014 con tolleranza
+    0.101, PASS; coverage G4 0.703 / 0.919 / 0.964, toy 0.707 / 0.922 / 0.965;
+  - le previsioni non attendevano nessuna voce di contrazione oltre soglia: **anomalia**.
+  - Minore: `std_sqrt_N` del toy a 19 MeV cambia del 12% fra N = 100 e 1000 (previsto ≤ 10%).
+- **Diagnosi a 14 MeV (`validation/6_diag_14MeV/`):**
+  - D4 riproduce `case_a.json` esattamente;
+  - cinematica respinta: scarto in E_p ~10⁻⁵ MeV;
+  - larghezze per evento uguali fra G4 e toy;
+  - accettanza confermata: rapporto θ_p G4/toy 0.58 a 0–5°, circa 1.06 a θ intermedi, 0.92
+    sopra 80°; il toy ripesato alla distribuzione di G4 riproduce G4 (`std_sqrt_N` 1.010 / 0.942
+    contro 1.018 / 0.932, bias −0.021 contro −0.023).
+- **Misura dell'accettanza (`validation/6_acceptance/`):** il deficit in avanti viene da
+  `single_np` (n–p multiplo e misto 55% a 0–5°), `contained` perde al più il 5.6%,
+  l'anisotropia del primo urto vale ±6%. La forma dipende da E_n in modo non liscio
+  (χ² lineare 420/306).
+- **D40 (0385bc6):** q(θ_p | E_n, sel) al posto del prior sin 2θ_p, dal rapporto r(E_n, θ_p) su
+  bin 1 MeV × 5° di un run piatto indipendente (seme 20260908), interpolato bilinearmente;
+  toy gemello per accept-reject; percorso di default invariato. Previsioni nella §10 di
+  `6_predictions.md`.
+- **Codice di D40:** prior per riga in `CaseAModel` (d16022f), `AcceptanceRatio` (077d297), toy
+  con accept-reject (9271b03), `acceptance.json` v1 (30b01b3), app `riptide_acceptance` e
+  `--acceptance` in `riptide_case_a_geant4`, `case_a.json` v2 (6729a54). Percorso di default
+  verificato identico bit per bit sui record G4 e toy a 14 MeV; 41.6 s contro 40 s.
+- **Test:** `debug` 406/406, `ci` 382/382, clang-format pulito.
+
 **Prossimi passi, nell'ordine:**
 
-1. Fase 6 (Caso A su dati Geant4), decisioni D36–D39. In ordine:
-   - ~~split in esperienze disgiunte in `analysis/stats` (D37), con test~~ (fatto, 2026-11-23);
-   - ~~app `riptide_case_a_geant4` con la sorgente `--toy` (D37, D38)~~ (fatto, 2026-11-23).
-     Verifiche:
-     - toy `flat:10:20` con 20 000 eventi: la checklist ridà gli stessi numeri della §1 di
-       `validation/5_results.md`;
-     - smoke test sul run d'integrazione: cut-flow uguale a `riptide_analysis_prepare`;
-     - calibrazione `--pilot` invariata dopo il refactoring;
-   - ~~config della fase 6 (D36)~~ (fatto, 2026-11-23);
-   - ~~`validation/6_predictions.md`, committata prima dei run~~ (fatto, 2026-11-23);
-   - run e checklist bias → risoluzione → pull → coverage → contrazione 1/√N → robustezza al
-     prior, poi confronto toy vs Geant4.
-2. Ogni run: via dell'utente e stima dell'RSS con `scripts/run_capped.sh`.
+1. Passo D di D40, solo con il via dell'utente e la stima dell'RSS:
+   - run `6_ff_flat_10_19p5MeV_x_1e7_s20260908` (seme 20260908) e `c1`;
+   - `riptide_acceptance --stats-id 6acc_s20260908`;
+   - 15 record `6a_<run_id>{,_pilot,_toy}` con `--acceptance 6acc_s20260908`;
+   - valutazione con lo stesso script e prova a metà run (`--half even/odd`, spostamento del bias
+     a 14 MeV < 0.3 σ_c).
+2. `validation/6_results.md`: correzione D17, 826770, diagnosi, accettanza.
 3. A chiusura della fase 6: `status.md` e report a v0.8.0.
 
 ## Punti aperti
