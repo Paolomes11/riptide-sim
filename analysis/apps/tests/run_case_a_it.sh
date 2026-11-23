@@ -122,6 +122,8 @@ top = {"case_a_version", "stats_id", "project_version", "git_describe", "source"
 for name, record in (("geant4", geant4), ("toy", toy)):
     if set(record) != top:
         fail(f"{name}: top-level keys {sorted(record)}")
+    if record["case_a_version"] != 2 or record["settings"]["acceptance"] is not None:
+        fail(f"{name}: version {record['case_a_version']}, acceptance {record['settings']['acceptance']}")
     if record["truth"] != {"mode": "mono", "En_MeV": 14.0}:
         fail(f"{name}: truth {record['truth']}")
     for section in ("contraction", "energy_prior"):

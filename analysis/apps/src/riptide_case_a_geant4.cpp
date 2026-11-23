@@ -4,7 +4,10 @@
 // disjoint experiments, then runs the rows of the toy calibration on them.
 // With --toy the pool comes from the toy generator instead, with the same
 // truth and the same protocol, so the difference of the two outputs is the
-// cost of the detector realism. It writes case_a.json under the stats
+// cost of the detector realism. With --acceptance the theta_p prior of the
+// reference and wide-E_n models is the measured acceptance of a flat run
+// (D40), and the toy draws its events with the same acceptance, so it stays
+// the perfect-model twin of Geant4. It writes case_a.json under the stats
 // directory of the data root; the file holds no wall time, so two runs with
 // the same settings give the same bytes. Section timings go to stdout only.
 
@@ -31,12 +34,14 @@
 #include "riptide/common/git_info.hpp"
 #include "riptide/common/random.hpp"
 #include "riptide/common/version.hpp"
+#include "riptide/io/acceptance_record.hpp"
 #include "riptide/io/analysis_record.hpp"
 #include "riptide/io/event_columns.hpp"
 #include "riptide/io/response.hpp"
 #include "riptide/io/root_reader.hpp"
 #include "riptide/io/run_info.hpp"
 #include "riptide/io/selection.hpp"
+#include "riptide/stats/acceptance.hpp"
 #include "riptide/stats/calibration.hpp"
 #include "riptide/stats/case_a.hpp"
 #include "riptide/stats/grid.hpp"
@@ -60,7 +65,7 @@ constexpr int kExitUsage = 2;
 constexpr int kExitRuntime = 1;
 constexpr std::uint64_t kProjectSeed = 20260907;
 constexpr st::CaseAResolution kDefaultResolution{0.10, 0.08}; // MeV, rad
-constexpr int kCaseAVersion = 1;
+constexpr int kCaseAVersion = 2;
 constexpr const char* kCaseAName = "case_a.json";
 // Generous upper bound on the output: one small JSON file.
 constexpr std::uintmax_t kOutputBytes = std::uintmax_t{1} << 20U; // 1 MiB
@@ -98,6 +103,7 @@ struct Options {
     bool toy = false;
     std::string truth;
     std::size_t events = 0;
+    std::string acceptance_id;
     std::uint64_t seed = kProjectSeed;
     std::uint64_t split_seed = kProjectSeed;
     st::CaseAResolution resolution = kDefaultResolution;
@@ -163,9 +169,46 @@ private:
     Clock::time_point start_ = Clock::now();
 };
 
-// The models of the calibration, unchanged: the reference one (default E_n
-// grid, physical theta_p prior) and the two alternatives of the robustness
-// checks.
+// The theta_p acceptance read from acceptance.json, and where it came from.
+struct Acceptance {
+    std::optional<st::AcceptanceRatio> ratio;
+    json info; // null without --acceptance
+};
+
+Acceptance loadAcceptance(const fs::path& root, const std::string& id) {
+    Acceptance out;
+    if (id.empty()) {
+        return out;
+    }
+    const json record = io::readJsonFile(riptide::data::statsDir(root, id) /
+                                         std::string{io::kAcceptanceRecordName});
+    const io::AcceptanceTable table = io::acceptanceTableFromRecord(record);
+    out.ratio.emplace(st::AcceptanceHistogram{table.En_edges, table.theta_edges, table.counts});
+    out.info = {{"stats_id", id},
+                {"acceptance_version", record.at("acceptance_version")},
+                {"run_id", record.at("source").at("run_id")},
+                {"half", record.at("half")},
+                {"entries", record.at("entries")},
+                {"En_bins", table.En_edges.size() - 1},
+                {"theta_bins", table.theta_edges.size() - 1},
+                {"ratio_max", out.ratio->maximum()}};
+    return out;
+}
+
+// The theta_p prior of a model on En: physical by default, the measured
+// acceptance with one row per E_n point otherwise (D40).
+st::CaseAModel referenceModel(const st::Grid& En, const st::Grid& theta,
+                              const st::AcceptanceRatio* acceptance, const st::CaseAResolution& r) {
+    if (acceptance == nullptr) {
+        return {En, theta, st::physicalRecoilAngleLogPrior(theta), r};
+    }
+    return {En, theta, st::acceptanceRecoilAngleLogPrior(*acceptance, En, theta), r};
+}
+
+// The models of the calibration: the reference one (default E_n grid,
+// physical or acceptance theta_p prior) and the two alternatives of the
+// robustness checks. The flat theta_p prior stays flat with --acceptance: it
+// is the alternative the theta_p prior row compares against.
 struct Models {
     st::EnergyDomain domain;
     st::EnergyDomain wide = st::sameStepDomain(domain, kWideEnMax);
@@ -178,10 +221,10 @@ struct Models {
     st::CaseAModel flat_theta;
     st::CaseAModel wide_En;
 
-    explicit Models(const st::CaseAResolution& r)
-        : physical(En, theta, st::physicalRecoilAngleLogPrior(theta), r),
+    Models(const st::CaseAResolution& r, const st::AcceptanceRatio* acceptance)
+        : physical(referenceModel(En, theta, acceptance, r)),
           flat_theta(En, theta, st::flatRecoilAngleLogPrior(theta), r),
-          wide_En(En_wide, theta, st::physicalRecoilAngleLogPrior(theta), r) {}
+          wide_En(referenceModel(En_wide, theta, acceptance, r)) {}
 };
 
 // The pool of events and what it came from.
@@ -229,14 +272,21 @@ Pool geant4Pool(const fs::path& root, const Options& o) {
     return pool;
 }
 
-Pool toyPool(const Models& m, const Options& o) {
+Pool toyPool(const Models& m, const st::AcceptanceRatio* acceptance, const Options& o) {
     Pool pool;
     pool.truth = apps::parseTruth(o.truth);
     if (pool.truth.mode == io::SpectrumMode::Mono) {
-        pool.sample = st::pseudoSampleAtEnergy(pool.truth.En_MeV, o.events, o.resolution, o.seed);
+        pool.sample =
+            acceptance == nullptr
+                ? st::pseudoSampleAtEnergy(pool.truth.En_MeV, o.events, o.resolution, o.seed)
+                : st::pseudoSampleAtEnergy(pool.truth.En_MeV, o.events, o.resolution, o.seed,
+                                           *acceptance);
     } else {
         const st::EnergyDomain truth{pool.truth.En_min_MeV, pool.truth.En_max_MeV, m.domain.points};
-        pool.sample = st::pseudoSampleFromPrior(truth, o.events, o.resolution, o.seed);
+        pool.sample =
+            acceptance == nullptr
+                ? st::pseudoSampleFromPrior(truth, o.events, o.resolution, o.seed)
+                : st::pseudoSampleFromPrior(truth, o.events, o.resolution, o.seed, *acceptance);
     }
     pool.source = {{"kind", "toy"}, {"events", o.events}};
     return pool;
@@ -391,8 +441,10 @@ int run(const Options& o) {
 
     std::cout << kAppName << ' ' << riptide::kProjectVersion << " (" << riptide::kGitDescribe << ")"
               << (o.toy ? ", toy" : ", geant4") << (o.pilot ? ", pilot" : "") << '\n';
-    const Models models(o.resolution);
-    const Pool pool = o.toy ? toyPool(models, o) : geant4Pool(root, o);
+    const Acceptance acceptance = loadAcceptance(root, o.acceptance_id);
+    const st::AcceptanceRatio* ratio = acceptance.ratio ? &*acceptance.ratio : nullptr;
+    const Models models(o.resolution, ratio);
+    const Pool pool = o.toy ? toyPool(models, ratio, o) : geant4Pool(root, o);
     std::cout << "  pool: " << pool.sample.size() << " events\n";
 
     json record;
@@ -409,7 +461,8 @@ int run(const Options& o) {
                           {"pilot", o.pilot},
                           {"levels", kLevels},
                           {"En_domain", domainJson(models.domain)},
-                          {"theta_points", models.theta.size()}};
+                          {"theta_points", models.theta.size()},
+                          {"acceptance", acceptance.info}};
     if (pool.truth.mode == io::SpectrumMode::Flat) {
         record["checklist"] = checklist(models, pool, o);
     } else {
@@ -446,6 +499,8 @@ int main(int argc, char** argv) {
         lyra::opt(o.resolution.sigma_Ep, "MeV")["--sigma-Ep"]("Ep resolution (default 0.10)") |
         lyra::opt(o.resolution.sigma_theta,
                   "rad")["--sigma-theta"]("theta_p resolution (default 0.08)") |
+        lyra::opt(o.acceptance_id,
+                  "id")["--acceptance"]("stats id of acceptance.json: theta_p prior (D40)") |
         lyra::opt(o.pilot)["--pilot"]("counts / 10, same N: to measure time and memory");
     const auto result = cli.parse(lyra::args(argc, argv));
     if (show_help) {

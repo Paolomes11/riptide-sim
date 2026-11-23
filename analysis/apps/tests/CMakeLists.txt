@@ -28,4 +28,14 @@ if(RIPTIDE_BUILD_ROOT_IO)
         FIXTURES_REQUIRED sim_integration
         SKIP_RETURN_CODE 4
         TIMEOUT 300)
+    # Smoke test of riptide_acceptance and of riptide_case_a_geant4 --acceptance.
+    add_test(NAME acceptance_integration
+        COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/run_acceptance_it.sh"
+            $<TARGET_FILE:riptide_acceptance> $<TARGET_FILE:riptide_case_a_geant4>
+            "${PROJECT_SOURCE_DIR}")
+    set_tests_properties(acceptance_integration PROPERTIES
+        LABELS integration
+        FIXTURES_REQUIRED sim_integration
+        SKIP_RETURN_CODE 4
+        TIMEOUT 300)
 endif()
