@@ -8,8 +8,9 @@ cinematica inversa del rinculo, motore del Caso A in `analysis/stats` (D32, D33)
 pseudo-esperienze e finestra su θ_p (D35), app `riptide_stats_bench` e `riptide_stats_calibrate`.
 La calibrazione C++ passa tutte le 71 soglie contro il toy (`validation/5_results.md`).
 Il pull n–C non elastico lungo +X della fase 3 è chiuso come fluttuazione: con un seme
-indipendente scende da +3.73 a +1.79 (`validation/3_nC_results.md`). Prossimo: piano della
-fase 6 (Caso A su dati Geant4).
+indipendente scende da +3.73 a +1.79 (`validation/3_nC_results.md`). Fase 6 (Caso A su dati
+Geant4) avviata sul branch `feat/case-a-geant4`: decisioni D36–D39 scritte, codice non ancora
+iniziato.
 
 ## Fatto
 
@@ -304,9 +305,13 @@ Port del motore statistico del Caso A, vedi `roadmap.md`.
 
 **Prossimi passi, nell'ordine:**
 
-1. Fase 6 (Caso A su dati Geant4): piano dettagliato e decisioni prima del codice. Checklist
-   bias → risoluzione → pull → coverage → contrazione 1/√N → robustezza al prior, poi confronto
-   toy vs Geant4 sullo stesso motore; previsioni scritte prima dei run.
+1. Fase 6 (Caso A su dati Geant4), decisioni D36–D39. In ordine:
+   - split in esperienze disgiunte in `analysis/stats` (D37), con test;
+   - app `riptide_case_a_geant4` con la sorgente `--toy` (D37, D38);
+   - config della fase 6 (D36);
+   - `validation/6_predictions.md`, committata prima dei run;
+   - run e checklist bias → risoluzione → pull → coverage → contrazione 1/√N → robustezza al
+     prior, poi confronto toy vs Geant4.
 2. Ogni run: via dell'utente e stima dell'RSS con `scripts/run_capped.sh`.
 3. A chiusura della fase 6: `status.md` e report a v0.8.0.
 

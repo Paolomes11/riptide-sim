@@ -1011,3 +1011,145 @@ cancellano: se cambiano, se ne aggiunge una nuova che rimanda alla vecchia.
   tre risoluzioni ed eventi ai bordi (Êp < 0, Êp sopra ogni Ep_max, θ̂ fuori da [0, π/2]). Lo
   scarto relativo è < 10⁻¹³. Sulla matrice del benchmark (1000 × 500) la finestra coincide bit per
   bit con la somma completa.
+
+## D36 — Campioni Geant4 della fase 6 (2026-11-23)
+
+- **Decisione:**
+  - i nuovi config v3 sono copie di `config/3_ff_mono_14MeV_x.json`: stesso blocco (D27), stessa
+    fisica, stesso kB (D18) e stessa funzione di passo. Cambia solo lo spettro;
+  - `config/6_ff_flat_10_19p5MeV_x.json`: spettro piatto 10–19.5 MeV (D25), direzione +X, 10⁷
+    eventi. Serve alla checklist per evento (bias, risoluzione, pull, coverage) con la verità
+    distribuita sul dominio;
+  - `config/6_ff_mono_{11,17,19}MeV_x.json`: 10⁶ eventi ciascuno. Con
+    `3_ff_mono_14MeV_x_1e7`, che esiste già e ha le verifiche `c1` della fase 3, danno quattro
+    energie per la contrazione 1/√N e per la robustezza al prior;
+  - seme `20260907` per tutti i nuovi run, `release`, 8 thread, `scripts/run_capped.sh -m 5G`.
+    Su ogni nuovo run si eseguono le verifiche `riptide_sim_check` `c1` prima dell'analisi.
+- **Motivo:**
+  - la direzione fissa +X è la configurazione del Caso A: Ω_n è nota e uguale in tutto il blocco;
+  - 11 e 19 MeV stanno vicino ai bordi del prior, dove il toy della fase 5 vede il bias più
+    grande; 14 e 17 MeV stanno nel mezzo;
+  - lo stesso seme del progetto basta perché i run hanno config diversi. Il 14 MeV +X ha già un
+    gemello (seme 20260908), che resta disponibile come replica.
+- **Alternative:**
+  - il piatto isotropo della fase 3: Ω_n cambia per evento, che il Caso A non modella;
+  - mono a 10⁷ per tutte le energie: la contrazione a N = 1000 vuole al più qualche centinaio di
+    esperienze, che 10⁶ eventi dovrebbero dare. Il numero di eventi selezionati si stima nelle
+    previsioni dal pilota;
+  - spingere la sorgente a 20 MeV: escluso da D25.
+- **Conseguenze:** tre file in `config/` e le loro righe in `config/README.md`. Nessuna modifica
+  a `sim/`.
+
+## D37 — Pseudo-esperienze da campioni Geant4 (2026-11-23)
+
+- **Decisione — dal run al campione:**
+  - lettura, tagli, conversione HP e risoluzione sono quelli di `riptide_analysis_prepare`:
+    catena `single_np,has_proton,contained` (D30, D34), `Ep_phys` da D24, smearing D31 con
+    σ_Ep = 0.10 MeV, σ_θ = 0.08 rad e motore per evento;
+  - le colonne dell'`EventSample` selezionato riempiono uno `stats::PseudoSample`:
+    `truth_En`, `truth_Ep_phys` (come `truth_Ep`), `truth_theta_p`, `reco_Ep` e `reco_theta_p`.
+    Il motore statistico non sa se gli eventi vengono dal toy o da Geant4.
+- **Decisione — esperienze:**
+  - una funzione pura in `analysis/stats` divide gli indici 0…n−1 in M blocchi disgiunti di N
+    indici, dopo una permutazione con l'RNG passato come argomento e il seme registrato. Gli
+    indici avanzati non si usano;
+  - disgiunti vuol dire esperienze indipendenti, quindi coverage con errore binomiale onesto.
+    Nessun evento entra in due esperienze della stessa riga;
+  - righe come in `riptide_stats_calibrate`, per un confronto voce per voce:
+    - checklist per evento sul piatto, con un sottoinsieme casuale di 20 000 eventi selezionati,
+      come la fase 5, e la curva del bias in 5 bin;
+    - contrazione con N = 10, 100, 1000 sui quattro mono;
+    - prior su E_n ([10, 20] contro [10, 30]) con N = 1, 3, 10, 30, 100;
+    - prior su θ_p (sin 2θ_p contro piatto) a 14 MeV con N = 1000;
+  - M per riga è quello della fase 5, ridotto se gli eventi selezionati non bastano. La
+    riduzione si scrive nelle previsioni, mai dopo il run;
+  - si riusano senza modifiche `makeSummaries`, `appendSingleEventSummaries`,
+    `appendCombinedSummary`, `summariseEnsemble`, `priorShift` (`calibration.hpp`) e `biasCurve`
+    (`validate.hpp`). Prior e griglie come D32 e D33: E_n piatto su [10, 20] con 500 punti,
+    sin 2θ_p con 500 punti.
+- **Decisione — app:** `riptide_case_a_geant4`, in `analysis/apps`, una chiamata per run.
+  - Scrive `case_a.json` in `statsDir(<radice>, <id>)`. Il JSON ha `run_id`, seme
+    dell'analisi, seme dello split, σ, catena dei tagli con il cut-flow, schema letto e
+    `git_describe`;
+  - le sezioni hanno la stessa struttura di `calibration.json`;
+  - `--pilot` divide i conteggi per 10 e lascia N invariato, come la fase 5;
+  - come per la calibrazione, il file non contiene tempi: due esecuzioni uguali danno gli
+    stessi byte.
+- **Motivo:**
+  - la fase 5 ha validato il motore con quelle funzioni e quel protocollo. Cambiare solo la
+    sorgente degli eventi isola l'effetto del rivelatore;
+  - un indice permutato e poi tagliato in blocchi è la via più semplice a esperienze disgiunte,
+    ed è verificabile con un test (unione = sottoinsieme, intersezioni vuote, riproducibilità).
+- **Alternative:**
+  - esperienze con rimpiazzo (bootstrap): eventi condivisi, quindi esperienze correlate e
+    coverage con errore sottostimato;
+  - scrivere su disco il campione selezionato e smussato: un formato in più da mantenere, mentre
+    la selezione di 10⁷ eventi sta in memoria (fase 4).
+- **Conseguenze:**
+  - la funzione di split entra in `analysis/stats` con il suo test Catch2 e compila anche in
+    `ci`;
+  - l'app dipende da `io_root` e compila solo con ROOT. Lo smoke test usa un run piccolo ed è
+    saltato senza SSD, come gli altri test di integrazione.
+
+## D38 — Confronto toy vs Geant4 (2026-11-23)
+
+- **Decisione:**
+  - `riptide_case_a_geant4` ha una sorgente alternativa, `--toy`. Con la stessa catena di
+    esperienze, gli eventi vengono dal generatore D35 con la stessa verità del run:
+    - per il piatto, E_n uniforme su [10, 19.5];
+    - per un mono, la sua E_n;
+    - stessi n, N, M, σ e livelli (0.68, 0.90, 0.95), con seme registrato;
+  - per ogni voce della checklist, la differenza Geant4 − toy, con l'errore combinato, è il costo
+    del realismo del rivelatore su quella voce. Il toy è "circolare" su una voce se lì passa e
+    Geant4 fallisce: la sua validazione dipendeva dall'aver generato con il modello
+    dell'inferenza;
+  - le soglie si fissano nelle previsioni, con Bonferroni sul numero di voci, come nella fase 5.
+- **Motivo:**
+  - la fase 5 confronta il port col toy su E_n uniforme in [10, 20] e in [11, 19]. Qui servono
+    la stessa E_n dei mono e il limite di 19.5 MeV del piatto, quindi `calibration.json` non è
+    un riferimento diretto;
+  - generare il toy nella stessa app usa lo stesso codice di esperienze e di riassunto: la
+    differenza viene solo dagli eventi;
+  - è anche il controllo di coerenza dell'app: con `--toy` sul dominio [10, 20] deve riprodurre
+    `validation/5_results.md` entro l'errore statistico;
+  - la scelta della sorgente degli eventi non è un ramo sul posterior: il posterior del Caso A
+    resta uno solo.
+- **Alternative:**
+  - estendere `riptide_stats_calibrate` con i mono: due app con lo stesso protocollo da tenere
+    allineate;
+  - un confronto a mano dei due JSON fuori dal repo: non riproducibile.
+- **Conseguenze:** ogni run ha due `case_a.json`, uno Geant4 e uno toy. Il confronto è uno
+  script di valutazione delle soglie, come nella fase 5, i cui numeri vanno in
+  `docs/validation/6_results.md`.
+
+## D39 — Effetti attesi da Geant4 che il toy non ha (2026-11-23)
+
+Sono ipotesi (d). Le previsioni della fase 6 le traducono in verso e grandezza attesi, prima dei
+run.
+
+- **Taglio `contained`.**
+  - Fatto: la perdita di protoni dai bordi dipende da E_p e dalla direzione, fino al 17% sopra
+    15.6 MeV (fase 3, §5).
+  - Ipotesi: i protoni ad alto E_p e in avanti (θ_p piccolo) vengono tolti di più. La
+    distribuzione selezionata in (E_p, θ_p) non segue più cos θ_CM uniforme, mentre il prior
+    sin 2θ_p e la verosimiglianza la assumono.
+  - Atteso: un bias di E_n verso il basso, che cresce con E_n. Pull e coverage peggiorano
+    soprattutto a N grande, dove il bias pesa più della larghezza.
+- **σ_np(E) non costante.**
+  - Ipotesi: nel piatto, le E_n selezionate non sono uniformi, perché la probabilità di
+    interazione e di contenimento dipende da E_n. La "verità dal prior" vale solo in parte.
+  - Conseguenza: la checklist sul piatto si riporta anche per bin di E_n (la curva del bias), e
+    la coverage globale si legge con questo limite.
+  - Il modello dello spettro selezionato è della fase 9.
+- **Anisotropia in CM.**
+  - Fatto: i dati G4NDL lungo +X hanno a₁ = −1.425·10⁻² ± 5.7·10⁻⁴ (fase 3, (c)), mentre il
+    modello ha cos θ_CM uniforme.
+  - Ipotesi: è un effetto piccolo rispetto al taglio `contained`. Si stima nelle previsioni dal
+    verso di a₁.
+- **Dominio del prior oltre la sorgente.**
+  - Fatto: il prior arriva a 20 MeV, la sorgente si ferma a 19.5 (D25, D32).
+  - Ipotesi: è lo stesso effetto per toy e Geant4, perché il toy con `--toy` usa la stessa
+    verità. Quindi non entra nella differenza (D38), ma sposta entrambi i bias al bordo alto.
+- **Fuori dal Caso A.** L'eccesso residuo di n–C non elastico lungo +X (d, fase 3) non conta:
+  `single_np` toglie gli eventi n–C. La frazione di eventi senza protone (~10⁻⁴, D34) è tolta
+  da `has_proton`.
