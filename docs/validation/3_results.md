@@ -124,6 +124,10 @@ run e senza nuovo seme:
 
 Va fatto prima di usare le frazioni nell'analisi. Etichetta (d): ipotesi da verificare.
 
+**Aggiornamento (2026-11-23).** Le due cause non trovano conferma, e con un seme indipendente
+(`3_ff_mono_14MeV_x_1e7_s20260908`) il pull scende a +1.79. Per la regola scritta prima del run
+è una fluttuazione (c). Previsioni in `3_nC_predictions.md`, risultati in `3_nC_results.md`.
+
 ## 3. Confronto con `endfb80` — attese, non soglie (c)
 
 | Verifica | +X | isotropa mono | isotropa piatta |
