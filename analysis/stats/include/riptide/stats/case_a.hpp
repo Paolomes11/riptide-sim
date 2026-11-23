@@ -8,7 +8,9 @@
 //                                  -1/2 ((theta_hat - theta_j) / sigma_theta)^2
 //                                  + log prior(theta_j) ]
 //
-// with Ep(E_n, theta_p) the exact n-p kinematics (D32). The Gaussian
+// with Ep(E_n, theta_p) the exact n-p kinematics (D32). The prior may also
+// depend on the E_n row, log prior(theta_j | E_n,i): the theta_p distribution
+// of the selected events changes with E_n (D40). The Gaussian
 // normalisations do not depend on E_n and are left out, so the likelihood is
 // defined up to one constant per event.
 
@@ -46,6 +48,14 @@ public:
     CaseAModel(Grid En_grid, Grid theta_grid, std::vector<double> log_prior_theta,
                CaseAResolution resolution);
 
+    // One theta_p prior per E_n point, log_prior_theta_rows[i][j] for E_n,i
+    // and theta_j (D40). Same checks as above, row by row, plus one row per
+    // E_n point. With every row equal to a vector v it gives the same
+    // log-likelihoods, bit for bit, as the constructor above with v.
+    CaseAModel(Grid En_grid, Grid theta_grid,
+               const std::vector<std::vector<double>>& log_prior_theta_rows,
+               CaseAResolution resolution);
+
     [[nodiscard]] const Grid& energyGrid() const noexcept {
         return En_grid_;
     }
@@ -70,7 +80,7 @@ private:
     // Buffers reused across the events of one call, so the hot loop does not
     // allocate.
     struct Workspace {
-        std::vector<double> angular; // theta term + log prior, per theta_j
+        std::vector<double> angular; // theta Gaussian term, per theta_j
         std::vector<double> terms;   // the summands of one E_n row
     };
 
@@ -79,12 +89,19 @@ private:
     // logsumexp of one E_n row over the theta_p cells that can matter. A
     // lower bound L on the row maximum bounds every term of a cell outside a
     // window in Ep and in theta below L - C; those cells are skipped.
-    [[nodiscard]] double rowLogSumExp(double Ep_hat, double theta_hat, const double* Ep_row,
+    [[nodiscard]] double rowLogSumExp(double Ep_hat, double theta_hat, std::size_t row,
                                       std::size_t j_theta, Workspace& work) const;
+
+    // Shared tail of both constructors, after the prior rows are stored.
+    void finishConstruction();
 
     Grid En_grid_;
     Grid theta_grid_;
+    // The theta_p prior of row i starts at log_prior_theta_[i * prior_stride_];
+    // a stride of 0 shares one row across the grid, so the default prior costs
+    // no copies.
     std::vector<double> log_prior_theta_;
+    std::size_t prior_stride_ = 0;
     CaseAResolution resolution_;
     // Multiplying by the inverse is cheaper than dividing in the hot loop; the
     // difference is at the last bit of z.
@@ -96,7 +113,8 @@ private:
     // Every row of Ep_table_ is non-increasing in theta_j, so the Ep window is
     // a contiguous range found by bisection; otherwise rows are summed whole.
     bool Ep_decreasing_ = true;
-    double max_log_prior_theta_ = 0.0;
+    // Maximum of the theta_p prior per stored row, for the window bound.
+    std::vector<double> max_log_prior_theta_;
 };
 
 // loglik + log prior on the E_n grid: the unnormalised posterior of one event.

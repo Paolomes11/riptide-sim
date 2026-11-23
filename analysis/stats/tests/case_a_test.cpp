@@ -284,3 +284,81 @@ TEST_CASE("the theta window reproduces the sum over every cell", "[stats][case_a
         }
     }
 }
+
+TEST_CASE("equal per-row priors match the shared prior bit for bit", "[stats][case_a]") {
+    const st::Grid En = st::energyGrid(st::EnergyDomain{});
+    const st::Grid theta = st::recoilAngleGrid();
+    const std::vector<double> prior = st::physicalRecoilAngleLogPrior(theta);
+    const st::CaseAModel shared(En, theta, prior, kToyResolution);
+    const st::CaseAModel per_row(En, theta, std::vector<std::vector<double>>(En.size(), prior),
+                                 kToyResolution);
+    const std::vector<double> Ep_hat = {7.3, 0.02, -0.3, 19.9, 12.0, 3.0};
+    const std::vector<double> theta_hat = {0.55, 1.50, 1.60, 0.0, -0.2, 1.2};
+    const st::LogLikelihoodMatrix a = shared.logLikelihoods(Ep_hat, theta_hat);
+    const st::LogLikelihoodMatrix b = per_row.logLikelihoods(Ep_hat, theta_hat);
+    REQUIRE(a.values.size() == b.values.size());
+    for (std::size_t k = 0; k < a.values.size(); ++k) {
+        CHECK_THAT(b.values[k], WithinULP(a.values[k], 0));
+    }
+}
+
+TEST_CASE("a different prior row changes only its own E_n point", "[stats][case_a]") {
+    const st::Grid En = st::energyGrid(st::EnergyDomain{});
+    const st::Grid theta = st::recoilAngleGrid();
+    const std::vector<double> prior = st::physicalRecoilAngleLogPrior(theta);
+    // A tilted row with a large offset: the window bound must use this row's
+    // own maximum, not the one of the other rows.
+    constexpr double kTilt = 6.0;
+    constexpr double kOffset = 30.0;
+    std::vector<double> tilted(prior.size());
+    for (std::size_t j = 0; j < prior.size(); ++j) {
+        tilted[j] = prior[j] + kOffset - (kTilt * theta[j]);
+    }
+    const std::size_t changed = En.size() / 3;
+    std::vector<std::vector<double>> rows(En.size(), prior);
+    rows[changed] = tilted;
+    const st::CaseAModel shared(En, theta, prior, kToyResolution);
+    const st::CaseAModel per_row(En, theta, rows, kToyResolution);
+    const std::vector<std::pair<double, double>> events = {
+        {7.3, 0.55}, {0.02, 1.50}, {19.9, 0.0}, {3.0, 1.2}, {12.0, -0.2}};
+    for (const auto& [Ep_hat, theta_hat] : events) {
+        const std::vector<double> a = shared.logLikelihood(Ep_hat, theta_hat);
+        const std::vector<double> b = per_row.logLikelihood(Ep_hat, theta_hat);
+        const std::vector<double> ref =
+            bruteForceLogLikelihood(En, theta, tilted, kToyResolution, Ep_hat, theta_hat);
+        for (std::size_t i = 0; i < En.size(); ++i) {
+            if (i == changed) {
+                CHECK(std::fabs(b[i] - ref[i]) / std::max(1.0, std::fabs(ref[i])) < 1e-13);
+            } else {
+                CHECK_THAT(b[i], WithinULP(a[i], 0));
+            }
+        }
+    }
+}
+
+TEST_CASE("invalid per-row priors are rejected", "[stats][case_a]") {
+    const st::Grid En = st::energyGrid(st::EnergyDomain{});
+    const st::Grid theta = st::recoilAngleGrid();
+    const std::vector<double> prior = st::physicalRecoilAngleLogPrior(theta);
+    using Rows = std::vector<std::vector<double>>;
+
+    CHECK_THROWS_AS(st::CaseAModel(En, theta, Rows(En.size() - 1, prior), kToyResolution),
+                    std::invalid_argument);
+    Rows short_row(En.size(), prior);
+    short_row.back().pop_back();
+    CHECK_THROWS_AS(st::CaseAModel(En, theta, short_row, kToyResolution), std::invalid_argument);
+    Rows nan_row(En.size(), prior);
+    nan_row[2][5] = std::numeric_limits<double>::quiet_NaN();
+    CHECK_THROWS_AS(st::CaseAModel(En, theta, nan_row, kToyResolution), std::invalid_argument);
+    Rows inf_row(En.size(), prior);
+    inf_row[4][0] = std::numeric_limits<double>::infinity();
+    CHECK_THROWS_AS(st::CaseAModel(En, theta, inf_row, kToyResolution), std::invalid_argument);
+    CHECK_THROWS_AS(
+        st::CaseAModel(En, theta, Rows(En.size(), prior), st::CaseAResolution{0.0, 0.08}),
+        std::invalid_argument);
+
+    // A -inf cell (zero mass) is allowed, as in the shared prior.
+    Rows zero_cell(En.size(), prior);
+    zero_cell[1][0] = -std::numeric_limits<double>::infinity();
+    CHECK_NOTHROW(st::CaseAModel(En, theta, zero_cell, kToyResolution));
+}
