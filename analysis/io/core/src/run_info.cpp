@@ -93,6 +93,40 @@ HpMass hpMassFromBlock(const json& block, HpMassSource source, std::string check
     return hp;
 }
 
+std::string_view spectrumModeName(SpectrumMode mode) noexcept {
+    switch (mode) {
+    case SpectrumMode::Mono:
+        return "mono";
+    case SpectrumMode::Flat:
+        return "flat";
+    }
+    return "unknown";
+}
+
+SourceSpectrum sourceSpectrumFromRunRecord(const json& record) {
+    const std::string record_where{kRunRecordName};
+    const std::string config_where = record_where + ": config";
+    const std::string where = config_where + ".source";
+    const auto& config = member(record, "config", record_where);
+    const auto& source = member(config, "source", config_where);
+    const auto mode = stringMember(source, "mode", where);
+    SourceSpectrum spectrum;
+    if (mode == spectrumModeName(SpectrumMode::Mono)) {
+        spectrum.mode = SpectrumMode::Mono;
+        spectrum.En_MeV = positiveMember(source, "En_MeV", where);
+    } else if (mode == spectrumModeName(SpectrumMode::Flat)) {
+        spectrum.mode = SpectrumMode::Flat;
+        spectrum.En_min_MeV = positiveMember(source, "En_min_MeV", where);
+        spectrum.En_max_MeV = positiveMember(source, "En_max_MeV", where);
+        if (spectrum.En_min_MeV >= spectrum.En_max_MeV) {
+            throw IoError(where + ": En_min_MeV is not below En_max_MeV");
+        }
+    } else {
+        throw IoError(where + ": unknown mode '" + mode + "'");
+    }
+    return spectrum;
+}
+
 RunInfo runInfoFromJson(const std::filesystem::path& run_dir, const json& record,
                         const std::optional<std::string>& hp_check_id,
                         const std::optional<json>& check) {

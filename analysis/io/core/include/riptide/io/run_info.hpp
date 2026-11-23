@@ -82,6 +82,24 @@ struct RunInfo {
 [[nodiscard]] RunInfo readRunInfo(const std::filesystem::path& data_root, std::string_view run_id,
                                   const std::optional<std::string>& hp_check_id);
 
+// Neutron energy spectrum of a run's source, as configured in run.json under
+// config.source. Only the fields of `mode` are meaningful; the others are 0.
+enum class SpectrumMode { Mono, Flat };
+
+[[nodiscard]] std::string_view spectrumModeName(SpectrumMode mode) noexcept;
+
+struct SourceSpectrum {
+    SpectrumMode mode = SpectrumMode::Mono;
+    double En_MeV = 0.0;     // Mono
+    double En_min_MeV = 0.0; // Flat
+    double En_max_MeV = 0.0; // Flat
+};
+
+// Reads config.source of a run.json document. Throws IoError on an unknown
+// mode, a missing field, a value that is not positive and finite, or a flat
+// range with En_min_MeV >= En_max_MeV.
+[[nodiscard]] SourceSpectrum sourceSpectrumFromRunRecord(const nlohmann::json& record);
+
 // Reads a JSON file; throws IoError if it is missing or malformed.
 [[nodiscard]] nlohmann::json readJsonFile(const std::filesystem::path& path);
 
