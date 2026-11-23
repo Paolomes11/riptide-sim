@@ -1,5 +1,6 @@
 add_library(riptide_stats STATIC
     src/calibration.cpp
+    src/acceptance.cpp
     src/case_a.cpp
     src/combine.cpp
     src/grid.cpp
