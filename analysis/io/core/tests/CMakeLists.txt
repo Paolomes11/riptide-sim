@@ -1,4 +1,5 @@
 add_executable(io_core_tests
+    acceptance_record_test.cpp
     analysis_record_test.cpp
     event_columns_test.cpp
     response_summary_test.cpp
