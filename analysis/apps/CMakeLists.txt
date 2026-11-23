@@ -32,6 +32,10 @@ if(RIPTIDE_BUILD_ROOT_IO)
     target_link_libraries(riptide_analysis_prepare PRIVATE
         riptide::analysis_cli riptide::io_core riptide::io_root riptide::common
         riptide::options riptide::warnings)
+    add_executable(riptide_case_a_geant4 src/riptide_case_a_geant4.cpp)
+    target_link_libraries(riptide_case_a_geant4 PRIVATE
+        riptide::case_a_geant4_core riptide::io_core riptide::io_root riptide::stats
+        riptide::common riptide::ext_json riptide::ext_lyra riptide::options riptide::warnings)
 endif()
 
 if(RIPTIDE_BUILD_TESTS)

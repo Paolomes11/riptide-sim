@@ -9,8 +9,9 @@ pseudo-esperienze e finestra su θ_p (D35), app `riptide_stats_bench` e `riptide
 La calibrazione C++ passa tutte le 71 soglie contro il toy (`validation/5_results.md`).
 Il pull n–C non elastico lungo +X della fase 3 è chiuso come fluttuazione: con un seme
 indipendente scende da +3.73 a +1.79 (`validation/3_nC_results.md`). Fase 6 (Caso A su dati
-Geant4) avviata sul branch `feat/case-a-geant4`: decisioni D36–D39 scritte, codice non ancora
-iniziato.
+Geant4) avviata sul branch `feat/case-a-geant4`: decisioni D36–D39 scritte. Split in esperienze
+disgiunte e app `riptide_case_a_geant4` con la sorgente `--toy` fatti il 2026-11-23. Mancano i
+config, le previsioni e i run.
 
 ## Fatto
 
@@ -306,8 +307,13 @@ Port del motore statistico del Caso A, vedi `roadmap.md`.
 **Prossimi passi, nell'ordine:**
 
 1. Fase 6 (Caso A su dati Geant4), decisioni D36–D39. In ordine:
-   - split in esperienze disgiunte in `analysis/stats` (D37), con test;
-   - app `riptide_case_a_geant4` con la sorgente `--toy` (D37, D38);
+   - ~~split in esperienze disgiunte in `analysis/stats` (D37), con test~~ (fatto, 2026-11-23);
+   - ~~app `riptide_case_a_geant4` con la sorgente `--toy` (D37, D38)~~ (fatto, 2026-11-23).
+     Verifiche:
+     - toy `flat:10:20` con 20 000 eventi: la checklist ridà gli stessi numeri della §1 di
+       `validation/5_results.md`;
+     - smoke test sul run d'integrazione: cut-flow uguale a `riptide_analysis_prepare`;
+     - calibrazione `--pilot` invariata dopo il refactoring;
    - config della fase 6 (D36);
    - `validation/6_predictions.md`, committata prima dei run;
    - run e checklist bias → risoluzione → pull → coverage → contrazione 1/√N → robustezza al
