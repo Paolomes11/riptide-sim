@@ -315,7 +315,7 @@ Port del motore statistico del Caso A, vedi `roadmap.md`.
      - smoke test sul run d'integrazione: cut-flow uguale a `riptide_analysis_prepare`;
      - calibrazione `--pilot` invariata dopo il refactoring;
    - ~~config della fase 6 (D36)~~ (fatto, 2026-11-23);
-   - `validation/6_predictions.md`, committata prima dei run;
+   - ~~`validation/6_predictions.md`, committata prima dei run~~ (fatto, 2026-11-23);
    - run e checklist bias → risoluzione → pull → coverage → contrazione 1/√N → robustezza al
      prior, poi confronto toy vs Geant4.
 2. Ogni run: via dell'utente e stima dell'RSS con `scripts/run_capped.sh`.
