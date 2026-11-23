@@ -17,6 +17,7 @@
 #include <cmath>
 #include <cstdint>
 #include <random>
+#include <stdexcept>
 
 #include "riptide/common/units.hpp"
 
@@ -81,6 +82,30 @@ inline constexpr double kUniformScale = 0x1.0p-53;
     const double u_radius = 1.0 - uniform53(engine);
     const double u_angle = uniform53(engine);
     return std::sqrt(-2.0 * std::log(u_radius)) * std::cos(2.0 * units::pi * u_angle);
+}
+
+// 2^64 mod bound, computed in 64-bit unsigned arithmetic: 0 - bound wraps to
+// 2^64 - bound, which has the same residue as 2^64. bound > 0.
+[[nodiscard]] constexpr std::uint64_t rejectionThreshold(std::uint64_t bound) noexcept {
+    return (0 - bound) % bound;
+}
+
+// Uniform on {0, ..., bound - 1}, built from the raw engine output because
+// std::uniform_int_distribution (and so std::shuffle) is implementation
+// defined. Draws below 2^64 mod bound are rejected: the accepted range then
+// holds the same number of copies of every residue, so r % bound is exactly
+// uniform. A draw is rejected with probability below bound / 2^64.
+[[nodiscard]] inline std::uint64_t uniformBelow(Engine& engine, std::uint64_t bound) {
+    if (bound == 0) {
+        throw std::invalid_argument("uniformBelow: bound must be positive");
+    }
+    const std::uint64_t threshold = rejectionThreshold(bound);
+    for (;;) {
+        const std::uint64_t draw = engine();
+        if (draw >= threshold) {
+            return draw % bound;
+        }
+    }
 }
 
 } // namespace riptide::random

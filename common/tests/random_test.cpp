@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <cstring>
 #include <set>
+#include <stdexcept>
 #include <vector>
 
 #include "riptide/common/random.hpp"
@@ -16,9 +17,11 @@ namespace {
 using riptide::random::Engine;
 using riptide::random::perEventEngine;
 using riptide::random::perEventSeed;
+using riptide::random::rejectionThreshold;
 using riptide::random::splitMix64;
 using riptide::random::standardNormal;
 using riptide::random::uniform53;
+using riptide::random::uniformBelow;
 
 constexpr std::uint64_t kProjectSeed = 20260907;
 constexpr std::size_t kSamples = 1000000;
@@ -132,4 +135,66 @@ TEST_CASE("standardNormal is reproducible and seed dependent", "[random]") {
     }
     CHECK(identical);
     CHECK(differ == kShort);
+}
+
+TEST_CASE("rejectionThreshold is 2^64 mod bound", "[random]") {
+    // 2^64 = (2^2)^32 is 1 mod 3; a power of two divides 2^64; and
+    // 2^64 = 2 (2^63 + 1) - 2, so the residue is 2^63 - 1, the largest
+    // rejected range of any bound.
+    constexpr std::uint64_t kThree = 3;
+    constexpr std::uint64_t kPowerOfTwo = std::uint64_t{1} << 40U;
+    constexpr std::uint64_t kHalfPlusOne = (std::uint64_t{1} << 63U) + 1;
+    STATIC_CHECK(rejectionThreshold(1) == 0);
+    STATIC_CHECK(rejectionThreshold(kThree) == 1);
+    STATIC_CHECK(rejectionThreshold(kPowerOfTwo) == 0);
+    STATIC_CHECK(rejectionThreshold(kHalfPlusOne) == (std::uint64_t{1} << 63U) - 1);
+}
+
+TEST_CASE("uniformBelow stays in range and rejects a zero bound", "[random]") {
+    Engine engine{kProjectSeed};
+    CHECK_THROWS_AS(uniformBelow(engine, 0), std::invalid_argument);
+    constexpr std::size_t kDraws = 1000;
+    constexpr std::uint64_t kHalfPlusOne = (std::uint64_t{1} << 63U) + 1;
+    bool ones_give_zero = true;
+    bool below_bound = true;
+    for (std::size_t i = 0; i < kDraws; ++i) {
+        ones_give_zero = ones_give_zero && uniformBelow(engine, 1) == 0;
+        below_bound = below_bound && uniformBelow(engine, kHalfPlusOne) < kHalfPlusOne;
+    }
+    CHECK(ones_give_zero);
+    CHECK(below_bound);
+}
+
+TEST_CASE("uniformBelow gives every value with equal frequency", "[random]") {
+    // 7 does not divide 2^64, so the rejection step is exercised.
+    constexpr std::uint64_t kBound = 7;
+    Engine engine{kProjectSeed};
+    std::array<std::size_t, kBound> counts{};
+    for (std::size_t i = 0; i < kSamples; ++i) {
+        ++counts.at(uniformBelow(engine, kBound));
+    }
+    const double n = static_cast<double>(kSamples);
+    const double p = 1.0 / static_cast<double>(kBound);
+    const double sigma = std::sqrt(p * (1.0 - p) / n);
+    for (const std::size_t count : counts) {
+        CHECK_THAT(static_cast<double>(count) / n, Catch::Matchers::WithinAbs(p, kSigmas * sigma));
+    }
+}
+
+TEST_CASE("uniformBelow is reproducible and seed dependent", "[random]") {
+    constexpr std::size_t kShort = 1000;
+    constexpr std::uint64_t kBound = 1000003;
+    Engine a{kProjectSeed};
+    Engine b{kProjectSeed};
+    Engine c{kProjectSeed + 1};
+    bool identical = true;
+    std::size_t differ = 0;
+    for (std::size_t i = 0; i < kShort; ++i) {
+        const std::uint64_t x = uniformBelow(a, kBound);
+        identical = identical && x == uniformBelow(b, kBound);
+        differ += x != uniformBelow(c, kBound) ? 1U : 0U;
+    }
+    CHECK(identical);
+    // Two independent streams agree at a given draw with probability 1/kBound.
+    CHECK(differ + 1 >= kShort);
 }
