@@ -3,6 +3,11 @@ target_link_libraries(analysis_cli_tests PRIVATE
     riptide::analysis_cli riptide::options riptide::warnings Catch2::Catch2WithMain)
 catch_discover_tests(analysis_cli_tests PROPERTIES SKIP_RETURN_CODE 4)
 
+add_executable(case_a_geant4_tests case_a_geant4_test.cpp)
+target_link_libraries(case_a_geant4_tests PRIVATE
+    riptide::case_a_geant4_core riptide::options riptide::warnings Catch2::Catch2WithMain)
+catch_discover_tests(case_a_geant4_tests PROPERTIES SKIP_RETURN_CODE 4)
+
 # Smoke test of riptide_analysis_prepare on the runs written by sim_integration.
 if(RIPTIDE_BUILD_ROOT_IO)
     add_test(NAME analysis_prepare_integration
