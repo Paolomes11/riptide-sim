@@ -1,13 +1,15 @@
 # Stato
 
-**v0.7.0 — 2026-11-22 — Fase 5 (port del motore statistico, Caso A) completata, prossima la fase 6.**
+**v0.7.0 — 2026-11-23 — Fase 5 (port del motore statistico, Caso A) completata, prossima la fase 6.**
 
 `master` è a v0.7.0: fase 5 unita con la PR #3 (tag `v0.7.0`), report di progetto in
 `docs/riptide_report.pdf` unito con la PR #4. La fase 5 comprende taglio `has_proton` (D34),
 cinematica inversa del rinculo, motore del Caso A in `analysis/stats` (D32, D33), generatore di
 pseudo-esperienze e finestra su θ_p (D35), app `riptide_stats_bench` e `riptide_stats_calibrate`.
 La calibrazione C++ passa tutte le 71 soglie contro il toy (`validation/5_results.md`).
-Prossimo: piano della fase 6 (Caso A su dati Geant4).
+Il pull n–C non elastico lungo +X della fase 3 è chiuso come fluttuazione: con un seme
+indipendente scende da +3.73 a +1.79 (`validation/3_nC_results.md`). Prossimo: piano della
+fase 6 (Caso A su dati Geant4).
 
 ## Fatto
 
@@ -224,8 +226,10 @@ Geometria reale e sorgente a campo lontano, vedi `roadmap.md`.
   - Frazione di protoni che escono 3.17% / 4.37% / 4.76%, che cresce con E_p fino al 17% sopra
     15.6 MeV nel piatto isotropo.
   - 2.4–2.8 minuti e meno di 0.2 GB per run, 110–119 B/evento: `kBytesPerEvent` = 256 resta.
-  - Da guardare: n–C non elastico lungo +X a +3.73σ da `jeff33` (il χ² delle frazioni passa con
-    p = 0.0027). La previsione (d) sul verso del range contro PSTAR non è confermata.
+  - n–C non elastico lungo +X a +3.73σ da `jeff33` (il χ² delle frazioni passa con p = 0.0027).
+    Chiuso il 2026-11-23 come fluttuazione: con il seme 20260908 il pull è +1.79, e il
+    diagnostico per profondità e per facce non mostra struttura (`validation/3_nC_results.md`).
+  - La previsione (d) sul verso del range contro PSTAR non è confermata.
 - **Test:** `debug` 266/266, `ci` 247/247, clang-format pulito.
 
 ### Fase 4 (v0.6.0, branch `feat/analysis-io`, `analysis_record_version` 2)
@@ -300,13 +304,11 @@ Port del motore statistico del Caso A, vedi `roadmap.md`.
 
 **Prossimi passi, nell'ordine:**
 
-1. Da studiare prima dei run della fase 6: pull +3.73σ del n–C non elastico lungo +X
-   (`validation/3_results.md`, §2).
-2. Fase 6 (Caso A su dati Geant4): piano dettagliato e decisioni prima del codice. Checklist
+1. Fase 6 (Caso A su dati Geant4): piano dettagliato e decisioni prima del codice. Checklist
    bias → risoluzione → pull → coverage → contrazione 1/√N → robustezza al prior, poi confronto
    toy vs Geant4 sullo stesso motore; previsioni scritte prima dei run.
-3. Ogni run: via dell'utente e stima dell'RSS con `scripts/run_capped.sh`.
-4. A chiusura della fase 6: `status.md` e report a v0.8.0.
+2. Ogni run: via dell'utente e stima dell'RSS con `scripts/run_capped.sh`.
+3. A chiusura della fase 6: `status.md` e report a v0.8.0.
 
 ## Punti aperti
 
@@ -323,6 +325,9 @@ Port del motore statistico del Caso A, vedi `roadmap.md`.
 - **Fase 4, deciso (D34):** 89 / 17 / 19 eventi `single_np` contenuti non hanno un protone
   tracciato (`truth_Ep_phys` = 0). Escono con il taglio `has_proton`; la frazione persa (~10⁻⁴)
   è una sistematica per la fase 9.
+- **Fase 3, sotto la sensibilità (d):** un eccesso residuo di n–C non elastico lungo +X dello
+  0.1–0.2% non è escluso. Non tocca il Caso A, perché il taglio `single_np` toglie gli eventi
+  n–C; va rivisto nella fase 9, quando gli eventi n–C entreranno nel modello.
 - **Fase 5:** il target D35 sulla verosimiglianza (≤ 0.10 s per 1000 eventi) è mancato, con
   0.174 s. Un `exp` vettoriale o il parallelismo sugli eventi richiedono una decisione separata
   e vanno rivisti solo se la fase 6 o i Casi B/C ne avranno bisogno.
