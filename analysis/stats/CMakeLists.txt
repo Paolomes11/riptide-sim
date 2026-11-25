@@ -4,6 +4,7 @@ add_library(riptide_stats STATIC
     src/case_a.cpp
     src/combine.cpp
     src/direction_grid.cpp
+    src/vmf_kernel.cpp
     src/grid.cpp
     src/numerics.cpp
     src/priors.cpp
