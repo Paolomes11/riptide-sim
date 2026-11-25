@@ -2,8 +2,9 @@
 
 **v0.8.0 — 2026-11-25 — Fase 6 (Caso A su dati Geant4) completata: con l'accettanza di D40
 la famiglia Geant4 = toy passa 117/117 e la calibrazione assoluta 32/32
-(`validation/6_results.md`). Fase 7 (Caso B) in corso: design scritto (D41–D45,
-`validation/7_predictions.md`), implementazione da avviare.**
+(`validation/6_results.md`). Fase 7 (Caso B) in corso: motore C++ e checklist 7a contro il
+toy fatti (70/76 alla lettera, i sei fallimenti spiegati, `validation/7_results.md`); 7b
+(Geant4) da avviare.**
 
 `master` è a v0.8.0 (tag `v0.8.0`): la fase 6 fino a D40 è unita con la PR #7 (merge
 `209707a`), il passo D e la chiusura con la PR #8 (merge `252d7be`); i due branch sono
@@ -379,10 +380,48 @@ e, sulla radice dei dati, `validation/6_eval/`, `validation/6_diag_14MeV/`,
 - **Risultati (`validation/6_results.md`, f54b787).**
 - **Test:** `debug` 406/406, `ci` 382/382, clang-format pulito.
 
-**Prossimo passo:** progettare la fase 7 (Caso B) in una sessione dedicata: decisioni D41+ e
-previsioni prima del codice.
+### Fase 7 (in corso, branch `feat/case-b-model`, `calibration_version` 1 del Caso B)
+
+Caso B, Ω_n condivisa ed E_n nuisance per evento, vedi `roadmap.md`. Design D41–D45 e previsioni
+`validation/7_predictions.md` (v1, `09634a8`) uniti con la PR #10 prima del codice.
+
+- **Codice:**
+  - direzioni in `common/direction.hpp` (2ce8238);
+  - griglie di Fibonacci e della calotta (D42, b88e8f4);
+  - kernel vMF della traccia (D41, 8cd4f68) e modello (D41, 72718da);
+  - posterior e riassunti (D42, e06a646);
+  - pseudo-esperienze (D43, 1c896fd);
+  - calibrazione con thread fra esperienze, risultati identici per ogni numero di thread
+    (D43, D44, 551c8d7);
+  - app `riptide_case_b_calibrate` (b84cebf) e `riptide_stats_bench --case b` (080bce0).
+- **Prestazioni (D44):** un'esperienza a N = 1000 richiede 1.88–1.97 s su un thread, contro
+  il target ≤ 2 s; nessuna ottimizzazione.
+- **Versione:** `CMakeLists.txt` corretto a 0.8.0 (c45a140); vedi la nota della fase 6.
+- **Checklist 7a (record `7a`, 5 min 11 s con 4 thread, RSS 51 MB):** 70/76 alla lettera.
+  - Due fallimenti vengono dalla tabella del toy arrotondata a 0.01°: con i valori non
+    arrotondati |z| ≤ 1.88.
+  - Due dal punto N = 1000 con M = 40, che fallisce allo stesso modo nel toy; con M = 240
+    rms·√N = 0.235 e la pendenza è −0.503.
+  - Due da soglie ambigue lette nel modo più severo: il pull rms con il prior largo su E_n a
+    N = 100 è 0.928 contro 0.93; lo spostamento vMF massimo a N = 300 è 0.324 σ, con media
+    0.013 σ.
+  - Prior sul nuisance: spostamento 0.68–0.81 σ a media nulla, come nel toy.
+  - Valutazione in `validation/7a_eval/` sulla radice dei dati; sintesi in
+    `validation/7_results.md`.
+- **Test:** `debug` 450/450, `ci` 426/426, clang-format pulito.
+
+**Prossimo passo:** 7b, i tre run Geant4 di D45 (+X, +Z, (3, 2, 1)/√14) e il Caso B su di
+essi, con il toy gemello.
 
 ## Punti aperti
+
+- **Fase 7 (d):** con il prior vMF gli spostamenti del MAP sono quasi tutti nulli, con pochi salti
+  fino a 0.32 σ a N = 300. Sembra il MAP sulla calotta discreta, che salta a un punto vicino,
+  ma il passo non è verificato. Va rivisto se una soglia futura dipenderà dal singolo
+  spostamento.
+- **Soglie da scrivere in modo esplicito nelle prossime previsioni:** quale punto usare a
+  N = 1000 (M = 40 o M = 240), valori del toy non arrotondati, media o massimo per gli
+  spostamenti (fase 7, `7_results.md` §4).
 
 - **Fase 3, deciso (D27):** blocco 60 × 20 × 20 mm, mondo nel vuoto senza supporti né
   materiali attorno. Se una geometria più realistica li aggiungerà, andranno rivisti fondo e
