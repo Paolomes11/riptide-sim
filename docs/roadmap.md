@@ -112,7 +112,7 @@ progetto ricostruisce il neutrone incidente da ciò che interagisce nello scinti
   prior.
 - **Confronto toy vs Geant4 sullo stesso motore**: misura della circolarità del toy.
 
-## Fase 7 — Caso B
+## Fase 7 — Caso B 🔄 in corso (design: D41–D45, `validation/7_predictions.md`)
 
 Direzione Ω_n su griglia di Fibonacci con raffinamento locale; campo lontano.
 

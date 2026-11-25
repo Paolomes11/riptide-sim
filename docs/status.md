@@ -2,7 +2,8 @@
 
 **v0.8.0 — 2026-11-25 — Fase 6 (Caso A su dati Geant4) completata: con l'accettanza di D40
 la famiglia Geant4 = toy passa 117/117 e la calibrazione assoluta 32/32
-(`validation/6_results.md`). Prossima: fase 7 (Caso B), da progettare.**
+(`validation/6_results.md`). Fase 7 (Caso B) in corso: design scritto (D41–D45,
+`validation/7_predictions.md`), implementazione da avviare.**
 
 `master` è a v0.8.0 (tag `v0.8.0`): la fase 6 fino a D40 è unita con la PR #7 (merge
 `209707a`), il passo D e la chiusura con la PR #8 (merge `252d7be`); i due branch sono

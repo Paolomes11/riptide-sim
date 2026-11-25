@@ -1224,3 +1224,171 @@ run.
   - Prova di robustezza: q stimato da metà del run (parità di `event_id`) sposta il bias del
     14 MeV a N = 1000 meno di 0.3·σ_c.
   - Lo schema delle colonne non cambia.
+
+## D41 — Modello del Caso B (2026-11-25)
+
+- **Contesto.** Nel Caso B la direzione Ω_n è incognita e condivisa da tutti gli eventi, mentre
+  E_n è un nuisance per evento con un prior largo (assunzioni 1 + 2, campo lontano). Ogni evento
+  dà (Êp, traccia 3D). Nel toy la verosimiglianza dipende da Ω_n solo tramite l'angolo θ_obs fra
+  traccia e candidato, quindi si calcola una tabella per evento su θ_obs e la si interpola per
+  ogni candidato.
+- **Decisione.**
+  - **Classe separata.** `CaseBModel` in `analysis/stats` (`case_b.hpp`, `case_b.cpp`). Non
+    eredita da `CaseAModel` e non ha rami sul caso. Riusa `Grid`, `EnergyDomain`, logsumexp e la
+    cinematica di D32.
+  - **Griglie.** Le stesse del toy, per confrontarne i numeri alla stessa discretizzazione:
+    - E_n su 500 punti in [10, 20] MeV;
+    - θ_p vero su 400 punti in [0, π/2];
+    - θ_obs su 801 punti in [0, π].
+  - **Termine in energia, per evento:**
+    g_k(θ_j) = log Σ_i exp[−½((Êp − Ep(E_i, θ_j))/σ_Ep)² + log ρ(θ_j, E_i) + log π(E_i)].
+    - Il fattore relativistico della densità della traccia è
+      ρ = 2m(2m + E_n) / (2m + E_n sin²θ_p)², rispetto al limite non relativistico cos θ_p/π.
+      La formula è quella del toy (`log_recoil_density_ratio`) e vale |log ρ| ≲ 0.011 a 20 MeV.
+    - Sta nel termine in energia perché dipende da E_n.
+    - La finestra in Ep si limita alle celle che possono contare, con lo stesso limite d'errore
+      dell'addendum a D35, scritto per la somma su E_n a θ_j fisso: le colonne Ep(·, θ_j) sono
+      crescenti in E_n, il costruttore lo verifica, e se non vale si somma l'intera colonna.
+  - **Kernel della traccia.** K(θ_obs | θ_j) è la convoluzione esatta sulla sfera dell'errore
+    von Mises–Fisher di concentrazione κ = 1/σ_θ², integrata sull'azimut, come nel toy:
+    K = κ/(1 − e^{−2κ}) · sin θ · exp(−2κ sin²((θ_obs − θ)/2)) · I0e(κ sin θ_obs sin θ).
+    - Il kernel porta la densità cos θ/π e i pesi trapezoidali in θ.
+    - Non dipende dall'evento, quindi si calcola una volta per modello.
+    - I0e(x) = e^{−x} I0(x). Per I0 si usa `std::cyl_bessel_i` (C++17, `<cmath>`) finché e^{−x}
+      I0(x) non perde precisione. Oltre, si usa l'espansione asintotica per x grande
+      (Abramowitz–Stegun 9.7.1). La soglia si fissa nel test, su valori di riferimento di
+      `scipy.special.i0e` scritti nel test con la fonte.
+  - **Tabella per evento.** h_k(θ_obs) = log Σ_j exp[log K(θ_obs | θ_j) + g_k(θ_j)].
+    `logLikelihood(Êp, traccia, candidati)` la interpola linearmente all'angolo
+    traccia–candidato. Il costo della tabella non dipende dal numero di candidati.
+  - **Accettanza.** Opzione del costruttore, spenta per default (r ≡ 1). Se è accesa, r(E_n, θ_p)
+    di D40 moltiplica il termine in energia e la riga si normalizza come in D40 (D45).
+- **Generatore e verosimiglianza.**
+  - Il generatore sposta la traccia con una gaussiana 2D nel piano tangente, σ_θ per componente
+    (`smearDirection`, come `kinematics.smear_direction` del toy). La verosimiglianza usa la vMF.
+  - Le due coincidono a meno di O(σ_θ⁴), come dichiara il toy. Lo scarto è ereditato e non si
+    corregge.
+- **Motivo.**
+  - Il toy è calibrato a ogni N con questo modello (`toy_model_findings.md` §4), quindi il port
+    ha un termine di confronto numerico diretto.
+  - La tabella su θ_obs rende economici sia il raffinamento sia la ricerca a molti candidati.
+- **Alternative scartate.**
+  - Kernel 1D gaussiano con termine specchiato: trascura la curvatura della sfera. Nel toy
+    produceva un bias di μ_E di circa −σ_θ² μ_E nel Caso C.
+  - Valutazione diretta per candidato senza tabella: costa n_candidati volte di più.
+
+## D42 — Griglie di direzione, prior e stima del Caso B (2026-11-25)
+
+- **Decisione.**
+  - **Sfera.** `sphereGrid(n)`, reticolo di Fibonacci con θ_i = arccos(1 − 2(i + ½)/n) e
+    φ_i = i·π(3 − √5) mod 2π. I pixel hanno area uguale, quindi il prior uniforme vale 1/n per
+    pixel. Default n = 3000.
+  - **Calotta.**
+    - `directionCapGrid(centro, raggio, n)` è un reticolo di Fibonacci ristretto alla calotta,
+      con cos α uniforme in [cos raggio, 1]. Default n = 8000.
+    - `directionCapRadius` è l'angolo massimo dal MAP dei pixel grossolani con log-posterior
+      > max − δ_log (δ_log = 10), più due passi della griglia grossolana, limitato a π. Il MAP si
+      esclude per indice: arccos(1) arrotondato non dà 0.
+  - **Prior.**
+    - Uniforme sulla sfera per default, cioè uniforme per pixel anche nella calotta.
+    - Il prior vMF serve solo per il test di robustezza. Si valuta su entrambe le griglie,
+      perché il prior uniforme per pixel nella calotta vale solo se il prior sulla sfera è
+      uniforme.
+  - **Combinazione.** log p(Ω | dati) = log π(Ω) + Σ_k log L_k(Ω), con il prior contato una
+    volta. Si richiede un risultato finito su tutta la sfera, altrimenti eccezione.
+  - **Stima e riassunti per esperienza.**
+    - Stima: MAP sulla calotta.
+    - Residuo angolare: angolo fra il MAP e la verità.
+    - Risoluzione dichiarata: sqrt(E_post[d²]), con d l'angolo dal MAP sulla calotta.
+    - Pull: residuo / risoluzione. Per una gaussiana 2D isotropa l'rms atteso è 1 e pull·√2
+      segue una Rayleigh.
+    - Copertura delle regioni HPD 68/90/95%: la verità sta nella regione se il pixel più vicino
+      alla verità ha densità sopra la soglia HPD.
+    - `truth_in_cap`: la verità cade entro la calotta.
+  - **Direzioni in `common`.** Il generatore del Caso B (in `analysis/stats`) e la risposta
+    (in `analysis/io`) usano le stesse funzioni di direzione, ma stats non può includere io.
+    - `Direction`, `perpendicularBasis`, `directionAroundAxis` e `smearDirection` passano senza
+      modifiche in `common/include/riptide/common/direction.hpp`, e `response.hpp` lo include.
+    - È un refactor a parte. I test di io esistenti restano verdi e i numeri della risposta
+      non cambiano.
+- **Motivo.** Sono le scelte del toy, calibrate (pixel di ~3.7° contro errori di 1–3°, quindi
+  serve il raffinamento). Spostare le direzioni in `common` evita una copia e rispetta le
+  dipendenze verso il basso.
+- **Alternative.** HEALPix: richiede una dipendenza esterna e non serve, perché Fibonacci ha
+  già area uguale. Copia delle funzioni di direzione in stats: due implementazioni dello stesso
+  rumore.
+
+## D43 — Pseudo-esperienze del Caso B (2026-11-25)
+
+- **Decisione.** Un generatore del modello del toy in `analysis/stats`, che serve solo a
+  validare il port, come D35 per il Caso A.
+  - **Verità.** Per ogni esperienza Ω_n è isotropa sulla sfera. La estrae il motore dell'id
+    riservato alla verità (`experimentFirstEventId`, ultimo id del blocco).
+  - **Eventi.** Per ogni evento, in quest'ordine:
+    1. E_n ~ U(10, 20) MeV;
+    2. cos θ_CM uniforme in [−1, 1], quindi Ep e θ_p esatti (D32);
+    3. azimut uniforme attorno a Ω_n;
+    4. Êp = Ep + N(0, σ_Ep);
+    5. traccia con `smearDirection` (σ_θ per componente).
+  - **Motori.** `perEventEngine(seme, id)` per ogni evento, con lo stesso schema di id di D35.
+    Seme del progetto `20260907`. Risoluzioni del toy: σ_Ep = 0.10 MeV, σ_θ = 0.08 rad.
+  - **Checklist.** Le stesse coppie (N, M) del toy: (10, 400), (30, 300), (100, 200),
+    (300, 100), (1000, 40) e la ripetizione a N = 1000 con M = 240 su id disgiunti.
+- **Motivo.** La calibrazione con la verità dal prior è la prova più diretta del port. I suoi
+  numeri si confrontano con la tabella del toy (`toy_model_findings.md` §4).
+
+## D44 — Prestazioni del Caso B e parallelismo fra esperienze (2026-11-25)
+
+- **Chiusura del target di D35.** Il target di 0.10 s per 1000 eventi del Caso A non è stato
+  raggiunto (0.17 s) e non si insegue oltre: la checklist del Caso A gira in pochi minuti. Il
+  valore resta registrato in `5_results.md`.
+- **Target del Caso B.** Thread singolo, build `release`: un'esperienza a N = 1000 (tabelle,
+  griglia di 3000, calotta di 8000) in ≤ 2 s.
+  - La stima del costo dominante è la convoluzione: 1000 × 801 × 400 termini.
+  - Prima l'implementazione semplice, poi le ottimizzazioni esatte, misurando ogni passo con un
+    nuovo caso `case_b` di `riptide_stats_bench` e rilanciando gli oracoli dopo ciascuno.
+  - Una banda nel kernel è ammessa solo con un limite d'errore dimostrato, come la finestra
+    di D35.
+- **Parallelismo.**
+  - Ammesso solo fra esperienze, nell'app di calibrazione: le esperienze sono indipendenti e
+    ognuna ha i suoi motori, quindi i risultati non dipendono dal numero di thread. Un test lo
+    verifica bit per bit con 1 e 4 thread.
+  - Dentro un'esperienza resta sequenziale. Solo `std::thread`, nessuna dipendenza nuova.
+- I tempi vanno in `7_results.md`, non in un test con soglia.
+- **Motivo.** Il Caso B moltiplica il costo per evento della tabella e aggiunge 11 000
+  candidati per esperienza. Le esperienze della checklist sono ~10⁵ eventi in tutto, quindi il
+  parallelismo fra esperienze basta e non tocca i numeri.
+
+## D45 — Caso B su campioni Geant4 (2026-11-25)
+
+- **Decisione.**
+  - **Run.** Tre run a campo lontano piatti in 10–19.5 MeV (D25, D27), ciascuno con Ω_n fissa,
+    10⁷ eventi e seme registrato:
+    - +X, lato lungo del blocco;
+    - +Z, lato corto;
+    - (3, 2, 1)/√14, obliqua senza simmetrie del blocco.
+    I config sono `config/7_ff_flat_10_19p5MeV_{x,z,obl}.json`, e ogni run passa la verifica
+    `c1` (`riptide_sim_check`).
+  - **Simmetria.** Le riflessioni del blocco che lasciano fissa Ω_n lungo un asse lasciano
+    invariata anche la distribuzione degli eventi selezionati. Per +X e +Z il bias vettoriale
+    di Ω̂ è quindi nullo per simmetria (a). L'obliqua è il test vero dell'effetto della
+    selezione sulla direzione.
+  - **Campioni.**
+    - Catena `single_np,has_proton,contained` (D30, D34), conversione HP (D24), smearing con
+      `reco_p_dir` (D31).
+    - Esperienze disgiunte per N = 10 … 1000, come D37.
+    - Toy gemello con la stessa verità e lo stesso numero di eventi, come D38.
+  - **Modello.** Ideale (r ≡ 1) per default. Con `--acceptance <stats_id>` usa la r(E_n, θ_p)
+    di D40, che è misurata lungo +X: per le altre direzioni è un'approssimazione dichiarata.
+  - **Parte della selezione che dipende dalla direzione.** Il termine ε(traccia | Ω)/A(Ω) resta
+    fuori. Lo si modella solo se la diagnosi lo richiede, con una decisione a parte; i run
+    isotropi della fase 3 ne sono una sorgente possibile.
+  - **App.** `riptide_case_b_geant4` in `analysis/apps`, un record `stats/<id>/case_b.json` per
+    chiamata. Lo schema delle colonne non cambia.
+- **Motivo.** Stesso schema delle fasi 5 → 6: la differenza Geant4 − toy, voce per voce, misura
+  il costo del realismo del rivelatore. Le tre direzioni separano ciò che la simmetria impone
+  da ciò che la selezione introduce.
+- **Alternative.**
+  - Una sola direzione: non distingue un bias di selezione da uno zero per simmetria.
+  - Accettanza in direzione modellata subito: senza un bias misurato è complessità non
+    giustificata.
