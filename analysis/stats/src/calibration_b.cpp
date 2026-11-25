@@ -12,6 +12,7 @@
 #include "riptide/common/units.hpp"
 #include "riptide/stats/calibration.hpp"
 #include "riptide/stats/direction_grid.hpp"
+#include "riptide/stats/split.hpp"
 
 namespace riptide::stats {
 
@@ -128,6 +129,21 @@ runCaseBRow(const CaseBModel& model, const EnergyDomain& truth_domain, const Cas
     parallelForEach(row.experiments, threads, [&](std::size_t k) {
         const CaseBPseudoExperiment experiment =
             caseBPseudoExperiment(truth_domain, row.events, resolution, seed, row.section, k);
+        results[k] = analyseCaseBExperiment(model, experiment, coarse_grid, uniform);
+    });
+    return results;
+}
+
+std::vector<CaseBExperimentResult>
+runCaseBPoolRow(const CaseBModel& model, const CaseBPseudoSample& pool,
+                const geometry::Direction& truth_omega,
+                const std::vector<std::vector<std::size_t>>& experiments,
+                const std::vector<geometry::Direction>& coarse_grid, unsigned threads) {
+    std::vector<CaseBExperimentResult> results(experiments.size());
+    const DirectionLogPrior uniform = uniformDirectionLogPrior;
+    parallelForEach(experiments.size(), threads, [&](std::size_t k) {
+        const CaseBPseudoExperiment experiment{truth_omega,
+                                               caseBPseudoSampleSubset(pool, experiments[k])};
         results[k] = analyseCaseBExperiment(model, experiment, coarse_grid, uniform);
     });
     return results;

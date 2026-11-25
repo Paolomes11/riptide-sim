@@ -58,6 +58,16 @@ runCaseBRow(const CaseBModel& model, const EnergyDomain& truth_domain, const Cas
             const CaseBResolution& resolution, std::uint64_t seed,
             const std::vector<geometry::Direction>& coarse_grid, unsigned threads);
 
+// One row on a finite pool of events with a single true direction, as a
+// Geant4 sample or its toy twin (D45): experiment k is the events of
+// pool at experiments[k] (from disjointExperiments), with truth truth_omega
+// and the uniform direction prior. The pool is read, never copied whole.
+[[nodiscard]] std::vector<CaseBExperimentResult>
+runCaseBPoolRow(const CaseBModel& model, const CaseBPseudoSample& pool,
+                const geometry::Direction& truth_omega,
+                const std::vector<std::vector<std::size_t>>& experiments,
+                const std::vector<geometry::Direction>& coarse_grid, unsigned threads);
+
 // The alternative priors of the robustness test, on the very experiments of a
 // checklist row: with `model`, a vMF prior on the direction of concentration
 // kappa, its axis at angle axis_angle from the truth and a uniform azimuth

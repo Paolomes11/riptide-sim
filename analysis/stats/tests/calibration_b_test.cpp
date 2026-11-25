@@ -12,12 +12,15 @@
 #include <vector>
 
 #include "riptide/common/direction.hpp"
+#include "riptide/common/random.hpp"
 #include "riptide/common/units.hpp"
 #include "riptide/stats/calibration_b.hpp"
 #include "riptide/stats/case_b.hpp"
 #include "riptide/stats/direction_grid.hpp"
 #include "riptide/stats/grid.hpp"
 #include "riptide/stats/priors.hpp"
+#include "riptide/stats/pseudo_experiment_b.hpp"
+#include "riptide/stats/split.hpp"
 
 namespace {
 
@@ -134,6 +137,36 @@ TEST_CASE("Case B checklist rows give the same numbers on 1 and 4 threads",
                                                kToyResolution, kSeed, coarse_grid, 1),
                           std::invalid_argument);
     }
+}
+
+TEST_CASE("Case B pool rows analyse the split experiments, the same on 1 and 4 threads",
+          "[stats][calibration_b]") {
+    const st::EnergyDomain domain{};
+    const st::CaseBModel model = modelOn(domain);
+    const auto coarse_grid = st::sphereGrid(st::kSphereGridPixels);
+    const geo::Direction omega = geo::normalized({3.0, 2.0, 1.0});
+    constexpr std::size_t kPool = 100;
+    constexpr std::size_t kEvents = 10;
+    constexpr std::size_t kExperiments = 6;
+    const auto pool = st::caseBPseudoSample(domain, omega, kPool, kToyResolution, kSeed);
+    auto engine = riptide::random::perEventEngine(kSeed, 0);
+    const auto split = st::disjointExperiments(kPool, kEvents, kExperiments, engine);
+
+    const auto one = st::runCaseBPoolRow(model, pool, omega, split, coarse_grid, 1);
+    const auto four = st::runCaseBPoolRow(model, pool, omega, split, coarse_grid, 4);
+    REQUIRE(one.size() == kExperiments);
+    REQUIRE(four.size() == kExperiments);
+    for (std::size_t k = 0; k < kExperiments; ++k) {
+        requireSameResult(one[k], four[k]);
+        // Experiment k is the analysis of exactly the events at split[k].
+        const st::CaseBPseudoExperiment by_hand{omega, st::caseBPseudoSampleSubset(pool, split[k])};
+        requireSameResult(one[k], st::analyseCaseBExperiment(model, by_hand, coarse_grid,
+                                                             st::uniformDirectionLogPrior));
+        REQUIRE_THAT(one[k].omega_true.x, WithinULP(omega.x, 0));
+    }
+    REQUIRE(st::runCaseBPoolRow(model, pool, omega, {}, coarse_grid, 4).empty());
+    REQUIRE_THROWS_AS(st::runCaseBPoolRow(model, pool, omega, {{kPool}}, coarse_grid, 1),
+                      std::invalid_argument);
 }
 
 TEST_CASE("summariseCaseBEnsemble on known entries", "[stats][calibration_b]") {
