@@ -18,6 +18,15 @@ target_link_libraries(riptide_case_a_geant4_core
     PUBLIC riptide::analysis_cli riptide::stats riptide::io_core riptide::common
     PRIVATE riptide::options riptide::warnings)
 
+# The pure part of riptide_case_b_geant4: no ROOT, built and tested everywhere.
+add_library(riptide_case_b_geant4_core STATIC src/case_b_geant4.cpp)
+add_library(riptide::case_b_geant4_core ALIAS riptide_case_b_geant4_core)
+target_include_directories(riptide_case_b_geant4_core PUBLIC
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>")
+target_link_libraries(riptide_case_b_geant4_core
+    PUBLIC riptide::analysis_cli riptide::stats riptide::io_core riptide::common riptide::ext_json
+    PRIVATE riptide::options riptide::warnings)
+
 # The statistics applications need neither ROOT nor Geant4: built everywhere.
 add_executable(riptide_stats_bench src/riptide_stats_bench.cpp)
 target_link_libraries(riptide_stats_bench PRIVATE
@@ -41,6 +50,11 @@ if(RIPTIDE_BUILD_ROOT_IO)
     target_link_libraries(riptide_case_a_geant4 PRIVATE
         riptide::case_a_geant4_core riptide::io_core riptide::io_root riptide::stats
         riptide::common riptide::ext_json riptide::ext_lyra riptide::options riptide::warnings)
+    add_executable(riptide_case_b_geant4 src/riptide_case_b_geant4.cpp)
+    target_link_libraries(riptide_case_b_geant4 PRIVATE
+        riptide::case_b_geant4_core riptide::case_a_geant4_core riptide::io_core riptide::io_root
+        riptide::stats riptide::common riptide::ext_json riptide::ext_lyra riptide::options
+        riptide::warnings)
     add_executable(riptide_acceptance src/riptide_acceptance.cpp)
     target_link_libraries(riptide_acceptance PRIVATE
         riptide::analysis_cli riptide::io_core riptide::io_root riptide::common
