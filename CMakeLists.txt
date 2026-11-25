@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 
 project(riptide_sim
-    VERSION 0.7.0
+    VERSION 0.8.0
     DESCRIPTION "Geant4 simulation and C++ statistical reconstruction of incident neutrons from n-p scattering"
     LANGUAGES CXX)
 

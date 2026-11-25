@@ -319,6 +319,11 @@ Caso A sugli eventi di Geant4, vedi `roadmap.md`. Fonti dei numeri: `validation/
 e, sulla radice dei dati, `validation/6_eval/`, `validation/6_diag_14MeV/`,
 `validation/6_acceptance/`, `validation/6a_eval/`; sintesi in `validation/6_results.md`.
 
+- **Nota sulla versione:** alla chiusura della fase la versione in `CMakeLists.txt` è rimasta
+  0.7.0, quindi i record della fase 6 (e il codice al tag `v0.8.0`) riportano
+  `project_version` "0.7.0". Li identifica `git_describe`, che è corretto; i record non si
+  riscrivono. Corretto a 0.8.0 sul branch della fase 7.
+
 - **D36–D39 (af81a89):** campioni (piatto 10–19.5 MeV +X da 10⁷, mono 11/17/19 MeV da 10⁶, più
   il 14 MeV della fase 3), esperienze disgiunte da una permutazione, toy gemello `--toy` e effetti
   attesi da Geant4 che il toy non ha.
