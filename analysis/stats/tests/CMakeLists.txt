@@ -3,6 +3,7 @@ add_executable(stats_tests
     calibration_test.cpp
     case_a_test.cpp
     case_b_test.cpp
+    case_b_posterior_test.cpp
     direction_grid_test.cpp
     vmf_kernel_test.cpp
     grid_test.cpp
