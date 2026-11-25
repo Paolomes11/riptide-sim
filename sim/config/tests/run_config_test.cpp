@@ -428,6 +428,39 @@ TEST_CASE("shipped config files are valid", "[config]") {
     }
 }
 
+TEST_CASE("the phase 7b configs differ from the phase 6 flat run only in direction", "[config]") {
+    const std::filesystem::path dir{RIPTIDE_CONFIG_DIR};
+    const auto x = riptide::sim::loadRunConfig(dir / "6_ff_flat_10_19p5MeV_x.json");
+    const auto z = riptide::sim::loadRunConfig(dir / "7_ff_flat_10_19p5MeV_z.json");
+    const auto obl = riptide::sim::loadRunConfig(dir / "7_ff_flat_10_19p5MeV_obl.json");
+    CHECK_THAT(z.source.direction.z, WithinULP(1.0, 0));
+    // The oblique direction of D45 is (3, 2, 1) / sqrt(14), written to 16 digits.
+    constexpr double kDigitsTolerance = 1e-15;
+    CHECK_THAT(obl.source.direction.x, WithinAbs(3.0 / std::sqrt(14.0), kDigitsTolerance));
+    CHECK_THAT(obl.source.direction.y, WithinAbs(2.0 / std::sqrt(14.0), kDigitsTolerance));
+    CHECK_THAT(obl.source.direction.z, WithinAbs(1.0 / std::sqrt(14.0), kDigitsTolerance));
+    for (const auto& c : {z, obl}) {
+        CHECK(c.config_version == x.config_version);
+        CHECK(c.source.beam == BeamMode::FarField);
+        CHECK(c.source.mode == SourceMode::Flat);
+        CHECK_FALSE(c.source.isotropic);
+        CHECK_THAT(c.source.En_min, WithinULP(x.source.En_min, 0));
+        CHECK_THAT(c.source.En_max, WithinULP(x.source.En_max, 0));
+        CHECK_THAT(c.source.margin, WithinULP(x.source.margin, 0));
+        CHECK_THAT(c.geometry.scint_size.x, WithinULP(x.geometry.scint_size.x, 0));
+        CHECK_THAT(c.geometry.scint_size.y, WithinULP(x.geometry.scint_size.y, 0));
+        CHECK_THAT(c.geometry.scint_size.z, WithinULP(x.geometry.scint_size.z, 0));
+        CHECK(c.physics_list == x.physics_list);
+        REQUIRE(c.scintillator.has_value());
+        CHECK_THAT(c.scintillator->birks_kB, WithinULP(x.scintillator->birks_kB, 0));
+        REQUIRE(c.proton_step_function.has_value());
+        CHECK_THAT(c.proton_step_function->dRoverRange,
+                   WithinULP(x.proton_step_function->dRoverRange, 0));
+        CHECK_THAT(c.proton_step_function->finalRange,
+                   WithinULP(x.proton_step_function->finalRange, 0));
+    }
+}
+
 TEST_CASE("a new run refuses an older config version", "[config]") {
     const auto path = writeTemporary("riptide_config_test_v1.json", validVersion1().dump());
     CHECK_THROWS_MATCHES(riptide::sim::loadRunConfig(path), ConfigError,

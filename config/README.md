@@ -37,6 +37,12 @@ un nuovo run:
 
 L'energia deve stare in (0, 20] MeV: oltre 20 MeV finiscono i dati valutati di `G4NeutronHP`.
 
+Fase 7b, Caso B su eventi Geant4 (D45): copie di `6_ff_flat_10_19p5MeV_x.json` in cui cambia solo
+la direzione fissa; la direzione +X riusa il run della fase 6. 10⁷ eventi ciascuno.
+
+- `7_ff_flat_10_19p5MeV_z.json`: direzione +Z, lungo un lato corto.
+- `7_ff_flat_10_19p5MeV_obl.json`: direzione obliqua (3, 2, 1)/√14, scritta con 16 cifre.
+
 Fase 6, Caso A su eventi Geant4 (D36): stesso blocco, fisica e sorgente di
 `3_ff_mono_14MeV_x.json`, direzione fissa +X; cambia solo lo spettro.
 
