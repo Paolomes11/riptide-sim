@@ -73,17 +73,10 @@ nlohmann::json gaussianResidualJson(const std::vector<double>& residuals, double
     return doc;
 }
 
-double dot(const Direction& a, const Direction& b) noexcept {
-    return a.x * b.x + a.y * b.y + a.z * b.z;
-}
-
-// Angle between unit vectors, accurate also for small angles (acos is not).
-double angleBetween(const Direction& a, const Direction& b) noexcept {
-    const Direction c{a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x};
-    return std::atan2(std::sqrt(dot(c, c)), dot(a, b));
-}
-
 } // namespace
+
+using geometry::angleBetween;
+using geometry::dot;
 
 nlohmann::json hpConversionSummary(const EventSample& sample) {
     const auto n = sample.size();

@@ -113,7 +113,9 @@ $RIPTIDE_DATA_DIR/
 ├── stats/<calibration_id>/
 │   └── calibration.json      # calibrazione del Caso A con pseudo-esperienze (D35)
 ├── stats/<stats_id>/
-│   └── case_a.json           # Caso A su eventi Geant4 o sul toy con la stessa verità (D37, D38)
+│   ├── case_a.json           # Caso A su eventi Geant4 o sul toy con la stessa verità (D37, D38)
+│   ├── case_b_calibration.json  # checklist del Caso B sul toy (7a)
+│   └── case_b.json           # Caso B su eventi Geant4 con Ω_n fissa o sul toy gemello (D45)
 └── reference/                # dati di riferimento, sola lettura
     ├── endfb80/              # file ENDF-6 estratti (D13); download/ con gli originali
     ├── jeff33/
@@ -538,6 +540,60 @@ Contenuto (`case_a_version` = 2; la versione 1 non ha `settings.acceptance`):
   altrimenti contiene `stats_id`, `acceptance_version`, `run_id`, `half`, `entries`, `En_bins`,
   `theta_bins` e `ratio_max` (il massimo del rapporto di accettanza, il tetto dell'accept-reject);
 - le sezioni dette sopra. Ogni riga ha in più `experiments_planned` e `skipped`.
+
+## Caso B su eventi Geant4 (`riptide_case_b_geant4`)
+
+`riptide_case_b_geant4 --stats-id <id> --run-id <run>` legge un run con direzione del neutrone
+fissa (D45). Applica la catena del Caso A, `single_np,has_proton,contained`, converte le energie
+HP, estrae la risoluzione con `--seed` (anche sulla direzione ricostruita del protone) e divide
+gli eventi selezionati in esperienze disgiunte. La direzione vera viene da
+`config.source.direction` di `run.json`, normalizzata dopo un controllo di norma entro 10⁻⁶ come
+nella simulazione; un run isotropo è un errore. Prima dell'analisi ogni `truth_omega_n`
+selezionata deve stare entro 10⁻⁹ rad da quella direzione. `--hp-from-check <id>` funziona come
+in `riptide_case_a_geant4`.
+
+Con `--toy --direction x,y,z --truth flat:<min>:<max> --events <n>` il pool viene invece dal
+generatore del toy del Caso B, con la stessa direzione, la stessa verità e lo stesso protocollo:
+è il gemello del campione Geant4. Il toy accetta solo una verità piatta. Le due sorgenti si
+escludono a vicenda. Con `--acceptance <id>` il modello somma alla verosimiglianza i pesi di
+accettanza di `stats/<id>/acceptance.json` (D40, D45), normalizzati riga per riga in E_n, e il toy
+estrae gli eventi con la stessa accettanza per accept-reject. Senza l'opzione il modello è quello
+ideale della 7a.
+
+Il modello è quello della 7a: prior piatto su E_n nel dominio [10, 20] MeV con 500 punti, prior
+uniforme sulla direzione, griglie in θ_p, in θ osservato e sulla sfera come in
+`case_b_calibration.json`. Gli esperimenti girano su `--threads` thread (default 4); il numero di
+thread non cambia i numeri e non entra nel file. Scrive `stats/<stats_id>/case_b.json`, e se la
+cartella esiste già si ferma. `--pilot` e i tempi su stdout funzionano come in
+`riptide_case_a_geant4`. Il file non contiene tempi: due run con le stesse opzioni danno gli
+stessi byte.
+
+Righe (`7_predictions.md`, §4 e §4.1): N/M = 10/400, 30/300, 100/200, 300/100, 1000/40, più la
+ripetizione 1000/240. Ogni riga usa un proprio motore, `perEventEngine(split_seed, 16 + riga)`.
+La riga N = 1000 e la ripetizione condividono una sola permutazione del pool: la ripetizione
+prende i blocchi dopo quelli della riga, quindi le due non hanno eventi in comune. Gli M eseguiti
+e le righe saltate seguono le regole di `case_a.json`.
+
+Contenuto (`case_b_version` = 1):
+- `case_b_version`, `stats_id`, `project_version`, `git_describe`;
+- `source`: come in `case_a.json`;
+- `truth`: `omega_n` (vettore unitario) e `spectrum` (`mode` con `En_MeV`, oppure con
+  `En_min_MeV` ed `En_max_MeV`);
+- `settings`: `seed`, `split_seed`, `sigma_Ep_MeV`, `sigma_theta_rad`, `pilot`, `levels`,
+  `En_domain`, `theta_points`, `theta_obs_points`, `sphere_pixels`, `cap_pixels`,
+  `cap_delta_log`, `acceptance` (come in `case_a.json`);
+- `rows` e `repeat`: per riga `events`, `experiments_planned`, `experiments`, `skipped`; se
+  analizzata anche:
+  - `ensemble`, con i campi di `case_b_calibration.json` (`entries`, `error_mean_rad` e il suo
+    errore, `error_rms_rad`, `sigma_mean_rad` e il suo errore, `pull_rms`,
+    `scaled_pull_median`, `scaled_pull_tail_fraction`, `truth_in_cap_fraction`, `coverage`);
+  - `bias`: media delle coordinate tangenti (e_θ, e_φ) della stima alla verità, `mean_rad`,
+    `error_rad` (deviazione standard / √M) e `norm_rad`, la norma del vettore medio;
+  - `error_rms_sqrt_N_rad`, l'errore rms per √N;
+- `contraction`: `slope_min_events` (30), `slope` (pendenza log-log dell'errore rms sulle righe
+  analizzate con N ≥ 30) e `slope_with_repeat` (la stessa con la ripetizione al posto della riga
+  N = 1000). Sono `null` con meno di due punti, e `slope_with_repeat` lo è anche se la ripetizione
+  è saltata.
 
 ## Accettanza in θ_p del Caso A (`riptide_acceptance`)
 

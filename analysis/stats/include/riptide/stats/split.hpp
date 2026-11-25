@@ -11,6 +11,7 @@
 
 #include "riptide/common/random.hpp"
 #include "riptide/stats/pseudo_experiment.hpp"
+#include "riptide/stats/pseudo_experiment_b.hpp"
 
 namespace riptide::stats {
 
@@ -33,5 +34,9 @@ disjointExperiments(std::size_t events, std::size_t events_per_experiment, std::
 // have different lengths or an index is out of range.
 [[nodiscard]] PseudoSample pseudoSampleSubset(const PseudoSample& sample,
                                               const std::vector<std::size_t>& indices);
+
+// The same for a Case B sample (a Geant4 pool or its toy twin, D45).
+[[nodiscard]] CaseBPseudoSample caseBPseudoSampleSubset(const CaseBPseudoSample& sample,
+                                                        const std::vector<std::size_t>& indices);
 
 } // namespace riptide::stats

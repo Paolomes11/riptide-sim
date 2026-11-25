@@ -153,3 +153,35 @@ TEST_CASE("pseudoSampleSubset copies the selected events in order", "[stats][spl
     sample.reco_Ep.pop_back();
     CHECK_THROWS_AS(st::pseudoSampleSubset(sample, {0}), std::invalid_argument);
 }
+
+TEST_CASE("caseBPseudoSampleSubset copies the selected events in order", "[stats][split]") {
+    st::CaseBPseudoSample sample;
+    constexpr std::size_t kEvents = 5;
+    for (std::size_t k = 0; k < kEvents; ++k) {
+        const auto x = static_cast<double>(k);
+        sample.truth_En.push_back(10.0 + x);
+        sample.truth_Ep.push_back(1.0 + x);
+        sample.truth_theta_p.push_back(0.1 * x);
+        sample.truth_track.push_back({x, 0.0, 1.0});
+        sample.reco_Ep.push_back(2.0 + x);
+        sample.reco_track.push_back({0.0, x, 1.0});
+    }
+    const std::vector<std::size_t> indices{3, 0, 4};
+    const auto subset = st::caseBPseudoSampleSubset(sample, indices);
+    REQUIRE(subset.size() == indices.size());
+    REQUIRE(subset.reco_track.size() == indices.size());
+    using Catch::Matchers::WithinULP;
+    for (std::size_t i = 0; i < indices.size(); ++i) {
+        const std::size_t k = indices[i];
+        CHECK_THAT(subset.truth_En[i], WithinULP(sample.truth_En[k], 0));
+        CHECK_THAT(subset.truth_Ep[i], WithinULP(sample.truth_Ep[k], 0));
+        CHECK_THAT(subset.truth_theta_p[i], WithinULP(sample.truth_theta_p[k], 0));
+        CHECK_THAT(subset.truth_track[i].x, WithinULP(sample.truth_track[k].x, 0));
+        CHECK_THAT(subset.reco_Ep[i], WithinULP(sample.reco_Ep[k], 0));
+        CHECK_THAT(subset.reco_track[i].y, WithinULP(sample.reco_track[k].y, 0));
+    }
+
+    CHECK_THROWS_AS(st::caseBPseudoSampleSubset(sample, {kEvents}), std::invalid_argument);
+    sample.reco_track.pop_back();
+    CHECK_THROWS_AS(st::caseBPseudoSampleSubset(sample, {0}), std::invalid_argument);
+}

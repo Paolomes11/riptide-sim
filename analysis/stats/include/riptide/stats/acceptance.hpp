@@ -81,4 +81,16 @@ private:
 acceptanceRecoilAngleLogPrior(const AcceptanceRatio& ratio, const Grid& En_grid,
                               const Grid& theta_grid);
 
+// Acceptance term of the Case B model (D45 note): log of the factor that turns
+// the isotropic recoil density about Omega_n into the selected one, at the
+// grid point (theta_j, E_n,i): log[q_ij / m_iso,ij], with q_ij the row of
+// acceptanceRecoilAngleLogPrior and m_iso,ij the isotropic mass of the same
+// cell. It is the cell average of r over the row normalisation
+// c_i = integral of r * pi_iso, so each E_n row of the selected density stays
+// normalised and the overall acceptance A(E_n) cancels; with r = 1 it is 0 up
+// to rounding. Laid out as the CaseBModel tables, at [j * n_En + i].
+[[nodiscard]] std::vector<double> caseBAcceptanceLogWeights(const AcceptanceRatio& ratio,
+                                                            const Grid& En_grid,
+                                                            const Grid& theta_grid);
+
 } // namespace riptide::stats

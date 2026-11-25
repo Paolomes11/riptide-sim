@@ -1,0 +1,23 @@
+{
+  "config_version": 3,
+  "geometry": {
+    "scint_size_mm": [60.0, 20.0, 20.0]
+  },
+  "source": {
+    "beam": "far_field",
+    "mode": "flat",
+    "En_min_MeV": 10.0,
+    "En_max_MeV": 19.5,
+    "direction": [0.0, 0.0, 1.0],
+    "margin_mm": 10.0
+  },
+  "physics_list": "QGSP_BIC_HP",
+  "scintillator": {
+    "birks_kB_mm_per_MeV": 0.155,
+    "birks_source": "D18"
+  },
+  "proton_step_function": {
+    "dRoverRange": 0.2,
+    "finalRange_mm": 0.1
+  }
+}

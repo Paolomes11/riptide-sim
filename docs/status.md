@@ -2,11 +2,18 @@
 
 **v0.8.0 — 2026-11-25 — Fase 6 (Caso A su dati Geant4) completata: con l'accettanza di D40
 la famiglia Geant4 = toy passa 117/117 e la calibrazione assoluta 32/32
-(`validation/6_results.md`). Fase 7 (Caso B) in corso: design scritto (D41–D45,
-`validation/7_predictions.md`), implementazione da avviare.**
+(`validation/6_results.md`). Fase 7 (Caso B) in corso: motore C++ e checklist 7a contro il
+toy fatti (70/76 alla lettera, i sei fallimenti spiegati, `validation/7_results.md`); 7b
+(Geant4, tre direzioni di D45) fatta: 184/186 alla lettera, un solo fallimento (pull rms
+dell'obliqua a N = 300), ipotesi (d) fluttuazione non verificata.**
 
-`master` è a v0.8.0 (tag `v0.8.0`): la fase 6 fino a D40 è unita con la PR #7 (merge
-`209707a`), il passo D e la chiusura con la PR #8 (merge `252d7be`); i due branch sono
+La fase 7 fino alla 7b (motore del Caso B, `riptide_case_b_calibrate`,
+`riptide_case_b_geant4`, run +Z e obliqua, `validation/7_results.md`) e il report riscritto
+con il Caso B (`docs/riptide_report.pdf`, v0.8.0) sono uniti in `master` con merge commit dal
+branch `feat/case-b-model`, poi cancellato; nessun tag, la fase 7 resta in corso.
+
+Prima di questo merge `master` era a v0.8.0 (tag `v0.8.0`): la fase 6 fino a D40 è unita con
+la PR #7 (merge `209707a`), il passo D e la chiusura con la PR #8 (merge `252d7be`); i due branch sono
 cancellati. La fase 5
 è unita con la PR #3 (tag `v0.7.0`), il report di progetto in `docs/riptide_report.pdf` con la
 PR #4. La fase 5 comprende taglio `has_proton` (D34),
@@ -21,6 +28,18 @@ diagnosi a 14 MeV e 15 record con l'accettanza (passo D). Senza accettanza Geant
 posterior circa il 10% più largo del toy e un bias di −0.023 MeV a 14 MeV, N = 1000. La causa è
 l'accettanza in θ_p, che la likelihood non conteneva. Con q(θ_p | E_n, sel) di D40 il bias a
 14 MeV scende a −0.0014 ± 0.0047 e tutte le voci gemelle e assolute passano.
+
+## Ripartenza
+
+Due decisioni aperte, da prendere all'inizio della prossima sessione:
+
+1. **Diagnosi dell'obliqua** (facoltativa): rilanciare `riptide_case_b_geant4` sul run obliquo
+   con un altro `--split-seed` per verificare l'ipotesi (d) di fluttuazione del pull rms a
+   N = 300. Le soglie non cambiano.
+2. **Chiusura della fase 7:** v0.9.0, roadmap, report, PR e tag.
+
+Punti di partenza: `validation/7_results.md` §6, record `stats/7b_*` sotto la radice dei dati,
+valutazione in `validation/7b_eval/`; prima di ogni run `scripts/data_root.sh check`.
 
 ## Fatto
 
@@ -319,6 +338,11 @@ Caso A sugli eventi di Geant4, vedi `roadmap.md`. Fonti dei numeri: `validation/
 e, sulla radice dei dati, `validation/6_eval/`, `validation/6_diag_14MeV/`,
 `validation/6_acceptance/`, `validation/6a_eval/`; sintesi in `validation/6_results.md`.
 
+- **Nota sulla versione:** alla chiusura della fase la versione in `CMakeLists.txt` è rimasta
+  0.7.0, quindi i record della fase 6 (e il codice al tag `v0.8.0`) riportano
+  `project_version` "0.7.0". Li identifica `git_describe`, che è corretto; i record non si
+  riscrivono. Corretto a 0.8.0 sul branch della fase 7.
+
 - **D36–D39 (af81a89):** campioni (piatto 10–19.5 MeV +X da 10⁷, mono 11/17/19 MeV da 10⁶, più
   il 14 MeV della fase 3), esperienze disgiunte da una permutazione, toy gemello `--toy` e effetti
   attesi da Geant4 che il toy non ha.
@@ -374,10 +398,67 @@ e, sulla radice dei dati, `validation/6_eval/`, `validation/6_diag_14MeV/`,
 - **Risultati (`validation/6_results.md`, f54b787).**
 - **Test:** `debug` 406/406, `ci` 382/382, clang-format pulito.
 
-**Prossimo passo:** progettare la fase 7 (Caso B) in una sessione dedicata: decisioni D41+ e
-previsioni prima del codice.
+### Fase 7 (in corso, branch `feat/case-b-model`, `calibration_version` 1 del Caso B)
+
+Caso B, Ω_n condivisa ed E_n nuisance per evento, vedi `roadmap.md`. Design D41–D45 e previsioni
+`validation/7_predictions.md` (v1, `09634a8`) uniti con la PR #10 prima del codice.
+
+- **Codice:**
+  - direzioni in `common/direction.hpp` (2ce8238);
+  - griglie di Fibonacci e della calotta (D42, b88e8f4);
+  - kernel vMF della traccia (D41, 8cd4f68) e modello (D41, 72718da);
+  - posterior e riassunti (D42, e06a646);
+  - pseudo-esperienze (D43, 1c896fd);
+  - calibrazione con thread fra esperienze, risultati identici per ogni numero di thread
+    (D43, D44, 551c8d7);
+  - app `riptide_case_b_calibrate` (b84cebf) e `riptide_stats_bench --case b` (080bce0).
+- **Prestazioni (D44):** un'esperienza a N = 1000 richiede 1.88–1.97 s su un thread, contro
+  il target ≤ 2 s; nessuna ottimizzazione.
+- **Versione:** `CMakeLists.txt` corretto a 0.8.0 (c45a140); vedi la nota della fase 6.
+- **Checklist 7a (record `7a`, 5 min 11 s con 4 thread, RSS 51 MB):** 70/76 alla lettera.
+  - Due fallimenti vengono dalla tabella del toy arrotondata a 0.01°: con i valori non
+    arrotondati |z| ≤ 1.88.
+  - Due dal punto N = 1000 con M = 40, che fallisce allo stesso modo nel toy; con M = 240
+    rms·√N = 0.235 e la pendenza è −0.503.
+  - Due da soglie ambigue lette nel modo più severo: il pull rms con il prior largo su E_n a
+    N = 100 è 0.928 contro 0.93; lo spostamento vMF massimo a N = 300 è 0.324 σ, con media
+    0.013 σ.
+  - Prior sul nuisance: spostamento 0.68–0.81 σ a media nulla, come nel toy.
+  - Valutazione in `validation/7a_eval/` sulla radice dei dati; sintesi in
+    `validation/7_results.md`.
+- **Test:** `debug` 450/450, `ci` 426/426, clang-format pulito.
+- **7b, codice (D45):** precisazioni v2 delle previsioni (§4.1, 4797f09); accettanza nel
+  modello (9791718) e nel toy (5f03b36); esperienze da un pool (cefca36); bias vettoriale
+  (6801253); app `riptide_case_b_geant4` (174a920, test 1fe02b3, `case_b.json` in
+  `data_layout.md` 34f1f84); config +Z e obliqua (0eb2fac).
+- **7b, run:** +X riusa `6_ff_flat_10_19p5MeV_x_1e7`; `7_ff_flat_10_19p5MeV_{z,obl}_1e7`
+  nuovi, `c1` PASS. Le attese di `riptide_sim_predict` sono in `validation/predictions/`.
+- **Checklist 7b (record `7b_{x,z,obl}{,_acc}{,_toy}`, ≈ 38 min con 4 thread, RSS 1.4 GB):**
+  184/186 alla lettera.
+  - Bias vettoriale, risoluzione G4 / toy (0.86–1.12), copertura e `truth_in_cap` passano
+    ovunque.
+  - Lungo +Z e l'obliqua il pool limita la ripetizione a M = 153 e 182 invece di 240 (a).
+  - I due fallimenti sono un solo fatto: pull rms dell'obliqua a N = 300 (M = 100), 0.859 e
+    0.845 con le stesse esperienze, −2.0σ e −2.2σ; ipotesi (d) fluttuazione dello split.
+  - Valutazione in `validation/7b_eval/` sulla radice dei dati; sintesi in
+    `validation/7_results.md` §6.
+- **Test:** `debug` 468/468, `ci` 443/443, clang-format pulito.
+
+**Prossimo passo:** su decisione, la diagnosi del fallimento 7b (stessa riga con un altro
+`--split-seed`); poi, su richiesta, la chiusura della fase 7 (v0.9.0, report, PR).
 
 ## Punti aperti
+
+- **Fase 7b (d):** pull rms dell'obliqua a N = 300 pari a 0.859 / 0.845 contro 1 ± 0.1, con
+  errori realizzati piccoli e σ dichiarata invariata. Sembra una fluttuazione dello split; la
+  verifica (altro `--split-seed`) è da decidere (`7_results.md` §6.4).
+- **Fase 7 (d):** con il prior vMF gli spostamenti del MAP sono quasi tutti nulli, con pochi salti
+  fino a 0.32 σ a N = 300. Sembra il MAP sulla calotta discreta, che salta a un punto vicino,
+  ma il passo non è verificato. Va rivisto se una soglia futura dipenderà dal singolo
+  spostamento.
+- **Soglie da scrivere in modo esplicito nelle prossime previsioni:** quale punto usare a
+  N = 1000 (M = 40 o M = 240), valori del toy non arrotondati, media o massimo per gli
+  spostamenti (fase 7, `7_results.md` §4).
 
 - **Fase 3, deciso (D27):** blocco 60 × 20 × 20 mm, mondo nel vuoto senza supporti né
   materiali attorno. Se una geometria più realistica li aggiungerà, andranno rivisti fondo e

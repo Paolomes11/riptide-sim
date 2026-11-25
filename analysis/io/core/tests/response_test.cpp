@@ -35,18 +35,11 @@ constexpr double kUnitTolerance = 1e-12;
 constexpr std::size_t kSamples = 200000;
 constexpr double kSigmas = 4.0;
 
-double dot(const Direction& a, const Direction& b) {
-    return a.x * b.x + a.y * b.y + a.z * b.z;
-}
+using riptide::geometry::angleBetween;
+using riptide::geometry::dot;
 
 double norm(const Direction& v) {
     return std::sqrt(dot(v, v));
-}
-
-// Angle between unit vectors, accurate also for small angles.
-double angleBetween(const Direction& a, const Direction& b) {
-    const Direction c{a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x};
-    return std::atan2(norm(c), dot(a, b));
 }
 
 Direction randomUnit(Engine& engine) {

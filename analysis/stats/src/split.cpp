@@ -76,4 +76,33 @@ PseudoSample pseudoSampleSubset(const PseudoSample& sample,
     return subset;
 }
 
+CaseBPseudoSample caseBPseudoSampleSubset(const CaseBPseudoSample& sample,
+                                          const std::vector<std::size_t>& indices) {
+    const std::size_t n = sample.size();
+    if (sample.truth_Ep.size() != n || sample.truth_theta_p.size() != n ||
+        sample.truth_track.size() != n || sample.reco_Ep.size() != n ||
+        sample.reco_track.size() != n) {
+        throw std::invalid_argument("caseBPseudoSampleSubset: columns of different lengths");
+    }
+    CaseBPseudoSample subset;
+    subset.truth_En.reserve(indices.size());
+    subset.truth_Ep.reserve(indices.size());
+    subset.truth_theta_p.reserve(indices.size());
+    subset.truth_track.reserve(indices.size());
+    subset.reco_Ep.reserve(indices.size());
+    subset.reco_track.reserve(indices.size());
+    for (const std::size_t k : indices) {
+        if (k >= n) {
+            throw std::invalid_argument("caseBPseudoSampleSubset: index out of range");
+        }
+        subset.truth_En.push_back(sample.truth_En[k]);
+        subset.truth_Ep.push_back(sample.truth_Ep[k]);
+        subset.truth_theta_p.push_back(sample.truth_theta_p[k]);
+        subset.truth_track.push_back(sample.truth_track[k]);
+        subset.reco_Ep.push_back(sample.reco_Ep[k]);
+        subset.reco_track.push_back(sample.reco_track[k]);
+    }
+    return subset;
+}
+
 } // namespace riptide::stats

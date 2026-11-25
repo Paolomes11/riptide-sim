@@ -1,8 +1,14 @@
 add_library(riptide_stats STATIC
     src/calibration.cpp
+    src/calibration_b.cpp
     src/acceptance.cpp
     src/case_a.cpp
+    src/case_b.cpp
+    src/case_b_posterior.cpp
+    src/pseudo_experiment_b.cpp
     src/combine.cpp
+    src/direction_grid.cpp
+    src/vmf_kernel.cpp
     src/grid.cpp
     src/numerics.cpp
     src/priors.cpp
@@ -11,8 +17,10 @@ add_library(riptide_stats STATIC
 add_library(riptide::stats ALIAS riptide_stats)
 target_include_directories(riptide_stats PUBLIC
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>")
+# std::thread runs the experiments of the Case B calibration in parallel (D44).
+find_package(Threads REQUIRED)
 target_link_libraries(riptide_stats
-    PUBLIC riptide::common
+    PUBLIC riptide::common Threads::Threads
     PRIVATE riptide::options riptide::warnings)
 
 if(RIPTIDE_BUILD_TESTS)
