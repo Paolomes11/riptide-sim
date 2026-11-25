@@ -1,10 +1,12 @@
 # Stato
 
-**v0.7.1 — 2026-11-23 — Fase 6 (Caso A su dati Geant4) in corso: run e valutazione fatti,
-diagnosi dell'anomalia chiusa, codice di D40 pronto; mancano i run del passo D.**
+**v0.8.0 — 2026-11-25 — Fase 6 (Caso A su dati Geant4) completata: con l'accettanza di D40
+la famiglia Geant4 = toy passa 117/117 e la calibrazione assoluta 32/32
+(`validation/6_results.md`). Prossima: fase 7 (Caso B), da progettare.**
 
-`master` è a v0.7.1: la fase 6 finora è unita con la PR #7 (merge `209707a`, branch
-`feat/case-a-geant4` cancellato); il passo D prosegue su `feat/case-a-acceptance-runs`. La fase 5
+`master` è a v0.7.1: la fase 6 fino a D40 è unita con la PR #7 (merge `209707a`, branch
+`feat/case-a-geant4` cancellato); il passo D e la chiusura sono su
+`feat/case-a-acceptance-runs`, non ancora unito. La fase 5
 è unita con la PR #3 (tag `v0.7.0`), il report di progetto in `docs/riptide_report.pdf` con la
 PR #4. La fase 5 comprende taglio `has_proton` (D34),
 cinematica inversa del rinculo, motore del Caso A in `analysis/stats` (D32, D33), generatore di
@@ -13,11 +15,11 @@ La calibrazione C++ passa tutte le 71 soglie contro il toy (`validation/5_result
 Il pull n–C non elastico lungo +X della fase 3 è chiuso come fluttuazione: con un seme
 indipendente scende da +3.73 a +1.79 (`validation/3_nC_results.md`).
 
-La fase 6 comprende finora decisioni D36–D40, run, 15 record
-del Caso A, valutazione e diagnosi a 14 MeV. Geant4 dà un posterior circa il 10% più largo del toy
-e un bias di −0.023 MeV a 14 MeV, N = 1000. La causa è l'accettanza in θ_p, che la likelihood non
-conteneva; D40 la modella. Il codice di D40 è committato, i run con l'accettanza (passo D)
-attendono il via.
+La fase 6 comprende decisioni D36–D40, run, 15 record del Caso A senza accettanza, valutazione,
+diagnosi a 14 MeV e 15 record con l'accettanza (passo D). Senza accettanza Geant4 dava un
+posterior circa il 10% più largo del toy e un bias di −0.023 MeV a 14 MeV, N = 1000. La causa è
+l'accettanza in θ_p, che la likelihood non conteneva. Con q(θ_p | E_n, sel) di D40 il bias a
+14 MeV scende a −0.0014 ± 0.0047 e tutte le voci gemelle e assolute passano.
 
 ## Fatto
 
@@ -310,11 +312,11 @@ Port del motore statistico del Caso A, vedi `roadmap.md`.
   D35 (≤ 0.10 s) è mancato; il tempo residuo è dominato da `exp` scalare.
 - **Test:** `debug` 367/367, `ci` 345/345, clang-format pulito.
 
-### Fase 6 (in corso, v0.7.1, PR #7 `feat/case-a-geant4` unita; passo D su `feat/case-a-acceptance-runs`, `case_a_version` 2)
+### Fase 6 (v0.8.0, branch `feat/case-a-geant4` e `feat/case-a-acceptance-runs`, `case_a_version` 2)
 
 Caso A sugli eventi di Geant4, vedi `roadmap.md`. Fonti dei numeri: `validation/6_predictions.md`
 e, sulla radice dei dati, `validation/6_eval/`, `validation/6_diag_14MeV/`,
-`validation/6_acceptance/`.
+`validation/6_acceptance/`, `validation/6a_eval/`; sintesi in `validation/6_results.md`.
 
 - **D36–D39 (af81a89):** campioni (piatto 10–19.5 MeV +X da 10⁷, mono 11/17/19 MeV da 10⁶, più
   il 14 MeV della fase 3), esperienze disgiunte da una permutazione, toy gemello `--toy` e effetti
@@ -358,18 +360,21 @@ e, sulla radice dei dati, `validation/6_eval/`, `validation/6_diag_14MeV/`,
   con accept-reject (9271b03), `acceptance.json` v1 (30b01b3), app `riptide_acceptance` e
   `--acceptance` in `riptide_case_a_geant4`, `case_a.json` v2 (6729a54). Percorso di default
   verificato identico bit per bit sui record G4 e toy a 14 MeV; 41.6 s contro 40 s.
+- **Passo D (2026-11-25, build 7ec81bb):**
+  - run piatto `6_ff_flat_10_19p5MeV_x_1e7_s20260908`: `c1` PASS, 798388 selezionati (−688
+    dal piatto della fase 6, entro ±2700); tabella `6acc_s20260908`;
+  - 15 record `6a_<run_id>{,_pilot,_toy}`: famiglia gemella 117/117 (max|z| 3.16), assoluta
+    G4 32/32 e toy 32/32, bias globale del piatto PASS (residuo −0.019, tolleranza 0.102);
+  - bias G4 a N = 1000: −0.002 / −0.001 / −0.002 / +0.014 MeV a 11 / 14 / 17 / 19 MeV;
+  - il toy converge verso G4 (`std_sqrt_N` a 14 MeV, N = 100, da 0.920 a 1.026); G4 cresce del
+    +1.3…+3.6%, con il ±3% previsto **mancato** a 19 MeV, N = 1000;
+  - prova a metà (q dai soli `event_id` pari): spostamento 0.246·σ_c contro 0.3, PASS;
+  - tempi ≤ 42 s per `case_a`, RSS ≤ 1.42 GB.
+- **Risultati (`validation/6_results.md`, f54b787).**
 - **Test:** `debug` 406/406, `ci` 382/382, clang-format pulito.
 
-**Prossimi passi, nell'ordine:**
-
-1. Passo D di D40, solo con il via dell'utente e la stima dell'RSS:
-   - run `6_ff_flat_10_19p5MeV_x_1e7_s20260908` (seme 20260908) e `c1`;
-   - `riptide_acceptance --stats-id 6acc_s20260908`;
-   - 15 record `6a_<run_id>{,_pilot,_toy}` con `--acceptance 6acc_s20260908`;
-   - valutazione con lo stesso script e prova a metà run (`--half even/odd`, spostamento del bias
-     a 14 MeV < 0.3 σ_c).
-2. `validation/6_results.md`: correzione D17, 826770, diagnosi, accettanza.
-3. A chiusura della fase 6: `status.md` e report a v0.8.0.
+**Prossimo passo:** progettare la fase 7 (Caso B) in una sessione dedicata: decisioni D41+ e
+previsioni prima del codice.
 
 ## Punti aperti
 
@@ -389,6 +394,16 @@ e, sulla radice dei dati, `validation/6_eval/`, `validation/6_diag_14MeV/`,
 - **Fase 3, sotto la sensibilità (d):** un eccesso residuo di n–C non elastico lungo +X dello
   0.1–0.2% non è escluso. Non tocca il Caso A, perché il taglio `single_np` toglie gli eventi
   n–C; va rivisto nella fase 9, quando gli eventi n–C entreranno nel modello.
+- **Fase 6 (d):** a 19 MeV, con q, il bias di G4 a N ≥ 100 è positivo (+0.014/+0.021 MeV,
+  entro soglia) e `std_sqrt_N` cresce del 3.6%. Primo candidato da verificare: il bordo della
+  tabella q a 19.5 MeV. Da riprendere con le sorgenti fino a 20 MeV (fase 9).
+- **Fase 6 (b):** `physicalRecoilAngleLogPrior` usa la massa non relativistica di θ_p, mentre il
+  toy campiona con la cinematica relativistica (scarto ±0.7% a 14 MeV, ±1% a 20 MeV). Con q non
+  pesa; senza q va corretto o dichiarato.
+- **Fase 6 (a):** la forma di q in θ_p dipende da E_n in modo non liscio (χ² lineare 420/306);
+  l'origine non è verificata.
+- **Fase 6 (d):** `std_sqrt_N` del toy a 19 MeV cambia dell'11–12% fra N = 100 e 1000, con q e
+  senza (criterio ≤ 10%).
 - **Fase 5:** il target D35 sulla verosimiglianza (≤ 0.10 s per 1000 eventi) è mancato, con
   0.174 s. Un `exp` vettoriale o il parallelismo sugli eventi richiedono una decisione separata
   e vanno rivisti solo se la fase 6 o i Casi B/C ne avranno bisogno.

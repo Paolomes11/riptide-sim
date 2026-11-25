@@ -106,7 +106,7 @@ progetto ricostruisce il neutrone incidente da ciò che interagisce nello scinti
 - Target di prestazione più stretti del toy (log-verosimiglianza N = 1000 ≤ 0.10 s, contro
   0.71 s), griglie contigue, parallelismo sugli eventi solo dopo aver profilato (D35).
 
-## Fase 6 — Caso A su dati Geant4 (in corso, v0.7.1)
+## Fase 6 — Caso A su dati Geant4 ✅ completata (v0.8.0, 2026-11-25)
 
 - Checklist completa: bias → risoluzione → pull → coverage → contrazione 1/√N → robustezza al
   prior.
