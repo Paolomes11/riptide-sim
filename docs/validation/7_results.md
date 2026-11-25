@@ -2,7 +2,9 @@
 
 Data: 2026-11-25. Previsioni e soglie: `docs/validation/7_predictions.md`, versione 1 in
 `09634a8`, committata **prima** del codice del Caso B e dei run. Dopo i run le soglie non sono
-state toccate. Questo file copre per ora la parte 7a (port contro toy); la 7b (Geant4) seguirà.
+state toccate. Le precisazioni della versione 2 (§4.1, `4797f09`) sono state scritte prima del
+codice e dei run della 7b, senza cambiare numeri. Le §1–5 coprono la 7a (port contro toy), la §6
+la 7b (Geant4).
 
 **Esito 7a.**
 - La checklist passa **70/76** soglie lette alla lettera.
@@ -11,6 +13,14 @@ state toccate. Questo file copre per ora la parte 7a (port contro toy); la 7b (G
   - due dal punto N = 1000 con M = 40, che fallisce allo stesso modo anche nel toy;
   - due da soglie che il testo lascia ambigue, lette nel modo più severo.
 - Il port del Caso B è validato contro il toy; si passa alla 7b.
+
+**Esito 7b** (§6).
+- La checklist passa **184/186** soglie lette alla lettera, nelle tre direzioni di D45 con e senza
+  accettanza. Bias, risoluzione G4 / toy, copertura e `truth_in_cap` passano ovunque.
+- I due fallimenti sono un solo fatto: il pull rms dell'obliqua a N = 300 (M = 100) vale 0.859
+  senza accettanza e 0.845 con, cioè −2.0σ e −2.2σ, sulle stesse esperienze.
+- Ipotesi (d): fluttuazione dello split. Non è verificata; la verifica è una diagnosi da
+  decidere a parte (§6.4).
 
 Etichette: **(a)** fatto stabilito; **(b)** stima con ipotesi esplicite; **(c)** verificato con
 Monte Carlo; **(d)** ipotesi da mettere alla prova.
@@ -144,3 +154,141 @@ rms·√N = 0.195 rad (soglia 0.22–0.27) e pendenza −0.552 (soglia −0.5 ±
   Le varianti di prior rigenerano 0.9·10⁵ eventi e li analizzano due volte.
 - In tutto 4.3·10⁵ eventi generati e 5.2·10⁵ analizzati. La ripetizione da sola prende 146 s
   dei 311.
+
+## 6. Geant4 (7b, §4 e §4.1 delle previsioni)
+
+Build `release` a `0eb2fac` (`git describe` v0.8.0-25-g0eb2fac), Geant4 11.4.1, `QGSP_BIC_HP`,
+BC-408 60 × 20 × 20 mm. Il campo lontano è piatto in 10–19.5 MeV, 10⁷ eventi, seme 20260907.
+Valutazione in `validation/7b_eval/` sulla radice dei dati (`eval_c1.py`, `eval_7b.py`,
+`eval_7b.txt`).
+
+### 6.1 Run e verifiche `c1`
+
+| Run | Direzione | p χ² (u / z / frazioni) | max\|pull\| (soglia, test) | a₁ | Protoni che escono | Esito |
+|---|---|---|---|---|---|---|
+| `6_ff_flat_10_19p5MeV_x_1e7` (fase 6, riuso) | +X | 0.299 / 0.790 / 0.975 | 1.44 (3.291, 7) | −0.01435 | 36727 | PASS **(a)** |
+| `7_ff_flat_10_19p5MeV_z_1e7` | +Z | 0.770 / 0.250 / 0.520 | 1.69 (3.291, 7) | −0.01403 | 12503 | PASS **(a)** |
+| `7_ff_flat_10_19p5MeV_obl_1e7` | (3, 2, 1)/√14 | 0.415 / 0.184 / 0.730 | 1.31 (3.317, 8) | −0.01398 | 12328 | PASS **(a)** |
+
+- Si applicano le regole `c1` della fase 6 (§1 di `6_predictions.md`). Gli oracoli
+  deterministici sono a zero o entro le soglie esatte: contatori, bilancio dei depositi, kB,
+  `observed_non_hp`, offset HP − fisico.
+- **Corda.** Lungo +Z la corda è unica: 20 mm entro 10⁻⁹ mm. Lungo l'obliqua la corda varia da
+  evento a evento, con un massimo di 37.42 mm, sotto la diagonale del blocco (66.33 mm). Il
+  pull della corda media entra fra i test: 8 pull e soglia 3.317 dal `test_plan` della
+  previsione.
+- **Precisazione (a).** Le attese di `riptide_sim_predict` per +Z e per l'obliqua non erano
+  committate prima dei run. Sono deterministiche, ottenute dal config e dai dati di riferimento
+  senza leggere il run: per l'obliqua sono state generate prima della simulazione, per +Z dopo.
+  Sono copiate in `predictions/7_ff_*.json`.
+
+### 6.2 Selezione e righe
+
+Catena `single_np,has_proton,contained`, conversione HP, smearing D31 (σ_Ep 0.10, σ_θ 0.08 rad).
+
+| Direzione | Selezionati | Ripetizione a N = 1000 |
+|---|---|---|
+| +X | 799076 | M = 240 |
+| +Z | 193863 | M = 153 di 240 |
+| obliqua | 222456 | M = 182 di 240 |
+
+- **Precisazione (a).** La §4.1 prevede la ripetizione (1000, 240). Lungo +Z e l'obliqua la
+  sezione trasversale è minore, quindi il pool non basta: la riga M = 40 e la ripetizione
+  richiedono 2.8·10⁵ eventi disgiunti. Il split prende tutte le esperienze disponibili e il
+  record lo registra (`experiments` < `experiments_planned`). Il toy gemello ha lo stesso pool
+  e quindi gli stessi M.
+- Si applicano le soglie con le M disponibili. Per N = 1000 conta la ripetizione, come nella
+  §4.1.
+
+### 6.3 Esiti per voce
+
+Ordine: bias → risoluzione → pull → copertura → contrazione. "id" è il record `stats/7b_<id>`.
+Senza accettanza e con `--acceptance 6acc_s20260908`.
+
+**Bias vettoriale a N = 1000** (z = componente / errore, nella base (e_θ, e_φ) alla verità):
+
+| id | M | z(e_θ), z(e_φ) | norma | σ_c | Soglia | Esito |
+|---|---|---|---|---|---|---|
+| `x` | 240 | −0.73, +0.19 | 2.5·10⁻⁴ rad | 7.71·10⁻³ | \|z\| ≤ 2 | PASS **(a)** |
+| `x_acc` | 240 | −0.75, +0.17 | 2.6·10⁻⁴ | 7.71·10⁻³ | \|z\| ≤ 2 | PASS **(a)** |
+| `z` | 153 | +1.10, +0.74 | 5.9·10⁻⁴ | 7.50·10⁻³ | \|z\| ≤ 2 | PASS **(a)** |
+| `z_acc` | 153 | +1.13, +0.90 | 6.4·10⁻⁴ | 7.50·10⁻³ | \|z\| ≤ 2 | PASS **(a)** |
+| `obl` | 182 | +1.30, −0.17 | 5.0·10⁻⁴ | 7.59·10⁻³ | norma < 0.5 σ_c | PASS **(a)**, 0.066 σ_c |
+| `obl_acc` | 182 | +1.31, −0.05 | 5.0·10⁻⁴ | 7.59·10⁻³ | norma < 0.5 σ_c | PASS **(a)**, 0.066 σ_c |
+
+Il bias dell'obliqua è sotto il 7% della risoluzione per esperienza: l'ipotesi (d) della §4
+regge. Anche espresso come pull per componente, l'obliqua è entro 2σ.
+
+**Risoluzione G4 / toy (≤ 1.15), pull rms (1 ± 0.1), copertura HPD 68/90/95 (3σ binomiali)**, a
+ogni N. L'errore sul rapporto delle risoluzioni è ≈ r·√(1/2M + 1/2M) **(b)**.
+
+| id | Rapporto rms, intervallo su N | Rapporto σ dichiarate | Pull rms, intervallo | Copertura | Esito (25 voci) |
+|---|---|---|---|---|---|
+| `x` | 0.92–1.12 | 0.99–1.00 | 0.955–1.020 | 15/15 | 25/25 **(a)** |
+| `x_acc` | 0.97–1.07 | 1.00–1.01 | 0.954–1.016 | 15/15 | 25/25 **(a)** |
+| `z` | 0.96–1.09 | 0.95–0.98 | 0.993–1.049 | 15/15 | 25/25 **(a)** |
+| `z_acc` | 1.01–1.09 | 0.95–0.99 | 0.997–1.052 | 15/15 | 25/25 **(a)** |
+| `obl` | 0.91–1.04 | 0.97–0.99 | 0.859–1.020 | 15/15 | 24/25 **(a)** |
+| `obl_acc` | 0.86–1.04 | 0.97–1.00 | 0.845–1.017 | 15/15 | 24/25 **(a)** |
+
+- Il caso più vicino alla soglia di risoluzione è `x` a N = 30: 1.116 ± 0.064.
+- `truth_in_cap` vale 1 in tutte le esperienze di tutte le righe **(a)**.
+- Il rapporto delle σ dichiarate resta fra 0.95 e 1.01: Geant4 e toy dichiarano la stessa
+  risoluzione. Lungo +Z quella di Geant4 è più stretta del 2–5%, pur con errori realizzati
+  uguali entro la statistica (riportato, senza soglia).
+
+**Contrazione e coda a N = 10** (riportate, senza soglia per Geant4 nella §4):
+
+| id | Pendenza 30–1000, con la ripetizione | Toy | rms·√N a N = 1000 (toy) | Mediana di pull·√2 a N = 10 (toy) | Coda > 3 (toy) |
+|---|---|---|---|---|---|
+| `x` | −0.514 | −0.470 | 0.235 (0.240) | 1.115 (1.148) | 0.0125 (0.0075) |
+| `x_acc` | −0.512 | −0.486 | 0.236 (0.238) | 1.114 (1.138) | 0.0125 (0.0050) |
+| `z` | −0.489 | −0.488 | 0.249 (0.241) | 1.191 (1.126) | 0.0150 (0.0125) |
+| `z_acc` | −0.490 | −0.507 | 0.249 (0.229) | 1.191 (1.071) | 0.0150 (0.0100) |
+| `obl` | −0.517 | −0.521 | 0.228 (0.229) | 1.165 (1.079) | 0.0175 (0.0100) |
+| `obl_acc` | −0.519 | −0.512 | 0.228 (0.219) | 1.163 (1.198) | 0.0150 (0.0025) |
+
+- Con la ripetizione la pendenza di Geant4 è −0.5 entro ±0.02 in tutte e sei le combinazioni;
+  quella del toy va da −0.470 a −0.521 **(c)**.
+- rms·√N di Geant4 cade nella banda 0.22–0.27 rad della 7a (§2) a ogni N, tranne la riga
+  dell'obliqua a N = 300 (0.202–0.206), che è quella del fallimento (§6.4) **(c)**.
+- La riga N = 1000, M = 40 è riportata solo nei record e non entra negli esiti.
+
+### 6.4 Il fallimento: pull rms dell'obliqua a N = 300
+
+| id | Pull rms | Toy | Copertura 68/90/95 | rms·√N (toy) | Rapporto σ |
+|---|---|---|---|---|---|
+| `obl` | 0.859 | 0.929 | 0.78 / 0.96 / 0.99 | 0.206 (0.225) | 0.985 |
+| `obl_acc` | 0.845 | 0.971 | 0.80 / 0.96 / 0.99 | 0.202 (0.234) | 0.989 |
+
+- Le due righe usano le stesse 100 esperienze sugli stessi eventi, quindi sono un solo
+  fallimento, non due indipendenti **(a)**.
+- Con M = 100 l'errore statistico del pull rms è ≈ 1/√(2M) = 0.071 **(b)**. Gli scarti sono
+  quindi −2.0σ e −2.2σ.
+- La soglia ±0.1 vale 1.41σ a M = 100, per cui una riga corretta fallisce con probabilità
+  ≈ 16% **(b)**. Sulle 30 voci di pull di Geant4, quelle indipendenti sono circa 15, perché le
+  righe con e senza accettanza condividono le esperienze. Sommando le probabilità di falso
+  allarme riga per riga, con M da 100 a 400, si attendono ≈ 0.8 fallimenti, e almeno uno con
+  probabilità ≈ 60% **(b)**.
+- Il quadro è coerente con un insieme di errori realizzati più piccoli del solito, a σ
+  dichiarata invariata:
+  - rms·√N scende a 0.202–0.206, contro 0.225–0.228 a N = 100 e 1000 nella stessa direzione;
+  - la copertura sale su tutti e tre i livelli, pur entro 3σ;
+  - la σ dichiarata è quella del toy entro l'1.5%.
+- **Ipotesi (d):** fluttuazione statistica dello split, non un difetto del modello. Non è
+  verificata. La verifica naturale è la stessa riga con un `--split-seed` diverso, oppure su un
+  run indipendente: è una diagnosi, da decidere a parte. Le soglie non cambiano.
+
+### 6.5 Tempi e risorse
+
+| Voce | Misurato |
+|---|---|
+| Simulazione 10⁷ eventi, 8 thread (+Z) | 156 s |
+| Pilot `--pilot` su +X (799 076 eventi) | 31 s, RSS 1.4 GB |
+| Chiamata completa, 4 thread (somma delle righe) | +X 211–227 s, +Z 158 s, obliqua 176 s |
+| Dodici chiamate in sequenza | ≈ 38 min |
+
+- L'RSS di 1.4 GB supera la stima "< 1 GB" del piano (non una soglia delle previsioni): è
+  l'intero pool di 10⁷ eventi letto in memoria prima dei tagli. Resta sotto il tetto di 5 GB.
+- Le chiamate toy durano come quelle Geant4: il tempo è nell'analisi delle righe, non nella
+  lettura.

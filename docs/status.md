@@ -4,7 +4,8 @@
 la famiglia Geant4 = toy passa 117/117 e la calibrazione assoluta 32/32
 (`validation/6_results.md`). Fase 7 (Caso B) in corso: motore C++ e checklist 7a contro il
 toy fatti (70/76 alla lettera, i sei fallimenti spiegati, `validation/7_results.md`); 7b
-(Geant4) da avviare.**
+(Geant4, tre direzioni di D45) fatta: 184/186 alla lettera, un solo fallimento (pull rms
+dell'obliqua a N = 300), ipotesi (d) fluttuazione non verificata.**
 
 `master` è a v0.8.0 (tag `v0.8.0`): la fase 6 fino a D40 è unita con la PR #7 (merge
 `209707a`), il passo D e la chiusura con la PR #8 (merge `252d7be`); i due branch sono
@@ -409,12 +410,31 @@ Caso B, Ω_n condivisa ed E_n nuisance per evento, vedi `roadmap.md`. Design D41
   - Valutazione in `validation/7a_eval/` sulla radice dei dati; sintesi in
     `validation/7_results.md`.
 - **Test:** `debug` 450/450, `ci` 426/426, clang-format pulito.
+- **7b, codice (D45):** precisazioni v2 delle previsioni (§4.1, 4797f09); accettanza nel
+  modello (9791718) e nel toy (5f03b36); esperienze da un pool (cefca36); bias vettoriale
+  (6801253); app `riptide_case_b_geant4` (174a920, test 1fe02b3, `case_b.json` in
+  `data_layout.md` 34f1f84); config +Z e obliqua (0eb2fac).
+- **7b, run:** +X riusa `6_ff_flat_10_19p5MeV_x_1e7`; `7_ff_flat_10_19p5MeV_{z,obl}_1e7`
+  nuovi, `c1` PASS. Le attese di `riptide_sim_predict` sono in `validation/predictions/`.
+- **Checklist 7b (record `7b_{x,z,obl}{,_acc}{,_toy}`, ≈ 38 min con 4 thread, RSS 1.4 GB):**
+  184/186 alla lettera.
+  - Bias vettoriale, risoluzione G4 / toy (0.86–1.12), copertura e `truth_in_cap` passano
+    ovunque.
+  - Lungo +Z e l'obliqua il pool limita la ripetizione a M = 153 e 182 invece di 240 (a).
+  - I due fallimenti sono un solo fatto: pull rms dell'obliqua a N = 300 (M = 100), 0.859 e
+    0.845 con le stesse esperienze, −2.0σ e −2.2σ; ipotesi (d) fluttuazione dello split.
+  - Valutazione in `validation/7b_eval/` sulla radice dei dati; sintesi in
+    `validation/7_results.md` §6.
+- **Test:** `debug` 468/468, `ci` 443/443, clang-format pulito.
 
-**Prossimo passo:** 7b, i tre run Geant4 di D45 (+X, +Z, (3, 2, 1)/√14) e il Caso B su di
-essi, con il toy gemello.
+**Prossimo passo:** su decisione, la diagnosi del fallimento 7b (stessa riga con un altro
+`--split-seed`); poi, su richiesta, la chiusura della fase 7 (v0.9.0, report, PR).
 
 ## Punti aperti
 
+- **Fase 7b (d):** pull rms dell'obliqua a N = 300 pari a 0.859 / 0.845 contro 1 ± 0.1, con
+  errori realizzati piccoli e σ dichiarata invariata. Sembra una fluttuazione dello split; la
+  verifica (altro `--split-seed`) è da decidere (`7_results.md` §6.4).
 - **Fase 7 (d):** con il prior vMF gli spostamenti del MAP sono quasi tutti nulli, con pochi salti
   fino a 0.32 σ a N = 300. Sembra il MAP sulla calotta discreta, che salta a un punto vicino,
   ma il passo non è verificato. Va rivisto se una soglia futura dipenderà dal singolo
