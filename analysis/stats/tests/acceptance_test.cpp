@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <limits>
@@ -209,4 +210,36 @@ TEST_CASE("invalid acceptance histograms are rejected", "[stats][acceptance]") {
     bad.theta_edges = {0.0};
     bad.counts.clear();
     CHECK_THROWS_AS(st::AcceptanceRatio(bad), std::invalid_argument);
+}
+
+TEST_CASE("Case B acceptance weights vanish for r = 1 and keep each E_n row normalised",
+          "[stats][acceptance]") {
+    const st::Grid En{kEnLo, 2.0 * kEnLo, 50};
+    const st::Grid theta = st::recoilAngleGrid(st::kRecoilAngleGridPoints);
+    const std::size_t n_En = En.size();
+    const st::AcceptanceRatio flat(histogramWithShape(one));
+    const std::vector<double> zero = st::caseBAcceptanceLogWeights(flat, En, theta);
+    REQUIRE(zero.size() == theta.size() * n_En);
+    for (const double w : zero) {
+        CHECK_THAT(w, WithinAbs(0.0, 1e-12));
+    }
+    // A forward deficit: negative weights forward, positive at large angle,
+    // and the selected mass sum_j m_iso,ij exp(w_ij) stays 1 in every row.
+    const auto shape = [](std::size_t /*k*/, std::size_t t) {
+        return t < 6 ? 0.5 + (0.5 * static_cast<double>(t) / 6.0) : 1.0;
+    };
+    const st::AcceptanceRatio ratio(histogramWithShape(shape));
+    const std::vector<double> weights = st::caseBAcceptanceLogWeights(ratio, En, theta);
+    const double half = 0.5 * theta.step();
+    for (std::size_t i = 0; i < n_En; ++i) {
+        double mass = 0.0;
+        for (std::size_t j = 0; j < theta.size(); ++j) {
+            const double lo = std::max(theta[j] - half, 0.0);
+            const double hi = std::min(theta[j] + half, kHalfPi);
+            mass += st::isotropicRecoilAngleMass(En[i], lo, hi) * std::exp(weights[(j * n_En) + i]);
+        }
+        CHECK_THAT(mass, WithinAbs(1.0, 1e-12));
+        CHECK(weights[i] < 0.0);
+        CHECK(weights[((theta.size() - 1) * n_En) + i] > 0.0);
+    }
 }

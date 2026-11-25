@@ -6,13 +6,15 @@
 // the angle theta_obs between the observed track and Omega:
 //
 //   g_k(theta_j) = log sum_i exp[ -1/2 ((Ep_hat - Ep(E_n,i, theta_j)) / sigma_Ep)^2
-//                                 + log rho(theta_j, E_n,i) + log prior(E_n,i) ]
+//                                 + log rho(theta_j, E_n,i) + log a(theta_j, E_n,i)
+//                                 + log prior(E_n,i) ]
 //   h_k(theta_obs) = log sum_j exp[ log K(theta_obs | theta_j) + log(cos theta_j / pi)
 //                                   + log w_j + g_k(theta_j) ]
 //
 // with K the azimuth-integrated vMF kernel (vmf_kernel.hpp), w_j the
 // trapezoid weights of the theta_p grid and rho the relativistic factor of
-// the track density. h_k is tabulated once per event on a uniform theta_obs
+// the track density and a the optional selection acceptance (1 for the ideal
+// detector). h_k is tabulated once per event on a uniform theta_obs
 // grid over [0, pi] and interpolated linearly at each candidate, so the cost
 // per candidate does not depend on the E_n and theta_p grids. The Gaussian
 // normalisations are left out: the likelihood is defined up to one constant
@@ -65,12 +67,15 @@ struct TrackEnergyTable {
 class CaseBModel {
 public:
     // theta_grid on [0, pi/2], theta_obs_grid exactly [0, pi], log_prior_En a
-    // log density on En_grid (priors.hpp). Throws std::invalid_argument for
-    // non-positive or non-finite resolutions, grids outside those ranges, an
-    // E_n grid that is not positive, a prior of the wrong size, with a NaN or
-    // +inf term or with no finite term.
+    // log density on En_grid (priors.hpp). log_acceptance is empty for the
+    // ideal detector, or the caseBAcceptanceLogWeights table (acceptance.hpp)
+    // on the same grids, added to the recoil density. Throws
+    // std::invalid_argument for non-positive or non-finite resolutions, grids
+    // outside those ranges, an E_n grid that is not positive, a prior of the
+    // wrong size, with a NaN or +inf term or with no finite term, and an
+    // acceptance table of the wrong size or with a non-finite term.
     CaseBModel(Grid En_grid, Grid theta_grid, Grid theta_obs_grid, std::vector<double> log_prior_En,
-               CaseBResolution resolution);
+               CaseBResolution resolution, const std::vector<double>& log_acceptance = {});
 
     [[nodiscard]] const Grid& energyGrid() const noexcept {
         return En_grid_;
@@ -83,6 +88,9 @@ public:
     }
     [[nodiscard]] const CaseBResolution& resolution() const noexcept {
         return resolution_;
+    }
+    [[nodiscard]] bool hasAcceptance() const noexcept {
+        return !log_acceptance_.empty();
     }
 
     // h_k of one event on the theta_obs grid. Ep_hat must be finite (it may
@@ -133,8 +141,11 @@ private:
     double inv_obs_step_;
     // Ep(E_n,i, theta_j) at [j * n_En + i]: along a row Ep grows with E_n.
     std::vector<double> Ep_table_;
-    // log rho(theta_j, E_n,i) + log prior(E_n,i) at the same index.
+    // log rho(theta_j, E_n,i) + log prior(E_n,i), plus the acceptance term
+    // when given, at the same index.
     std::vector<double> energy_weight_;
+    // The acceptance table as given, empty for the ideal detector.
+    std::vector<double> log_acceptance_;
     // Maximum of energy_weight_ per theta_j row, for the window bound.
     std::vector<double> max_energy_weight_;
     // Every row of Ep_table_ is non-decreasing in E_n, so the window is found

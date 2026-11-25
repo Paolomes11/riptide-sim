@@ -61,7 +61,8 @@ std::vector<double> logTrackKernelTable(const Grid& theta_obs_grid, const Grid& 
 }
 
 CaseBModel::CaseBModel(Grid En_grid, Grid theta_grid, Grid theta_obs_grid,
-                       std::vector<double> log_prior_En, CaseBResolution resolution)
+                       std::vector<double> log_prior_En, CaseBResolution resolution,
+                       const std::vector<double>& log_acceptance)
     : En_grid_(std::move(En_grid)), theta_grid_(std::move(theta_grid)),
       theta_obs_grid_(std::move(theta_obs_grid)), log_prior_En_(std::move(log_prior_En)),
       resolution_(resolution), inv_sigma_Ep_(1.0 / resolution.sigma_Ep),
@@ -96,6 +97,16 @@ CaseBModel::CaseBModel(Grid En_grid, Grid theta_grid, Grid theta_obs_grid,
         throw std::invalid_argument("the E_n prior has no finite term");
     }
     const std::size_t n_theta = theta_grid_.size();
+    if (!log_acceptance.empty()) {
+        if (log_acceptance.size() != n_theta * n_En) {
+            throw std::invalid_argument("the acceptance table does not match the grids");
+        }
+        if (!std::all_of(log_acceptance.begin(), log_acceptance.end(),
+                         [](double value) { return std::isfinite(value); })) {
+            throw std::invalid_argument("the acceptance table has a non-finite term");
+        }
+        log_acceptance_ = log_acceptance;
+    }
     Ep_table_.resize(n_theta * n_En);
     energy_weight_.resize(n_theta * n_En);
     max_energy_weight_.resize(n_theta);
@@ -106,6 +117,9 @@ CaseBModel::CaseBModel(Grid En_grid, Grid theta_grid, Grid theta_obs_grid,
             Ep_table_[index] = kinematics::protonEnergy(En_grid_[i], theta_grid_[j]);
             energy_weight_[index] =
                 logRecoilDensityRatio(theta_grid_[j], En_grid_[i]) + log_prior_En_[i];
+            if (!log_acceptance_.empty()) {
+                energy_weight_[index] += log_acceptance_[index];
+            }
             row_max = std::max(row_max, energy_weight_[index]);
         }
         max_energy_weight_[j] = row_max;
@@ -250,8 +264,9 @@ std::vector<double> CaseBModel::energyLogPosterior(double Ep_hat, double theta_o
         for (std::size_t j = 0; j < n_theta; ++j) {
             const std::size_t index = (j * n_En) + i;
             const double z = (Ep_hat - Ep_table_[index]) * inv_sigma_Ep_;
-            terms[j] =
-                angular[j] + (-kHalf * z * z) + logRecoilDensityRatio(theta_grid_[j], En_grid_[i]);
+            const double acceptance = log_acceptance_.empty() ? 0.0 : log_acceptance_[index];
+            terms[j] = angular[j] + (-kHalf * z * z) +
+                       logRecoilDensityRatio(theta_grid_[j], En_grid_[i]) + acceptance;
         }
         result[i] = logSumExpUnchecked(terms.data(), n_theta) + log_prior_En_[i];
     }

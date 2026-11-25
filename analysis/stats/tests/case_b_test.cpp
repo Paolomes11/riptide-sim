@@ -11,6 +11,7 @@
 #include "riptide/common/direction.hpp"
 #include "riptide/common/np_kinematics.hpp"
 #include "riptide/common/units.hpp"
+#include "riptide/stats/acceptance.hpp"
 #include "riptide/stats/case_a.hpp"
 #include "riptide/stats/case_b.hpp"
 #include "riptide/stats/direction_grid.hpp"
@@ -78,6 +79,42 @@ Moments gridMoments(const st::Grid& grid, const std::vector<double>& log_post) {
         var += w[i] * (grid[i] - mean) * (grid[i] - mean);
     }
     return {mean, std::sqrt(var)};
+}
+
+// An acceptance histogram on 1 MeV x 5 deg bins over [10, 20] x [0, pi/2]
+// whose ratio is shape(theta centre) in every E_n bin.
+template <typename Shape> st::AcceptanceRatio acceptanceWithShape(Shape shape) {
+    constexpr std::size_t kEnBins = 10;
+    constexpr std::size_t kThetaBins = 18;
+    st::AcceptanceHistogram h;
+    for (std::size_t k = 0; k <= kEnBins; ++k) {
+        h.En_edges.push_back(kEnMin + static_cast<double>(k));
+    }
+    for (std::size_t t = 0; t <= kThetaBins; ++t) {
+        h.theta_edges.push_back(0.5 * pi * static_cast<double>(t) /
+                                static_cast<double>(kThetaBins));
+    }
+    h.theta_edges.back() = 0.5 * pi;
+    for (std::size_t k = 0; k < kEnBins; ++k) {
+        const double En = 0.5 * (h.En_edges[k] + h.En_edges[k + 1]);
+        for (std::size_t t = 0; t < kThetaBins; ++t) {
+            const double lo = h.theta_edges[t];
+            const double hi = h.theta_edges[t + 1];
+            h.counts.push_back(shape(0.5 * (lo + hi)) * st::isotropicRecoilAngleMass(En, lo, hi));
+        }
+    }
+    return st::AcceptanceRatio(h);
+}
+
+st::CaseBModel acceptanceModel(const st::AcceptanceRatio& ratio) {
+    const st::Grid En = st::energyGrid({});
+    const st::Grid theta = st::recoilAngleGrid(st::kTrackAngleGridPoints);
+    return {En,
+            theta,
+            observedGrid(),
+            st::flatEnergyLogPrior(En),
+            kToyResolution,
+            st::caseBAcceptanceLogWeights(ratio, En, theta)};
 }
 
 } // namespace
@@ -293,5 +330,64 @@ TEST_CASE("Case B: invalid inputs throw", "[stats][case_b]") {
                     std::invalid_argument);
     const st::TrackEnergyTable table = model.trackEnergyTable({11.0});
     CHECK_THROWS_AS(model.summedLogLikelihood(table, {}, st::sphereGrid(10)),
+                    std::invalid_argument);
+}
+
+TEST_CASE("Case B: an acceptance r = 1 reproduces the ideal model", "[stats][case_b]") {
+    const st::CaseBModel ideal = toyModel(kToyResolution);
+    const st::CaseBModel flat = acceptanceModel(acceptanceWithShape([](double) { return 1.0; }));
+    CHECK_FALSE(ideal.hasAcceptance());
+    CHECK(flat.hasAcceptance());
+    const std::vector<double> Ep_hat{4.0, 11.0, 17.5, -0.05};
+    const std::vector<geo::Direction> tracks{{0.0, 0.0, 1.0},
+                                             geo::normalized({1.0, 2.0, 0.5}),
+                                             geo::normalized({-0.3, 0.1, 0.9}),
+                                             geo::normalized({0.2, -0.7, 0.1})};
+    const std::vector<geo::Direction> candidates = st::sphereGrid(200);
+    const std::vector<double> a =
+        ideal.summedLogLikelihood(ideal.trackEnergyTable(Ep_hat), tracks, candidates);
+    const std::vector<double> b =
+        flat.summedLogLikelihood(flat.trackEnergyTable(Ep_hat), tracks, candidates);
+    for (std::size_t c = 0; c < candidates.size(); ++c) {
+        CHECK_THAT(b[c], WithinAbs(a[c], 1e-9));
+    }
+    const std::vector<double> pa = ideal.energyLogPosterior(11.0, 0.4);
+    const std::vector<double> pb = flat.energyLogPosterior(11.0, 0.4);
+    for (std::size_t i = 0; i < pa.size(); ++i) {
+        CHECK_THAT(pb[i], WithinAbs(pa[i], 1e-9));
+    }
+}
+
+TEST_CASE("Case B: a forward acceptance deficit moves the E_n posterior up", "[stats][case_b]") {
+    // At fixed Ep_hat a small recoil angle goes with a small E_n (Ep = E_n
+    // cos^2 theta_p in the non-relativistic limit): fewer forward recoils
+    // shift the posterior of E_n to larger values.
+    constexpr double kForwardEdge = 0.5;
+    const st::CaseBModel ideal = toyModel(kToyResolution);
+    const st::CaseBModel step = acceptanceModel(
+        acceptanceWithShape([](double theta) { return theta < kForwardEdge ? 0.3 : 1.0; }));
+    const st::Grid& En = ideal.energyGrid();
+    const double Ep_hat = 11.0;
+    const double theta_obs = 0.5;
+    const Moments a = gridMoments(En, ideal.energyLogPosterior(Ep_hat, theta_obs));
+    const Moments b = gridMoments(En, step.energyLogPosterior(Ep_hat, theta_obs));
+    CHECK(b.mean > a.mean + 0.1);
+    // The table rows follow the same diagnostic, as for the ideal model.
+    const std::vector<double> row = step.trackEnergyRow(Ep_hat);
+    const st::Grid& obs = step.observedAngleGrid();
+    const std::vector<double> post = step.energyLogPosterior(Ep_hat, obs[300]);
+    CHECK_THAT(row[300], WithinAbs(st::logSumExp(post.data(), post.size()), 1e-9));
+}
+
+TEST_CASE("Case B: an invalid acceptance table throws", "[stats][case_b]") {
+    const st::Grid En = st::energyGrid({});
+    const st::Grid theta = st::recoilAngleGrid(st::kTrackAngleGridPoints);
+    const std::vector<double> prior = st::flatEnergyLogPrior(En);
+    CHECK_THROWS_AS(st::CaseBModel(En, theta, observedGrid(), prior, kToyResolution,
+                                   std::vector<double>(7, 0.0)),
+                    std::invalid_argument);
+    std::vector<double> bad(theta.size() * En.size(), 0.0);
+    bad[12] = -std::numeric_limits<double>::infinity();
+    CHECK_THROWS_AS(st::CaseBModel(En, theta, observedGrid(), prior, kToyResolution, bad),
                     std::invalid_argument);
 }

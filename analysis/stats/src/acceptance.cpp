@@ -166,4 +166,22 @@ std::vector<std::vector<double>> acceptanceRecoilAngleLogPrior(const AcceptanceR
     return rows;
 }
 
+std::vector<double> caseBAcceptanceLogWeights(const AcceptanceRatio& ratio, const Grid& En_grid,
+                                              const Grid& theta_grid) {
+    const auto rows = acceptanceRecoilAngleLogPrior(ratio, En_grid, theta_grid);
+    const std::size_t n_En = En_grid.size();
+    const double half = kHalf * theta_grid.step();
+    std::vector<double> weights(theta_grid.size() * n_En);
+    for (std::size_t j = 0; j < theta_grid.size(); ++j) {
+        // The same clipped cell as acceptanceRecoilAngleLogPrior.
+        const double lo = std::clamp(theta_grid[j] - half, 0.0, kThetaMax);
+        const double hi = std::clamp(theta_grid[j] + half, 0.0, kThetaMax);
+        for (std::size_t i = 0; i < n_En; ++i) {
+            weights[(j * n_En) + i] =
+                rows[i][j] - std::log(isotropicRecoilAngleMass(En_grid[i], lo, hi));
+        }
+    }
+    return weights;
+}
+
 } // namespace riptide::stats
