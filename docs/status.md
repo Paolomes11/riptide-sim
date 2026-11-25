@@ -4,9 +4,9 @@
 la famiglia Geant4 = toy passa 117/117 e la calibrazione assoluta 32/32
 (`validation/6_results.md`). Prossima: fase 7 (Caso B), da progettare.**
 
-`master` è a v0.7.1: la fase 6 fino a D40 è unita con la PR #7 (merge `209707a`, branch
-`feat/case-a-geant4` cancellato); il passo D e la chiusura sono su
-`feat/case-a-acceptance-runs`, non ancora unito. La fase 5
+`master` è a v0.8.0 (tag `v0.8.0`): la fase 6 fino a D40 è unita con la PR #7 (merge
+`209707a`), il passo D e la chiusura con la PR #8 (merge `252d7be`); i due branch sono
+cancellati. La fase 5
 è unita con la PR #3 (tag `v0.7.0`), il report di progetto in `docs/riptide_report.pdf` con la
 PR #4. La fase 5 comprende taglio `has_proton` (D34),
 cinematica inversa del rinculo, motore del Caso A in `analysis/stats` (D32, D33), generatore di
