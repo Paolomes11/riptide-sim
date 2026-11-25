@@ -1,6 +1,7 @@
 add_executable(stats_tests
     acceptance_test.cpp
     calibration_test.cpp
+    calibration_b_test.cpp
     case_a_test.cpp
     case_b_test.cpp
     case_b_posterior_test.cpp
