@@ -47,6 +47,29 @@ void requireBlockSize(std::size_t n) {
     }
 }
 
+// The three stages of one event, in the order the ideal draw has always
+// consumed the engine: E_n, then (cos theta_CM, phi), then the noise.
+double drawEnergy(const EnergyDomain& domain, random::Engine& engine) {
+    return domain.En_min + ((domain.En_max - domain.En_min) * random::uniform53(engine));
+}
+
+CaseBPseudoEvent drawTruthAtEnergy(double En, const geometry::Direction& omega_n,
+                                   random::Engine& engine) {
+    CaseBPseudoEvent event;
+    event.truth_En = En;
+    const double cos_cm = 1.0 - (kCosSpan * random::uniform53(engine));
+    event.truth_Ep = kinematics::protonEnergyFromCosCm(En, cos_cm);
+    event.truth_theta_p = kinematics::protonAngleFromEnergy(event.truth_Ep, En);
+    const double phi = 2.0 * units::pi * random::uniform53(engine);
+    event.truth_track = geometry::directionAroundAxis(omega_n, event.truth_theta_p, phi);
+    return event;
+}
+
+void addNoise(CaseBPseudoEvent& event, const CaseBResolution& resolution, random::Engine& engine) {
+    event.reco_Ep = event.truth_Ep + (resolution.sigma_Ep * random::standardNormal(engine));
+    event.reco_track = geometry::smearDirection(event.truth_track, resolution.sigma_theta, engine);
+}
+
 } // namespace
 
 geometry::Direction isotropicDirection(random::Engine& engine) {
@@ -60,16 +83,26 @@ geometry::Direction isotropicDirection(random::Engine& engine) {
 CaseBPseudoEvent drawCaseBPseudoEvent(const EnergyDomain& domain,
                                       const geometry::Direction& omega_n,
                                       const CaseBResolution& resolution, random::Engine& engine) {
-    CaseBPseudoEvent event;
-    event.truth_En = domain.En_min + ((domain.En_max - domain.En_min) * random::uniform53(engine));
-    const double cos_cm = 1.0 - (kCosSpan * random::uniform53(engine));
-    event.truth_Ep = kinematics::protonEnergyFromCosCm(event.truth_En, cos_cm);
-    event.truth_theta_p = kinematics::protonAngleFromEnergy(event.truth_Ep, event.truth_En);
-    const double phi = 2.0 * units::pi * random::uniform53(engine);
-    event.truth_track = geometry::directionAroundAxis(omega_n, event.truth_theta_p, phi);
-    event.reco_Ep = event.truth_Ep + (resolution.sigma_Ep * random::standardNormal(engine));
-    event.reco_track = geometry::smearDirection(event.truth_track, resolution.sigma_theta, engine);
+    CaseBPseudoEvent event = drawTruthAtEnergy(drawEnergy(domain, engine), omega_n, engine);
+    addNoise(event, resolution, engine);
     return event;
+}
+
+CaseBPseudoEvent drawCaseBPseudoEvent(const EnergyDomain& domain,
+                                      const geometry::Direction& omega_n,
+                                      const CaseBResolution& resolution,
+                                      const AcceptanceRatio& acceptance, random::Engine& engine) {
+    const double En = drawEnergy(domain, engine);
+    const double r_max = acceptance.maximum();
+    while (true) {
+        CaseBPseudoEvent event = drawTruthAtEnergy(En, omega_n, engine);
+        if (random::uniform53(engine) * r_max < acceptance(En, event.truth_theta_p)) {
+            // The noise is drawn only for the kept event: rejected tries
+            // never reach the detector.
+            addNoise(event, resolution, engine);
+            return event;
+        }
+    }
 }
 
 CaseBPseudoSample caseBPseudoSample(const EnergyDomain& domain, const geometry::Direction& omega_n,
@@ -81,6 +114,22 @@ CaseBPseudoSample caseBPseudoSample(const EnergyDomain& domain, const geometry::
     for (std::size_t k = 0; k < n; ++k) {
         auto engine = random::perEventEngine(seed, first_event_id + k);
         append(sample, drawCaseBPseudoEvent(domain, omega_n, resolution, engine));
+    }
+    return sample;
+}
+
+CaseBPseudoSample caseBPseudoSample(const EnergyDomain& domain, const geometry::Direction& omega_n,
+                                    std::size_t n, const CaseBResolution& resolution,
+                                    std::uint64_t seed, const AcceptanceRatio& acceptance,
+                                    std::uint64_t first_event_id) {
+    // AcceptanceRatio holds only positive counts, so max r > 0 and the
+    // accept-reject loop ends.
+    requireValid(domain, resolution);
+    CaseBPseudoSample sample;
+    reserve(sample, n);
+    for (std::size_t k = 0; k < n; ++k) {
+        auto engine = random::perEventEngine(seed, first_event_id + k);
+        append(sample, drawCaseBPseudoEvent(domain, omega_n, resolution, acceptance, engine));
     }
     return sample;
 }

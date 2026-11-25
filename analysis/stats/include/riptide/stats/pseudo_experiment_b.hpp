@@ -14,6 +14,7 @@
 
 #include "riptide/common/direction.hpp"
 #include "riptide/common/random.hpp"
+#include "riptide/stats/acceptance.hpp"
 #include "riptide/stats/case_b.hpp"
 #include "riptide/stats/grid.hpp"
 
@@ -41,6 +42,16 @@ struct CaseBPseudoEvent {
                                                     const CaseBResolution& resolution,
                                                     random::Engine& engine);
 
+// The same with the selection acceptance of D40, as the toy twin of a
+// Geant4 sample analysed with --acceptance (D45 note): E_n is drawn once,
+// then the rest of the event is drawn as above and kept with probability
+// r(E_n, theta_p) / max r, repeating on the same engine until one is kept.
+[[nodiscard]] CaseBPseudoEvent drawCaseBPseudoEvent(const EnergyDomain& domain,
+                                                    const geometry::Direction& omega_n,
+                                                    const CaseBResolution& resolution,
+                                                    const AcceptanceRatio& acceptance,
+                                                    random::Engine& engine);
+
 struct CaseBPseudoSample {
     std::vector<double> truth_En;
     std::vector<double> truth_Ep;
@@ -61,6 +72,12 @@ struct CaseBPseudoSample {
                                                   const CaseBResolution& resolution,
                                                   std::uint64_t seed,
                                                   std::uint64_t first_event_id = 0);
+
+// The same with the selection acceptance (drawCaseBPseudoEvent above).
+[[nodiscard]] CaseBPseudoSample
+caseBPseudoSample(const EnergyDomain& domain, const geometry::Direction& omega_n, std::size_t n,
+                  const CaseBResolution& resolution, std::uint64_t seed,
+                  const AcceptanceRatio& acceptance, std::uint64_t first_event_id = 0);
 
 struct CaseBPseudoExperiment {
     geometry::Direction truth_omega_n;

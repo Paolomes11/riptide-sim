@@ -13,6 +13,7 @@
 #include "riptide/common/np_kinematics.hpp"
 #include "riptide/common/random.hpp"
 #include "riptide/common/units.hpp"
+#include "riptide/stats/acceptance.hpp"
 #include "riptide/stats/calibration.hpp"
 #include "riptide/stats/case_b.hpp"
 #include "riptide/stats/grid.hpp"
@@ -250,4 +251,160 @@ TEST_CASE("Case B pseudo-experiments reject invalid input", "[stats][pseudo_expe
         st::caseBPseudoExperiment(kDomain, 1, kToyResolution, kSeed, kSectionOutOfRange, 0),
         std::invalid_argument);
     CHECK_NOTHROW(st::caseBPseudoSample(kDomain, kOmega, 0, kToyResolution, kSeed));
+}
+
+namespace {
+
+constexpr double kHalfPi = 0.5 * pi;
+constexpr std::size_t kAccThetaBins = 18;
+constexpr std::size_t kAccEvents = 200000;
+
+// A ratio with a forward deficit (half the isotropic rate at 0 deg) that
+// deepens with E_n, on 1 MeV bins from 10 to 20 MeV.
+double accShape(std::size_t k, std::size_t t) {
+    const double depth = 0.4 + (0.02 * static_cast<double>(k));
+    return t < 6 ? 1.0 - (depth * (1.0 - (static_cast<double>(t) / 6.0))) : 1.0;
+}
+
+double isoShape(std::size_t /*k*/, std::size_t /*t*/) {
+    return 1.0;
+}
+
+st::AcceptanceRatio accRatio(double (*shape)(std::size_t, std::size_t) = accShape) {
+    st::AcceptanceHistogram h;
+    for (std::size_t k = 0; k <= 10; ++k) {
+        h.En_edges.push_back(10.0 + static_cast<double>(k));
+    }
+    for (std::size_t t = 0; t <= kAccThetaBins; ++t) {
+        h.theta_edges.push_back(kHalfPi * static_cast<double>(t) /
+                                static_cast<double>(kAccThetaBins));
+    }
+    h.theta_edges.back() = kHalfPi;
+    for (std::size_t k = 0; k < 10; ++k) {
+        const double En = 10.5 + static_cast<double>(k);
+        for (std::size_t t = 0; t < kAccThetaBins; ++t) {
+            h.counts.push_back(
+                shape(k, t) * 1e4 *
+                st::isotropicRecoilAngleMass(En, h.theta_edges[t], h.theta_edges[t + 1]));
+        }
+    }
+    return st::AcceptanceRatio(h);
+}
+
+std::size_t thetaBin(double theta) {
+    return std::min(kAccThetaBins - 1, static_cast<std::size_t>(theta / kHalfPi * kAccThetaBins));
+}
+
+// Expected theta_p bin probabilities of q(theta | En) = r pi_iso / norm, by
+// a fine midpoint rule in u = Ep / Ep_max (pi_iso is uniform in u).
+std::vector<double> expectedThetaBins(const st::AcceptanceRatio& ratio, double En) {
+    constexpr std::size_t kSteps = 200000;
+    std::vector<double> p(kAccThetaBins, 0.0);
+    double total = 0.0;
+    for (std::size_t s = 0; s < kSteps; ++s) {
+        const double u = (static_cast<double>(s) + 0.5) / static_cast<double>(kSteps);
+        const double theta = kin::protonAngleFromEnergy(u * kin::maxProtonEnergy(En), En);
+        const double w = ratio(En, theta);
+        p[thetaBin(theta)] += w;
+        total += w;
+    }
+    for (double& value : p) {
+        value /= total;
+    }
+    return p;
+}
+
+double thetaChiSquare(const std::vector<double>& theta, const std::vector<double>& p) {
+    std::vector<double> counts(kAccThetaBins, 0.0);
+    for (const double value : theta) {
+        counts[thetaBin(value)] += 1.0;
+    }
+    const auto n = static_cast<double>(theta.size());
+    double chi2 = 0.0;
+    for (std::size_t t = 0; t < kAccThetaBins; ++t) {
+        const double expected = n * p[t];
+        chi2 += (counts[t] - expected) * (counts[t] - expected) / expected;
+    }
+    return chi2;
+}
+
+// chi^2 with 17 degrees of freedom: P(chi^2 > 45) ~ 2e-4. The seed is fixed,
+// so the check is deterministic; the threshold only says how unlucky a
+// correct sampler would have to be.
+constexpr double kChi2Limit17 = 45.0;
+
+} // namespace
+
+TEST_CASE("the accepted Case B toy follows q(theta | E_n)", "[stats][pseudo_experiment_b]") {
+    const st::AcceptanceRatio ratio = accRatio();
+    for (const double En : {11.0, 14.0, 19.0}) {
+        // A 1 keV wide domain fixes E_n: q changes far less than the
+        // statistical error of the bins over that width.
+        const st::EnergyDomain narrow{En, En + 1e-3, 2};
+        const auto sample =
+            st::caseBPseudoSample(narrow, kOmega, kAccEvents, kToyResolution, kSeed, ratio);
+        REQUIRE(sample.size() == kAccEvents);
+        const double En_mid = En + 0.5e-3;
+        const double chi2 = thetaChiSquare(sample.truth_theta_p, expectedThetaBins(ratio, En_mid));
+        INFO("E_n = " << En << " chi2 = " << chi2);
+        CHECK(chi2 < kChi2Limit17);
+        // The isotropic distribution is clearly rejected: the test has power.
+        const double chi2_iso =
+            thetaChiSquare(sample.truth_theta_p, expectedThetaBins(accRatio(isoShape), En_mid));
+        CHECK(chi2_iso > 10.0 * kChi2Limit17);
+        // The kept event is a full Case B event about omega.
+        for (std::size_t k = 0; k < sample.size(); ++k) {
+            REQUIRE_THAT(geo::angleBetween(sample.truth_track[k], kOmega),
+                         WithinAbs(sample.truth_theta_p[k], 1e-9));
+        }
+    }
+}
+
+TEST_CASE("the accepted Case B toy keeps E_n and the azimuth flat and is reproducible",
+          "[stats][pseudo_experiment_b]") {
+    const st::AcceptanceRatio ratio = accRatio();
+    constexpr std::size_t kN = 20000;
+    const auto plain = st::caseBPseudoSample(kDomain, kOmega, kN, kToyResolution, kSeed);
+    const auto a = st::caseBPseudoSample(kDomain, kOmega, kN, kToyResolution, kSeed, ratio);
+    const auto b = st::caseBPseudoSample(kDomain, kOmega, kN, kToyResolution, kSeed, ratio);
+    for (std::size_t k = 0; k < kN; ++k) {
+        // E_n is the first draw of each engine, before any accept-reject.
+        REQUIRE_THAT(a.truth_En[k], WithinULP(plain.truth_En[k], 0));
+    }
+    requireSameEvents(a, 0, b, kN);
+    constexpr std::size_t kTail = 15000;
+    const auto tail =
+        st::caseBPseudoSample(kDomain, kOmega, kN - kTail, kToyResolution, kSeed, ratio, kTail);
+    requireSameEvents(a, kTail, tail, tail.size());
+
+    const auto [e1, e2] = geo::perpendicularBasis(kOmega);
+    std::vector<double> u(kN);
+    for (std::size_t k = 0; k < kN; ++k) {
+        const auto& t = a.truth_track[k];
+        u[k] = (std::atan2(geo::dot(t, e2), geo::dot(t, e1)) + pi) / (2.0 * pi);
+    }
+    CHECK(ksDistance(u, uniformCdf) < ksCritical(kN));
+
+    // r = 1 keeps the first try: the truth is the plain one. The noise
+    // comes after the accept draw, so only the truth is compared.
+    const auto flat =
+        st::caseBPseudoSample(kDomain, kOmega, kN, kToyResolution, kSeed, accRatio(isoShape));
+    for (std::size_t k = 0; k < kN; ++k) {
+        REQUIRE_THAT(flat.truth_theta_p[k], WithinULP(plain.truth_theta_p[k], 0));
+        REQUIRE_THAT(flat.truth_track[k].x, WithinULP(plain.truth_track[k].x, 0));
+    }
+    // ... and its distributions are the ideal ones.
+    std::vector<double> angle(kN);
+    std::vector<double> delta(kN);
+    for (std::size_t k = 0; k < kN; ++k) {
+        angle[k] = geo::angleBetween(flat.truth_track[k], kOmega);
+        delta[k] = geo::angleBetween(flat.reco_track[k], flat.truth_track[k]);
+    }
+    CHECK(ksDistance(angle, thetaCdf) < ksCritical(kN));
+    const double s = kToyResolution.sigma_theta;
+    const auto rayleigh_cdf = [s](double d) { return 1.0 - std::exp(-d * d / (2.0 * s * s)); };
+    CHECK(ksDistance(delta, rayleigh_cdf) < ksCritical(kN));
+
+    CHECK_THROWS_AS(st::caseBPseudoSample(kDomain, kOmega, 1, {0.0, 0.08}, kSeed, ratio),
+                    std::invalid_argument);
 }
