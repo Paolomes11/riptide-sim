@@ -4,6 +4,9 @@ Versione 1 (2026-11-25). Va committata prima di qualsiasi riga di codice del Cas
 della checklist 7a e dei run di simulazione della fase 7. I risultati (`7_results.md`)
 citeranno l'hash di quel commit. Dopo i run le soglie non si toccano.
 
+Versione 2 (2026-11-25): aggiunge la §4.1, scritta dopo la 7a e prima del codice e dei run della
+7b. Precisa come si leggono le soglie della §4 e non cambia nessun numero.
+
 La fase 7 porta il Caso B del toy in C++: Ω_n incognita e condivisa, E_n nuisance per evento con
 prior piatto su [10, 20] MeV, stima MAP su una griglia di Fibonacci con calotta raffinata
 (D41, D42). Come nelle fasi 5 → 6, prima si valida il port contro il toy con pseudo-esperienze
@@ -93,6 +96,35 @@ dove indicato. Per ogni direzione si confronta con il toy gemello (stessa verit�
 Le soglie Geant4 si applicano al modello ideale e a quello con `--acceptance` (r di D40,
 approssimata per +Z e per l'obliqua). Se falliscono: diagnosi con una decisione a parte, nessuna
 correzione delle soglie.
+
+### 4.1 Precisazioni prima dei run (versione 2)
+
+- **Natura del confronto.** Il toy gemello è un controllo di coerenza, non un bersaglio. Una
+  differenza Geant4 − toy misura il costo del realismo del rivelatore e va spiegata. Non si
+  regolano né le soglie né il modello per avvicinare Geant4 al toy. Un fallimento apre una
+  diagnosi con una decisione a parte.
+- **Righe.** Le stesse della 7a, con M per riga della fase 5 (D37): (N, M) = (10, 400),
+  (30, 300), (100, 200), (300, 100), (1000, 40), più la ripetizione (1000, 240) su indici
+  disgiunti. Il toy gemello usa gli stessi N e M.
+- **N = 1000.** Bias, rapporto di risoluzione, pull e copertura si valutano sulla ripetizione
+  M = 240. La riga M = 40 si riporta senza esito, per il motivo visto nella 7a (`7_results.md`
+  §4.2).
+- **Bias vettoriale.** Per ogni esperienza, le coordinate tangenti (e_θ, e_φ) di Ω̂ sulla base
+  locale alla verità. Il bias è la loro media, con errore = deviazione standard / √M per
+  componente.
+  - "Entro 2σ da 0" (+X, +Z) vale componente per componente.
+  - "< 0.5 σ_c" (obliqua) vale per la norma del vettore medio, con σ_c = media della risoluzione
+    dichiarata nella riga.
+- **Risoluzione G4 / toy.** Rapporto degli errori angolari rms, a ogni N. Il rapporto delle
+  risoluzioni dichiarate medie si riporta accanto, senza soglia.
+- **Pull rms e copertura HPD.** Si applicano a ogni N, con M della riga.
+- **Valori del toy gemello.** Quelli non arrotondati del suo record `case_b.json`.
+- **Run +X.** Si riusa `6_ff_flat_10_19p5MeV_x_1e7` della fase 6 (config
+  `6_ff_flat_10_19p5MeV_x.json`, c1 PASS): coincide con `7_ff_flat_10_19p5MeV_x` di D45, che
+  quindi non si rilancia. Nuovi run solo per +Z e per l'obliqua.
+- **Accettanza.** `--acceptance 6acc_s20260908`: la r(E_n, θ_p) di D40, misurata lungo +X sul
+  run indipendente `6_ff_flat_10_19p5MeV_x_1e7_s20260908`. Per +Z e l'obliqua è
+  un'approssimazione dichiarata (D45).
 
 ## 5. Tempi e risorse
 

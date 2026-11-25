@@ -1392,3 +1392,13 @@ run.
   - Una sola direzione: non distingue un bias di selezione da uno zero per simmetria.
   - Accettanza in direzione modellata subito: senza un bias misurato è complessità non
     giustificata.
+- **Nota (2026-11-25, prima dei run della 7b).**
+  - **Run +X.** Si riusa `6_ff_flat_10_19p5MeV_x_1e7` della fase 6: stesso config, stesso seme
+    e stessi eventi di un nuovo run +X, con c1 già passata. Non esiste quindi un config
+    `7_ff_flat_10_19p5MeV_x.json`; gli altri due sono `7_ff_flat_10_19p5MeV_{z,obl}.json`.
+  - **Accettanza nel Caso B.** Come in D40, entra solo la forma in θ_p a E_n fissa. La densità
+    del rinculo attorno a Ω si moltiplica per r(E_n,i, θ_j) e si divide per
+    c_i = Σ_j m_iso(cella j; E_n,i) · r(E_n,i, θ_j), con le celle di D40. Ogni riga in E_n
+    resta quindi normalizzata e A(E_n) si cancella. Con r ≡ 1 il termine è nullo e il modello
+    coincide con quello ideale. Il toy gemello accetta l'evento con probabilità r / max r, come
+    in D40.
