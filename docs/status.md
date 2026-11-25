@@ -7,8 +7,13 @@ toy fatti (70/76 alla lettera, i sei fallimenti spiegati, `validation/7_results.
 (Geant4, tre direzioni di D45) fatta: 184/186 alla lettera, un solo fallimento (pull rms
 dell'obliqua a N = 300), ipotesi (d) fluttuazione non verificata.**
 
-`master` è a v0.8.0 (tag `v0.8.0`): la fase 6 fino a D40 è unita con la PR #7 (merge
-`209707a`), il passo D e la chiusura con la PR #8 (merge `252d7be`); i due branch sono
+La fase 7 fino alla 7b (motore del Caso B, `riptide_case_b_calibrate`,
+`riptide_case_b_geant4`, run +Z e obliqua, `validation/7_results.md`) e il report riscritto
+con il Caso B (`docs/riptide_report.pdf`, v0.8.0) sono uniti in `master` con merge commit dal
+branch `feat/case-b-model`, poi cancellato; nessun tag, la fase 7 resta in corso.
+
+Prima di questo merge `master` era a v0.8.0 (tag `v0.8.0`): la fase 6 fino a D40 è unita con
+la PR #7 (merge `209707a`), il passo D e la chiusura con la PR #8 (merge `252d7be`); i due branch sono
 cancellati. La fase 5
 è unita con la PR #3 (tag `v0.7.0`), il report di progetto in `docs/riptide_report.pdf` con la
 PR #4. La fase 5 comprende taglio `has_proton` (D34),
@@ -23,6 +28,18 @@ diagnosi a 14 MeV e 15 record con l'accettanza (passo D). Senza accettanza Geant
 posterior circa il 10% più largo del toy e un bias di −0.023 MeV a 14 MeV, N = 1000. La causa è
 l'accettanza in θ_p, che la likelihood non conteneva. Con q(θ_p | E_n, sel) di D40 il bias a
 14 MeV scende a −0.0014 ± 0.0047 e tutte le voci gemelle e assolute passano.
+
+## Ripartenza
+
+Due decisioni aperte, da prendere all'inizio della prossima sessione:
+
+1. **Diagnosi dell'obliqua** (facoltativa): rilanciare `riptide_case_b_geant4` sul run obliquo
+   con un altro `--split-seed` per verificare l'ipotesi (d) di fluttuazione del pull rms a
+   N = 300. Le soglie non cambiano.
+2. **Chiusura della fase 7:** v0.9.0, roadmap, report, PR e tag.
+
+Punti di partenza: `validation/7_results.md` §6, record `stats/7b_*` sotto la radice dei dati,
+valutazione in `validation/7b_eval/`; prima di ogni run `scripts/data_root.sh check`.
 
 ## Fatto
 
