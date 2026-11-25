@@ -3,15 +3,17 @@
 **v0.7.1 — 2026-11-23 — Fase 6 (Caso A su dati Geant4) in corso: run e valutazione fatti,
 diagnosi dell'anomalia chiusa, codice di D40 pronto; mancano i run del passo D.**
 
-`master` è a v0.7.0: fase 5 unita con la PR #3 (tag `v0.7.0`), report di progetto in
-`docs/riptide_report.pdf` unito con la PR #4. La fase 5 comprende taglio `has_proton` (D34),
+`master` è a v0.7.1: la fase 6 finora è unita con la PR #7 (merge `209707a`, branch
+`feat/case-a-geant4` cancellato); il passo D prosegue su `feat/case-a-acceptance-runs`. La fase 5
+è unita con la PR #3 (tag `v0.7.0`), il report di progetto in `docs/riptide_report.pdf` con la
+PR #4. La fase 5 comprende taglio `has_proton` (D34),
 cinematica inversa del rinculo, motore del Caso A in `analysis/stats` (D32, D33), generatore di
 pseudo-esperienze e finestra su θ_p (D35), app `riptide_stats_bench` e `riptide_stats_calibrate`.
 La calibrazione C++ passa tutte le 71 soglie contro il toy (`validation/5_results.md`).
 Il pull n–C non elastico lungo +X della fase 3 è chiuso come fluttuazione: con un seme
 indipendente scende da +3.73 a +1.79 (`validation/3_nC_results.md`).
 
-La fase 6 è sul branch `feat/case-a-geant4` (non ancora unito): decisioni D36–D40, run, 15 record
+La fase 6 comprende finora decisioni D36–D40, run, 15 record
 del Caso A, valutazione e diagnosi a 14 MeV. Geant4 dà un posterior circa il 10% più largo del toy
 e un bias di −0.023 MeV a 14 MeV, N = 1000. La causa è l'accettanza in θ_p, che la likelihood non
 conteneva; D40 la modella. Il codice di D40 è committato, i run con l'accettanza (passo D)
@@ -308,7 +310,7 @@ Port del motore statistico del Caso A, vedi `roadmap.md`.
   D35 (≤ 0.10 s) è mancato; il tempo residuo è dominato da `exp` scalare.
 - **Test:** `debug` 367/367, `ci` 345/345, clang-format pulito.
 
-### Fase 6 (in corso, v0.7.1, branch `feat/case-a-geant4`, `case_a_version` 2)
+### Fase 6 (in corso, v0.7.1, PR #7 `feat/case-a-geant4` unita; passo D su `feat/case-a-acceptance-runs`, `case_a_version` 2)
 
 Caso A sugli eventi di Geant4, vedi `roadmap.md`. Fonti dei numeri: `validation/6_predictions.md`
 e, sulla radice dei dati, `validation/6_eval/`, `validation/6_diag_14MeV/`,
