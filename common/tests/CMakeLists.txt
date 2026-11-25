@@ -1,5 +1,6 @@
 add_executable(common_tests
     data_paths_test.cpp
+    direction_test.cpp
     event_sample_test.cpp
     event_schema_test.cpp
     hp_kinematics_test.cpp

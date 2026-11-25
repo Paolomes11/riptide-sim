@@ -12,23 +12,10 @@ namespace riptide::io {
 
 namespace {
 
-// Above this |axis.x| the helper axis switches from x to y, so that the cross
-// product with the helper never comes close to zero.
-constexpr double kHelperSwitch = 0.9;
-
 // Tolerance on the norm of a truth direction: the simulation writes unit
 // vectors to about 1e-16 and exact zeros, so 1e-9 separates the two cases with
 // a wide margin while still catching a damaged column.
 constexpr double kTrackNormTolerance = 1e-9;
-
-Direction cross(const Direction& a, const Direction& b) noexcept {
-    return {a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x};
-}
-
-Direction normalized(const Direction& v) noexcept {
-    const double norm = std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
-    return {v.x / norm, v.y / norm, v.z / norm};
-}
 
 void requireColumn(const std::vector<double>& column, std::size_t n, const char* name) {
     if (column.size() != n) {
@@ -43,24 +30,6 @@ void requireValidResolution(const Resolution& resolution) {
     if (!valid(resolution.sigma_Ep) || !valid(resolution.sigma_theta)) {
         throw std::invalid_argument("resolutions must be finite and >= 0");
     }
-}
-
-std::pair<Direction, Direction> perpendicularBasis(const Direction& axis) noexcept {
-    const Direction helper =
-        std::abs(axis.x) < kHelperSwitch ? Direction{1.0, 0.0, 0.0} : Direction{0.0, 1.0, 0.0};
-    const Direction e1 = normalized(cross(axis, helper));
-    return {e1, cross(axis, e1)};
-}
-
-Direction directionAroundAxis(const Direction& axis, double theta, double phi) noexcept {
-    const auto [e1, e2] = perpendicularBasis(axis);
-    const double cos_theta = std::cos(theta);
-    const double sin_theta = std::sin(theta);
-    const double along_e1 = sin_theta * std::cos(phi);
-    const double along_e2 = sin_theta * std::sin(phi);
-    return {cos_theta * axis.x + along_e1 * e1.x + along_e2 * e2.x,
-            cos_theta * axis.y + along_e1 * e1.y + along_e2 * e2.y,
-            cos_theta * axis.z + along_e1 * e1.z + along_e2 * e2.z};
 }
 
 double smearProtonEnergy(double Ep, double sigma_Ep, random::Engine& engine) {
@@ -81,15 +50,6 @@ bool hasTrack(const Direction& track) {
     }
     // Also reached by NaN, for which both comparisons above are false.
     throw std::invalid_argument("truth proton direction is neither a unit vector nor zero");
-}
-
-Direction smearDirection(const Direction& track, double sigma_theta, random::Engine& engine) {
-    // Two draws in a fixed order (first e1, then e2): with a function call per
-    // argument the order of evaluation would be unspecified.
-    const double offset_1 = sigma_theta * random::standardNormal(engine);
-    const double offset_2 = sigma_theta * random::standardNormal(engine);
-    return directionAroundAxis(track, std::hypot(offset_1, offset_2),
-                               std::atan2(offset_2, offset_1));
 }
 
 void convertHpEnergies(EventSample& sample, double target_mass) {
