@@ -267,6 +267,23 @@ std::array<double, 2> tangentCoordinates(const geometry::Direction& estimate,
     return {scale * geometry::dot(perp, e_theta), scale * geometry::dot(perp, e_phi)};
 }
 
+DirectionBias directionBias(const std::vector<CaseBExperimentResult>& results) {
+    requireEntries(results.size());
+    const std::size_t n = results.size();
+    std::array<std::vector<double>, 2> t{std::vector<double>(n), std::vector<double>(n)};
+    for (std::size_t k = 0; k < n; ++k) {
+        const auto c = tangentCoordinates(results[k].omega_hat, results[k].omega_true);
+        t[0][k] = c[0];
+        t[1][k] = c[1];
+    }
+    DirectionBias out;
+    for (std::size_t a = 0; a < 2; ++a) {
+        out.mean[a] = mean(t[a]);
+        out.error[a] = meanError(t[a], out.mean[a]);
+    }
+    return out;
+}
+
 DirectionPriorShift directionPriorShift(const std::vector<CaseBExperimentResult>& reference,
                                         const std::vector<CaseBExperimentResult>& alternative) {
     if (reference.size() != alternative.size()) {

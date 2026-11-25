@@ -128,6 +128,19 @@ struct CaseBEnsemble {
 [[nodiscard]] std::array<double, 2> tangentCoordinates(const geometry::Direction& estimate,
                                                        const geometry::Direction& truth);
 
+// The vector bias of a set of experiments (7_predictions.md, v2 note to
+// section 4): the mean tangent coordinates (e_theta, e_phi) of omega_hat at
+// each experiment's truth, in rad, with errors sample std / sqrt(entries).
+// With a single true direction the basis is the same for every experiment,
+// so the mean is a systematic offset of the estimate. Needs at least two
+// entries; else std::invalid_argument.
+struct DirectionBias {
+    std::array<double, 2> mean{};  // rad
+    std::array<double, 2> error{}; // rad
+};
+
+[[nodiscard]] DirectionBias directionBias(const std::vector<CaseBExperimentResult>& results);
+
 // How far an alternative prior moves the estimate. The scalar shift of an
 // experiment is angle(hat_ref, hat_alt) / sigma_ref; the vector shift is the
 // difference of the tangent coordinates at the truth, averaged over the

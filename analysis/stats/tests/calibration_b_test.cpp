@@ -231,6 +231,39 @@ TEST_CASE("tangentCoordinates follow the polar basis of the truth", "[stats][cal
     REQUIRE_THAT(zero[1], WithinAbs(0.0, 1e-12));
 }
 
+TEST_CASE("directionBias averages the tangent offsets at the truth", "[stats][calibration_b]") {
+    // One truth, estimates at +-a along e_phi and +b along e_theta: the mean
+    // is (b, 0); the e_phi offsets cancel. Errors from the sample std of the
+    // coordinates. 1e-12 absolute on angles of 0.01 rad.
+    constexpr double kTheta0 = 1.0;
+    constexpr double kA = 0.01;
+    constexpr double kB = 0.004;
+    const geo::Direction truth{std::sin(kTheta0), 0.0, std::cos(kTheta0)};
+    std::vector<st::CaseBExperimentResult> results;
+    for (const double sign : {1.0, -1.0}) {
+        st::CaseBExperimentResult r = handResult(0.0, 0.05, 0.0, true, true);
+        r.omega_true = truth;
+        r.omega_hat = {std::sin(kTheta0) * std::cos(sign * kA),
+                       std::sin(kTheta0) * std::sin(sign * kA), std::cos(kTheta0)};
+        results.push_back(r);
+    }
+    const st::DirectionBias symmetric = st::directionBias(results);
+    REQUIRE_THAT(symmetric.mean[1], WithinAbs(0.0, 1e-12));
+    // Two values +-s: sample std s * sqrt(2), error s * sqrt(2) / sqrt(2) = s,
+    // with s = sin(theta0) * a to first order (the arc at fixed theta).
+    REQUIRE_THAT(symmetric.error[1], WithinRel(std::sin(kTheta0) * kA, 1e-4));
+
+    for (auto& r : results) {
+        r.omega_hat = {std::sin(kTheta0 + kB), 0.0, std::cos(kTheta0 + kB)};
+    }
+    const st::DirectionBias shifted = st::directionBias(results);
+    REQUIRE_THAT(shifted.mean[0], WithinAbs(kB, 1e-12));
+    REQUIRE_THAT(shifted.mean[1], WithinAbs(0.0, 1e-12));
+    REQUIRE_THAT(shifted.error[0], WithinAbs(0.0, 1e-12));
+
+    REQUIRE_THROWS_AS(st::directionBias({results[0]}), std::invalid_argument);
+}
+
 TEST_CASE("directionPriorShift measures the move of the estimate", "[stats][calibration_b]") {
     // Reference estimates at the truth, alternatives a = 0.01 rad away along
     // e_theta: every scalar shift is a / sigma, the vector mean (a / sigma, 0)
