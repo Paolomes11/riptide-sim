@@ -3,6 +3,7 @@ add_library(riptide_stats STATIC
     src/acceptance.cpp
     src/case_a.cpp
     src/combine.cpp
+    src/direction_grid.cpp
     src/grid.cpp
     src/numerics.cpp
     src/priors.cpp
