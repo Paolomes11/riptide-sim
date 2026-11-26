@@ -44,6 +44,10 @@ struct Interval {
 [[nodiscard]] std::vector<Interval> credibleIntervals(const Grid& grid, const double* log_post,
                                                       const std::vector<double>& levels);
 
+// The 0.5 quantile, with the same CDF as credibleIntervals: the limit of its
+// interval as the level goes to 0.
+[[nodiscard]] double posteriorMedian(const Grid& grid, const double* log_post);
+
 // Credible intervals of many events: entry [k * levels.size() + l] is event
 // k at level l.
 struct IntervalTable {

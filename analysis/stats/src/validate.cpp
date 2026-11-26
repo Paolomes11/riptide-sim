@@ -57,31 +57,48 @@ PosteriorMoments posteriorMeanStd(const Grid& grid, const std::vector<double>& l
     return posteriorMeanStd(grid, log_post.data());
 }
 
-std::vector<Interval> credibleIntervals(const Grid& grid, const double* log_post,
-                                        const std::vector<double>& levels) {
-    const std::size_t n = grid.size();
-    const std::vector<double> w = normalisedWeights(n, log_post);
-    std::vector<double> cdf(n);
-    double cumulative = 0.0;
-    for (std::size_t i = 0; i < n; ++i) {
-        cumulative += w[i];
-        cdf[i] = cumulative - (kHalf * w[i]);
+namespace {
+
+// Quantiles of an unnormalised log-posterior on a grid: the CDF at the cell
+// centres (cumulative mass minus half the cell), inverted by linear
+// interpolation between grid points.
+class CentredCdf {
+public:
+    CentredCdf(const Grid& grid, const double* log_post)
+        : grid_(grid), cdf_(normalisedWeights(grid.size(), log_post)) {
+        double cumulative = 0.0;
+        for (double& value : cdf_) {
+            const double w = value;
+            cumulative += w;
+            value = cumulative - (kHalf * w);
+        }
     }
 
-    const auto quantile = [&](double q) {
+    [[nodiscard]] double quantile(double q) const {
+        const std::size_t n = cdf_.size();
         // First centre with cdf >= q, kept in [1, n - 1] so the bracket
         // [upper - 1, upper] always exists.
-        const auto first = std::lower_bound(cdf.begin(), cdf.end(), q);
+        const auto first = std::lower_bound(cdf_.begin(), cdf_.end(), q);
         const std::size_t upper = std::clamp(
-            static_cast<std::size_t>(std::distance(cdf.begin(), first)), std::size_t{1}, n - 1);
-        const double cdf_lo = cdf[upper - 1];
-        const double cdf_hi = cdf[upper];
+            static_cast<std::size_t>(std::distance(cdf_.begin(), first)), std::size_t{1}, n - 1);
+        const double cdf_lo = cdf_[upper - 1];
+        const double cdf_hi = cdf_[upper];
         const double span = cdf_hi - cdf_lo;
         // An empty cell (weight underflowed to 0) has no slope to invert.
         const double frac = span > 0.0 ? std::clamp((q - cdf_lo) / span, 0.0, 1.0) : 0.0;
-        return grid[upper - 1] + (frac * (grid[upper] - grid[upper - 1]));
-    };
+        return grid_[upper - 1] + (frac * (grid_[upper] - grid_[upper - 1]));
+    }
 
+private:
+    const Grid& grid_;
+    std::vector<double> cdf_;
+};
+
+} // namespace
+
+std::vector<Interval> credibleIntervals(const Grid& grid, const double* log_post,
+                                        const std::vector<double>& levels) {
+    const CentredCdf cdf(grid, log_post);
     std::vector<Interval> intervals;
     intervals.reserve(levels.size());
     for (const double level : levels) {
@@ -89,9 +106,13 @@ std::vector<Interval> credibleIntervals(const Grid& grid, const double* log_post
             throw std::invalid_argument("credible levels must lie in (0, 1)");
         }
         const double tail = kHalf * (1.0 - level);
-        intervals.push_back({quantile(tail), quantile(1.0 - tail)});
+        intervals.push_back({cdf.quantile(tail), cdf.quantile(1.0 - tail)});
     }
     return intervals;
+}
+
+double posteriorMedian(const Grid& grid, const double* log_post) {
+    return CentredCdf(grid, log_post).quantile(kHalf);
 }
 
 std::vector<double> coverage(const std::vector<double>& truth, const IntervalTable& intervals) {
