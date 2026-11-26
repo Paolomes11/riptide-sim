@@ -9,6 +9,7 @@ add_library(riptide_stats STATIC
     src/case_c_posterior.cpp
     src/pseudo_experiment_b.cpp
     src/pseudo_experiment_c.cpp
+    src/calibration_c.cpp
     src/combine.cpp
     src/direction_grid.cpp
     src/vmf_kernel.cpp
