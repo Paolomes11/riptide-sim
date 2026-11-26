@@ -152,7 +152,7 @@ accettanza e 0.845 con l'accettanza, sulle stesse esperienze (`7_results.md` §6
 - **Attese (b).**
   - Con M = 100 l'errore del pull rms è ≈ 1/√(2M) = 0.071, quindi una riga corretta esce da
     1 ± 0.1 con probabilità ≈ 16%.
-  - Sulle 25 voci di una chiamata si attende ≈ 0.4 fallimenti di pull da falso allarme (righe
+  - Sulle 25 voci di una chiamata si attende ≈ 0.3 fallimenti di pull da falso allarme (righe
     con M da 100 a 400). Le due chiamate condividono le esperienze e contano come una.
 - **Criterio di esito della diagnosi.**
   - **Fluttuazione (d → c):** il pull rms a N = 300 cade in 1 ± 0.1 in tutte e due le
