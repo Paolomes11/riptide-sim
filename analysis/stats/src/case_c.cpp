@@ -218,9 +218,14 @@ std::vector<double> CaseCModel::logLikelihood(const HierarchicalBase& base,
     // The trapezoid weights that normalise the prior also weigh the sum, so
     // that w_i pi_i is a mass summing to 1 on every node, end nodes included.
     const double log_step = std::log(En_grid.step());
-    std::vector<double> log_weight(n_En, log_step);
-    log_weight.front() = log_step - std::log(2.0);
-    log_weight.back() = log_step - std::log(2.0);
+    // Filled by index: front() and back() on a vector whose size the
+    // optimiser cannot bound trip -Wnull-dereference in Release.
+    const double log_half = std::log(2.0);
+    std::vector<double> log_weight(n_En);
+    for (std::size_t i = 0; i < n_En; ++i) {
+        const bool end_node = i == 0 || i + 1 == n_En;
+        log_weight[i] = end_node ? log_step - log_half : log_step;
+    }
     std::vector<double> result(grid.size());
     std::vector<double> prior_weights(n_En);
     std::vector<double> terms(n_En);
