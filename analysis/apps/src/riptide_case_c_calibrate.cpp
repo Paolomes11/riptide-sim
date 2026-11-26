@@ -26,6 +26,7 @@
 #include <filesystem>
 #include <iostream>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -134,6 +135,9 @@ struct Options {
     st::CaseBResolution resolution = kToyResolution;
     unsigned threads = kDefaultThreads;
     bool pilot = false;
+    // Nonzero: only the checklist row with this N, baseline prior, for a
+    // diagnosis on new seeds; its section and truths stay those of the row.
+    std::size_t row_events = 0;
 };
 
 class Stopwatch {
@@ -480,6 +484,60 @@ json tallyJson(const Tally& t) {
     return out;
 }
 
+json recordHeader(const Options& o, const Setup& setup) {
+    json record;
+    record["calibration_version"] = kCalibrationVersion;
+    record["calibration_id"] = o.calibration_id;
+    record["project_version"] = riptide::kProjectVersion;
+    record["git_describe"] = riptide::kGitDescribe;
+    // The thread count is left out: it does not change a number.
+    record["settings"] = {{"seed", o.seed},
+                          {"row_events", o.row_events},
+                          {"sigma_Ep_MeV", o.resolution.sigma_Ep},
+                          {"sigma_theta_rad", o.resolution.sigma_theta},
+                          {"pilot", o.pilot},
+                          {"levels", st::kHyperCredibleLevels},
+                          {"En_domain", domainJson(setup.domain)},
+                          {"theta_points", st::kTrackAngleGridPoints},
+                          {"theta_obs_points", st::kTrackObservedGridPoints},
+                          {"sphere_pixels", st::kSphereGridPixels},
+                          {"cap_pixels", st::kCapGridPixels},
+                          {"cap_delta_log", st::kCapDeltaLog},
+                          {"hyper_global_points", {st::kHyperMuPoints, st::kHyperSigmaPoints}},
+                          {"hyper_sigma_range_MeV", {st::kHyperSigmaMin, st::kHyperSigmaMax}},
+                          {"hyper_fine_points", st::kHyperFinePoints},
+                          {"hyper_window_delta_log", st::kHyperWindowDeltaLog}};
+    return record;
+}
+
+// The diagnosis run: one checklist row, its section-2 items against the toy.
+json diagnosisRecord(const Options& o, const Setup& setup) {
+    std::size_t r = 0;
+    while (r < kToyRows.size() && kToyRows[r].events != o.row_events) {
+        ++r;
+    }
+    if (r == kToyRows.size()) {
+        throw std::invalid_argument("--row-events is not a checklist row: " +
+                                    std::to_string(o.row_events));
+    }
+    const ToyRow& toy = kToyRows[r];
+    const st::CaseCRowSpec spec{toy.events,
+                                toy.experiments,
+                                kSectionChecklist + r,
+                                st::kCaseCChecklistTruth,
+                                st::CaseCSpectrum::truncated,
+                                false};
+    const RowResult row = runRow(setup, o, spec, "diagnosis");
+    Tally tally;
+    json record = recordHeader(o, setup);
+    record["diagnosis"] = {{"row", rowJson(row, checklistChecks(tally, row, toy, Role::counted))},
+                           {"tally", tally.summary()}};
+    std::cout << "diagnosis: " << tally.counted_failures.size() << " of " << tally.counted
+              << " counted items failed, " << tally.required_failures.size()
+              << " required failed\n";
+    return record;
+}
+
 int calibrate(const Options& o) {
     namespace data = riptide::data;
     const std::optional<std::string> cli_root =
@@ -495,6 +553,13 @@ int calibrate(const Options& o) {
               << riptide::kGitDescribe << "), " << o.threads << " threads"
               << (o.pilot ? ", pilot" : "") << '\n';
     const Setup setup(o.resolution);
+    if (o.row_events != 0) {
+        const json record = diagnosisRecord(o, setup);
+        fs::create_directories(out_dir);
+        riptide::io::writeFileAtomically(out_dir / kCalibrationName, record.dump(2) + "\n");
+        std::cout << "riptide_case_c_calibrate: output in " << out_dir << '\n';
+        return kExitOk;
+    }
 
     // The checklist; the row at kPriorEvents also carries the alternative
     // prior, on the same base.
@@ -567,27 +632,7 @@ int calibrate(const Options& o) {
         spill_json.push_back(rowJson(r, std::move(checks)));
     }
 
-    json record;
-    record["calibration_version"] = kCalibrationVersion;
-    record["calibration_id"] = o.calibration_id;
-    record["project_version"] = riptide::kProjectVersion;
-    record["git_describe"] = riptide::kGitDescribe;
-    // The thread count is left out: it does not change a number.
-    record["settings"] = {{"seed", o.seed},
-                          {"sigma_Ep_MeV", o.resolution.sigma_Ep},
-                          {"sigma_theta_rad", o.resolution.sigma_theta},
-                          {"pilot", o.pilot},
-                          {"levels", st::kHyperCredibleLevels},
-                          {"En_domain", domainJson(setup.domain)},
-                          {"theta_points", st::kTrackAngleGridPoints},
-                          {"theta_obs_points", st::kTrackObservedGridPoints},
-                          {"sphere_pixels", st::kSphereGridPixels},
-                          {"cap_pixels", st::kCapGridPixels},
-                          {"cap_delta_log", st::kCapDeltaLog},
-                          {"hyper_global_points", {st::kHyperMuPoints, st::kHyperSigmaPoints}},
-                          {"hyper_sigma_range_MeV", {st::kHyperSigmaMin, st::kHyperSigmaMax}},
-                          {"hyper_fine_points", st::kHyperFinePoints},
-                          {"hyper_window_delta_log", st::kHyperWindowDeltaLog}};
+    json record = recordHeader(o, setup);
     record["checklist"] = {{"rows", rows_json},
                            {"repeat", repeat_json},
                            {"contraction", contraction},
@@ -623,7 +668,9 @@ int main(int argc, char** argv) {
         lyra::opt(o.resolution.sigma_theta,
                   "rad")["--sigma-theta"]("track resolution per component (default 0.08)") |
         lyra::opt(o.threads, "n")["--threads"]("threads across experiments (default 4)") |
-        lyra::opt(o.pilot)["--pilot"]("counts / 10, same N: to measure time and memory");
+        lyra::opt(o.pilot)["--pilot"]("counts / 10, same N: to measure time and memory") |
+        lyra::opt(o.row_events,
+                  "N")["--row-events"]("only the checklist row with this N (diagnosis)");
     const auto result = cli.parse(lyra::args(argc, argv));
     if (show_help) {
         std::cout << cli << '\n';
