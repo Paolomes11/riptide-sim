@@ -5,6 +5,7 @@ add_executable(stats_tests
     case_a_test.cpp
     case_b_test.cpp
     case_b_posterior_test.cpp
+    case_c_test.cpp
     pseudo_experiment_b_test.cpp
     direction_grid_test.cpp
     vmf_kernel_test.cpp

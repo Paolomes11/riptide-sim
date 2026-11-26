@@ -5,6 +5,7 @@ add_library(riptide_stats STATIC
     src/case_a.cpp
     src/case_b.cpp
     src/case_b_posterior.cpp
+    src/case_c.cpp
     src/pseudo_experiment_b.cpp
     src/combine.cpp
     src/direction_grid.cpp
