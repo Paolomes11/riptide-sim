@@ -22,6 +22,12 @@ la 7b (Geant4).
 - Ipotesi (d): fluttuazione dello split. Non è verificata; la verifica è una diagnosi da
   decidere a parte (§6.4).
 
+**Esito 7c** (§6.6, previsioni §4.2, versione 3 in `d7c6222` e `7d4e4c2`).
+- Le stesse chiamate dell'obliqua con `--split-seed 20260908` passano **62/62** soglie.
+- A N = 300 il pull rms vale 0.974 senza accettanza e 0.971 con, e rms·√N vale 0.234 / 0.233,
+  nella banda 0.22–0.27. Per il criterio della §4.2 il fallimento della 7b è una fluttuazione
+  dello split **(c)**.
+
 Etichette: **(a)** fatto stabilito; **(b)** stima con ipotesi esplicite; **(c)** verificato con
 Monte Carlo; **(d)** ipotesi da mettere alla prova.
 
@@ -292,3 +298,50 @@ ogni N. L'errore sul rapporto delle risoluzioni è ≈ r·√(1/2M + 1/2M) **(b)
   l'intero pool di 10⁷ eventi letto in memoria prima dei tagli. Resta sotto il tetto di 5 GB.
 - Le chiamate toy durano come quelle Geant4: il tempo è nell'analisi delle righe, non nella
   lettura.
+
+### 6.6 Diagnosi 7c: l'obliqua con un altro split
+
+Build `release` a `7d4e4c2`, stesso run `7_ff_flat_10_19p5MeV_obl_1e7` e stesso `--seed`
+20260907; cambia solo `--split-seed` (20260908). Record `stats/7c_obl{,_acc}{,_toy}`,
+valutazione in `validation/7c_eval/` sulla radice dei dati (`run_7c.sh`, `eval_7c.py`,
+`eval_7c.txt`).
+
+**Esito per voce.** 62/62 **(a)**. Ogni chiamata Geant4 ha 31 voci: le 25 della tabella della
+§6.3, più `truth_in_cap` per le cinque righe e il bias. Le M sono quelle della 7b: (10, 400),
+(30, 300), (100, 200), (300, 100), ripetizione (1000, 182).
+
+**Il criterio della §4.2**, a N = 300, M = 100:
+
+| Record | Split | Pull rms | rms·√N (rad) | Copertura 68/90/95 |
+|---|---|---|---|---|
+| `7b_obl` | 20260907 | 0.859 | 0.206 | 0.78 / 0.96 / 0.99 |
+| `7c_obl` | 20260908 | 0.974 | 0.234 | 0.68 / 0.89 / 0.95 |
+| `7b_obl_acc` | 20260907 | 0.845 | 0.202 | 0.80 / 0.96 / 0.99 |
+| `7c_obl_acc` | 20260908 | 0.971 | 0.233 | 0.68 / 0.89 / 0.96 |
+
+- Il pull rms a N = 300 cade in 1 ± 0.1 in tutte e due le chiamate, e rms·√N torna nella banda
+  della 7a. L'esito è "fluttuazione": l'ipotesi (d) della §6.4 passa a **(c)**.
+- La σ dichiarata resta quella della 7b entro l'1% (rapporto G4 / toy 0.988 / 0.993): cambia
+  l'insieme degli errori realizzati, non il modello.
+- Limite dichiarato nella §4.2: il pool è lo stesso. Un difetto legato a questo campione di
+  eventi non si vedrebbe con questo test.
+
+**Altre voci, riportate.**
+
+| id | Rapporto rms, intervallo su N | Pull rms, intervallo | Pendenza con la ripetizione (toy) |
+|---|---|---|---|
+| `7c_obl` | 0.925–1.053 | 0.906–1.020 | −0.537 (−0.505) |
+| `7c_obl_acc` | 0.886–1.051 | 0.906–1.016 | −0.537 (−0.507) |
+
+- Il pull rms più basso è ora quello della ripetizione a N = 1000: 0.906, dentro la soglia di
+  0.094. Nella 7b la stessa riga dava 0.951 **(a)**.
+- **Bias a N = 1000 (d).** La norma vale 8.5·10⁻⁴ / 7.9·10⁻⁴ rad, cioè 0.11 / 0.10 σ_c, sotto la
+  soglia di 0.5 σ_c. La componente e_θ è positiva in tutti e due gli split: z = +1.30 nella 7b e
+  +2.19 / +2.05 nella 7c. Il toy gemello non la mostra (norma ≤ 4.1·10⁻⁴, componenti negative).
+  - Gli split usano lo stesso pool, quindi i due valori non sono indipendenti.
+  - Se l'effetto è reale, è il candidato atteso da D45: la parte della selezione che dipende
+    dalla direzione. Vale circa un decimo della risoluzione per esperienza a N = 1000.
+  - Non è un fallimento e non apre una diagnosi adesso. Va rivisto se una fase successiva (Caso
+    C, N più grandi, fase 9) renderà rilevante un bias di questa scala.
+- Tempi: quattro chiamate in sequenza, 4 thread, nello stesso ordine di grandezza della 7b
+  (≈ 3 min ciascuna); il tetto di 5 GB non è stato raggiunto.

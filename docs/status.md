@@ -449,9 +449,13 @@ Caso B, Ω_n condivisa ed E_n nuisance per evento, vedi `roadmap.md`. Design D41
 
 ## Punti aperti
 
-- **Fase 7b (d):** pull rms dell'obliqua a N = 300 pari a 0.859 / 0.845 contro 1 ± 0.1, con
-  errori realizzati piccoli e σ dichiarata invariata. Sembra una fluttuazione dello split; la
-  verifica (altro `--split-seed`) è da decidere (`7_results.md` §6.4).
+- **Fase 7c, chiuso (c):** il pull rms dell'obliqua a N = 300 (0.859 / 0.845 nella 7b) è una
+  fluttuazione dello split. Con `--split-seed 20260908` vale 0.974 / 0.971, e la 7c passa 62/62
+  (`7_results.md` §6.6).
+- **Fase 7c (d):** sull'obliqua la componente e_θ del bias a N = 1000 è positiva in tutti e due
+  gli split (z = +1.30, poi +2.19 / +2.05, stesso pool), con norma ≈ 0.1 σ_c, sotto la soglia di
+  0.5 σ_c. Il toy non la mostra. La candidata è la parte della selezione che dipende dalla
+  direzione (D45); va rivista se un bias di questa scala diventerà rilevante.
 - **Fase 7 (d):** con il prior vMF gli spostamenti del MAP sono quasi tutti nulli, con pochi salti
   fino a 0.32 σ a N = 300. Sembra il MAP sulla calotta discreta, che salta a un punto vicino,
   ma il passo non è verificato. Va rivisto se una soglia futura dipenderà dal singolo
