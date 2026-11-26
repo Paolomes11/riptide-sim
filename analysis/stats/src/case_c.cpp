@@ -4,9 +4,11 @@
 #include <cmath>
 #include <cstddef>
 #include <stdexcept>
+#include <utility>
 #include <vector>
 
 #include "riptide/stats/log_sum_exp.hpp"
+#include "riptide/stats/priors.hpp"
 
 namespace riptide::stats {
 
@@ -119,6 +121,99 @@ std::vector<double> uniformSigmaHyperPrior(const HyperGrid& grid) {
         result[index] = log_sigma[index % log_sigma.size()] - log_norm;
     }
     return result;
+}
+
+void checkHyperLogPosterior(const std::vector<double>& log_posterior) {
+    bool any_finite = false;
+    for (const double value : log_posterior) {
+        if (std::isnan(value) || (std::isinf(value) && value > 0.0)) {
+            throw std::domain_error("hyperparameter log-posterior: NaN or +inf entry");
+        }
+        any_finite = any_finite || std::isfinite(value);
+    }
+    if (!any_finite) {
+        throw std::domain_error("hyperparameter log-posterior: -inf on every point, no spectrum "
+                                "is compatible with all events");
+    }
+}
+
+CaseCModel::CaseCModel(Grid En_grid, Grid theta_grid, Grid theta_obs_grid,
+                       CaseBResolution resolution)
+    : stage1_(En_grid, std::move(theta_grid), std::move(theta_obs_grid),
+              flatEnergyLogPrior(En_grid), resolution),
+      log_flat_prior_(flatEnergyLogPrior(En_grid).front()) {}
+
+HierarchicalBase CaseCModel::base(const std::vector<double>& Ep_hat,
+                                  const std::vector<geometry::Direction>& tracks,
+                                  const geometry::Direction& omega_0) const {
+    if (Ep_hat.size() != tracks.size()) {
+        throw std::invalid_argument("Case C needs one track per Ep_hat");
+    }
+    HierarchicalBase result;
+    result.events = Ep_hat.size();
+    result.points = energyGrid().size();
+    result.values.resize(result.events * result.points);
+    for (std::size_t k = 0; k < result.events; ++k) {
+        const std::vector<double> row =
+            stage1_.energyLogPosterior(Ep_hat[k], geometry::angleBetween(tracks[k], omega_0));
+        double* out = result.values.data() + (k * result.points);
+        for (std::size_t i = 0; i < result.points; ++i) {
+            out[i] = row[i] - log_flat_prior_;
+        }
+    }
+    return result;
+}
+
+std::vector<double> CaseCModel::logLikelihood(const HierarchicalBase& base,
+                                              const HyperGrid& grid) const {
+    const Grid& En_grid = energyGrid();
+    const std::size_t n_En = En_grid.size();
+    if (base.points != n_En || base.values.size() != base.events * n_En) {
+        throw std::invalid_argument("the Case C base is not on the E_n grid of the model");
+    }
+    std::vector<double> result(grid.size());
+    std::vector<double> terms(n_En);
+    for (std::size_t point = 0; point < grid.size(); ++point) {
+        const std::vector<double> log_prior_En =
+            truncatedNormalEnergyLogPrior(En_grid, grid.muAt(point), grid.sigmaAt(point));
+        double sum = 0.0;
+        for (std::size_t k = 0; k < base.events; ++k) {
+            const double* row = base.row(k);
+            for (std::size_t i = 0; i < n_En; ++i) {
+                terms[i] = row[i] + log_prior_En[i];
+            }
+            // Finite or -inf by construction: the base comes from logsumexp
+            // sums and the prior is finite.
+            sum += logSumExpUnchecked(terms.data(), n_En);
+        }
+        result[point] = sum;
+    }
+    return result;
+}
+
+std::vector<double> CaseCModel::logPosterior(const HierarchicalBase& base, const HyperGrid& grid,
+                                             const HyperLogPrior& log_prior) const {
+    std::vector<double> result = logLikelihood(base, grid);
+    const std::vector<double> prior = log_prior(grid);
+    if (prior.size() != grid.size()) {
+        throw std::invalid_argument("the hyperparameter prior does not match the grid");
+    }
+    for (std::size_t point = 0; point < result.size(); ++point) {
+        result[point] += prior[point];
+    }
+    checkHyperLogPosterior(result);
+    return result;
+}
+
+HyperPosterior CaseCModel::refineHyperparameters(const HierarchicalBase& base,
+                                                 const HyperLogPrior& log_prior) const {
+    const Grid& En_grid = energyGrid();
+    const HyperGrid global =
+        globalHyperGrid(EnergyDomain{En_grid.front(), En_grid.back(), En_grid.size()});
+    const std::vector<double> coarse = logPosterior(base, global, log_prior);
+    HyperGrid fine = windowHyperGrid(hyperWindow(coarse, global));
+    std::vector<double> fine_log_post = logPosterior(base, fine, log_prior);
+    return {std::move(fine), std::move(fine_log_post)};
 }
 
 } // namespace riptide::stats

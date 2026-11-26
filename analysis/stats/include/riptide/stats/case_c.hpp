@@ -11,7 +11,9 @@
 #include <functional>
 #include <vector>
 
+#include "riptide/common/direction.hpp"
 #include "riptide/common/units.hpp"
+#include "riptide/stats/case_b.hpp"
 #include "riptide/stats/grid.hpp"
 #include "riptide/stats/numerics.hpp"
 
@@ -102,5 +104,82 @@ using HyperLogPrior = std::function<std::vector<double>(const HyperGrid&)>;
 // so this is the prior uniform in (mu_E, sigma_E). Only for the prior
 // robustness check.
 [[nodiscard]] std::vector<double> uniformSigmaHyperPrior(const HyperGrid& grid);
+
+// Throws std::domain_error if a hyperparameter log-posterior has a NaN or
+// +inf entry or no finite entry: an all -inf posterior would otherwise give
+// point 0 as MAP without warning.
+void checkHyperLogPosterior(const std::vector<double>& log_posterior);
+
+// Per-event log-likelihood on the E_n grid with omega_n fixed, theta_p
+// marginalised and no E_n prior, row-major: row k is event k. It does not
+// depend on the hyperparameters, so it is computed once per experiment and
+// reused on the global and the fine grid.
+struct HierarchicalBase {
+    std::size_t events = 0;
+    std::size_t points = 0;
+    std::vector<double> values;
+
+    [[nodiscard]] const double* row(std::size_t k) const noexcept {
+        return values.data() + (k * points);
+    }
+};
+
+// The refined stage 2: the fine grid on the window and the unnormalised
+// log-posterior on its points.
+struct HyperPosterior {
+    HyperGrid grid;
+    std::vector<double> log_posterior;
+};
+
+// Stages 1 and 2 of D46. Stage 1 is a Case B model with the flat E_n prior;
+// its MAP direction omega_0 fixes the angles theta_obs of stage 2, where
+//
+//   log L(mu_E, sigma_E) = sum_k log sum_i exp[base_k(E_n,i) + log pi(E_n,i | mu_E, sigma_E)]
+//
+// with base_k the Case B energy posterior of event k at theta_obs minus the
+// flat prior. The sum over E_n has no quadrature weights: the E_n step is one
+// constant for every hyperparameter point, so it cancels in the posterior.
+class CaseCModel {
+public:
+    // The grids and the resolution of the stage-1 Case B model, ideal
+    // detector; throws as the CaseBModel constructor.
+    CaseCModel(Grid En_grid, Grid theta_grid, Grid theta_obs_grid, CaseBResolution resolution);
+
+    [[nodiscard]] const CaseBModel& stage1Model() const noexcept {
+        return stage1_;
+    }
+    [[nodiscard]] const Grid& energyGrid() const noexcept {
+        return stage1_.energyGrid();
+    }
+
+    // base_k on the E_n grid for every event, with theta_obs the angle between
+    // track k and omega_0. Throws std::invalid_argument for mismatched Ep_hat
+    // and tracks or a non-finite Ep_hat. Unit vectors are expected.
+    [[nodiscard]] HierarchicalBase base(const std::vector<double>& Ep_hat,
+                                        const std::vector<geometry::Direction>& tracks,
+                                        const geometry::Direction& omega_0) const;
+
+    // log L at every point of `grid`, prior not included. Throws
+    // std::invalid_argument if the base is not on the E_n grid.
+    [[nodiscard]] std::vector<double> logLikelihood(const HierarchicalBase& base,
+                                                    const HyperGrid& grid) const;
+
+    // log prior + log L, the prior counted once. Throws std::invalid_argument
+    // for a prior of the wrong size and as checkHyperLogPosterior.
+    [[nodiscard]] std::vector<double> logPosterior(const HierarchicalBase& base,
+                                                   const HyperGrid& grid,
+                                                   const HyperLogPrior& log_prior) const;
+
+    // logPosterior on the global grid, then on the fine grid of its window;
+    // the prior function is evaluated on each grid.
+    [[nodiscard]] HyperPosterior refineHyperparameters(const HierarchicalBase& base,
+                                                       const HyperLogPrior& log_prior) const;
+
+private:
+    CaseBModel stage1_;
+    // The flat log prior inside the stage-1 energy posterior, removed from
+    // the base.
+    double log_flat_prior_;
+};
 
 } // namespace riptide::stats
