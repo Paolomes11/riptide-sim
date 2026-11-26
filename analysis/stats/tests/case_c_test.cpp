@@ -221,10 +221,14 @@ TEST_CASE("stage 2 at sigma_E -> infinity is Case B with the flat prior", "[case
     const SmallSample sample;
     const st::HierarchicalBase base = model.base(sample.Ep_hat, sample.tracks, sample.omega_0);
     const std::vector<double> loglik = model.logLikelihood(base, onePoint(15.0, 1e6));
+    // The flat prior times the trapezoid weights: log of the trapezoidal
+    // integral of each Case B energy posterior.
     double reference = 0.0;
     for (std::size_t k = 0; k < base.events; ++k) {
-        reference += st::logSumExp(model.stage1Model().energyLogPosterior(
-            sample.Ep_hat[k], riptide::geometry::angleBetween(sample.tracks[k], sample.omega_0)));
+        reference += std::log(trapezoidIntegral(
+            model.energyGrid(), model.stage1Model().energyLogPosterior(
+                                    sample.Ep_hat[k], riptide::geometry::angleBetween(
+                                                          sample.tracks[k], sample.omega_0))));
     }
     CHECK_THAT(loglik[0], WithinRel(reference, 1e-9));
 }
@@ -234,15 +238,18 @@ TEST_CASE("stage 2 at sigma_E -> 0 is the base at E_n = mu_E", "[case_c]") {
     const SmallSample sample;
     const st::HierarchicalBase base = model.base(sample.Ep_hat, sample.tracks, sample.omega_0);
     const st::Grid& En = model.energyGrid();
-    constexpr std::size_t kNode = 200;
     // sigma_E = 1e-3 MeV is 1/20 of the E_n step: the neighbours of the node
-    // weigh exp(-200) of it, and the prior at the node is 1 / step.
-    const std::vector<double> loglik = model.logLikelihood(base, onePoint(En[kNode], 1e-3));
-    double reference = 0.0;
-    for (std::size_t k = 0; k < base.events; ++k) {
-        reference += base.row(k)[kNode] - std::log(En.step());
+    // weigh exp(-200) of it, so the weighted prior is a unit mass on the node.
+    // The end nodes are the regression oracle: with an unweighted sum they
+    // were worth log 2 more per event than an interior node.
+    for (const std::size_t node : {std::size_t{0}, std::size_t{200}, En.size() - 1}) {
+        const std::vector<double> loglik = model.logLikelihood(base, onePoint(En[node], 1e-3));
+        double reference = 0.0;
+        for (std::size_t k = 0; k < base.events; ++k) {
+            reference += base.row(k)[node];
+        }
+        CHECK_THAT(loglik[0], WithinRel(reference, 1e-12));
     }
-    CHECK_THAT(loglik[0], WithinRel(reference, 1e-12));
 }
 
 TEST_CASE("stage 2 counts the hyperparameter prior once", "[case_c]") {

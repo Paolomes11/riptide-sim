@@ -134,11 +134,14 @@ struct HyperPosterior {
 // Stages 1 and 2 of D46. Stage 1 is a Case B model with the flat E_n prior;
 // its MAP direction omega_0 fixes the angles theta_obs of stage 2, where
 //
-//   log L(mu_E, sigma_E) = sum_k log sum_i exp[base_k(E_n,i) + log pi(E_n,i | mu_E, sigma_E)]
+//   log L(mu_E, sigma_E) = sum_k log sum_i w_i exp[base_k(E_n,i) + log pi(E_n,i | mu_E, sigma_E)]
 //
 // with base_k the Case B energy posterior of event k at theta_obs minus the
-// flat prior. The sum over E_n has no quadrature weights: the E_n step is one
-// constant for every hyperparameter point, so it cancels in the posterior.
+// flat prior and w_i the trapezoid weights, the same rule that normalises pi.
+// Without w_i the end nodes would count twice their mass: a sigma_E below the
+// E_n step puts all of pi on one node, and on an end node each event would
+// gain log 2, which at N = 300 pulls the posterior of a spectrum near the
+// domain edge onto (mu_E at the edge, sigma_E at its minimum).
 class CaseCModel {
 public:
     // The grids and the resolution of the stage-1 Case B model, ideal

@@ -1546,3 +1546,44 @@ run.
   - ĝ da un fit liscio: introduce una forma scelta a mano; l'istogramma con ~2000 eventi per
     bin (pool più piccolo, +Z) ha un errore ~2% sui pesi, trascurabile su gaussiane larghe
     ≥ 0.8 MeV (b).
+
+## D49 — Pesi trapezoidali nello stadio 2 del Caso C (2026-11-26)
+
+- **Contesto.** Il prior π(E_n | μ_E, σ_E) di D46 è normalizzato con la regola dei trapezi, che dà
+  peso h/2 ai nodi estremi. La somma su E_n dello stadio 2 era invece senza pesi, come nel toy.
+  Con σ_E sotto il passo di E_n (σ_min = 0.01 MeV < h = 0.02 MeV) tutta la massa di π cade su un
+  nodo. Se il nodo è un estremo, la sua densità è doppia, e ogni evento guadagna log 2 nella
+  verosimiglianza. Nel run della checklist 8a la riga **bordo** (μ_vero ~ U(17.5, 19)) collassa
+  così su (μ_E = 20, σ_E = 0.01).
+- **Decisione.**
+  - `CaseCModel::logLikelihood` somma w_i · π_i · exp(base_k,i), con w_i gli stessi pesi
+    trapezoidali della normalizzazione. In questo modo w_i π_i è una massa che somma a 1 su ogni
+    nodo, estremi compresi.
+  - Lo stadio 1′ e `CaseBModel` restano invariati.
+  - Si aggiungono due oracoli.
+    - σ_E → 0 su un nodo i (inclusi i due estremi): log L = Σ_k base_k,i, esatto, senza
+      −log h. I nodi estremi fanno da test di regressione del difetto.
+    - σ_E → ∞: log L = Σ_k log ∫ p_B,k dE_n (trapezi), cioè il Caso B con prior piatto.
+  - Il test di riproduzione del toy usa le funzioni del toy con gli stessi pesi aggiunti al prior
+    nella somma. I numeri del toy così modificato coincidono con il C++
+    entro 1e-3 relativo, la tolleranza del test.
+  - La checklist 8a si rilancia per intero con il modello corretto.
+- **Motivo.** È un errore di quadratura, non di modello. Un controllo sul toy (c), con N = 300,
+  dà questi argmax della verosimiglianza:
+
+  | Verità (μ_E, σ_E) | Toy com'è | Toy con i pesi |
+  |---|---|---|
+  | (18.5, 1.5) | (20.00, 0.010) | (19.15, 1.81) |
+  | (18.0, 1.0) | (20.00, 0.010) | (18.31, 1.56) |
+  | (15.0, 1.5), interna | (15.08, 1.56) | identico |
+
+  - Il difetto riguarda quindi solo gli spettri vicini al bordo.
+  - Il toy ha lo stesso difetto. I suoi risultati sulla riga bordo, se ne ha, sono da
+    rileggere con questa nota.
+- **Alternative scartate.**
+  - Alzare σ_min sopra il passo di E_n: nasconde il difetto senza toglierlo, e il limite σ_E → 0
+    (Caso A) uscirebbe dalla griglia.
+  - Togliere i pesi anche dalla normalizzazione di π: π non sarebbe più una densità normalizzata
+    dalla stessa regola usata ovunque nel progetto.
+  - Escludere i nodi estremi dalla griglia di μ_E: non basta, perché un μ_E vicino al bordo con
+    σ_E piccolo concentra comunque la massa sull'estremo.

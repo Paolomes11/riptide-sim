@@ -123,8 +123,9 @@ TEST_CASE("the two-stage analysis reproduces the toy model on a fixed experiment
     // Reference values: the toy-model refine_hyperparameters (both hyperpriors),
     // posterior_mean_std, credible_interval (level 0 for the median) and
     // predictive_energy_moments on these events and the omega_0 of the C++
-    // stage 1; refine_shared_direction and its hierarchical form give the
-    // same pixel as here for omega_0 and omega_hat.
+    // stage 1, with the trapezoid weights added to the E_n prior in the
+    // stage-2 sum as in CaseCModel; refine_shared_direction and its
+    // hierarchical form give the same pixel as here for omega_0 and omega_hat.
     constexpr double kPi = 3.14159265358979323846;
     constexpr std::size_t kEvents = 50;
     constexpr std::uint64_t kSeed = 20260907;
@@ -150,19 +151,19 @@ TEST_CASE("the two-stage analysis reproduces the toy model on a fixed experiment
             CHECK_THAT(got.intervals[l].hi, WithinRel(toy[4 + (2 * l)], kTolerance));
         }
     };
-    check(analysis.hyper.mu, {14.11973252, 0.2660021854, 14.1020659, 13.85933918, 14.38372353,
-                              13.6890519, 14.60156525, 13.61223884, 14.73068297});
+    check(analysis.hyper.mu, {14.11978933, 0.2656781696, 14.1020804, 13.85940696, 14.38369128,
+                              13.68923047, 14.60149139, 13.61277572, 14.73054014});
     check(analysis.hyper.log_sigma,
-          {-1.014835064, 1.354696074, -0.5011811429, -2.625396835, 0.08977398046, -4.043748634,
-           0.384033792, -4.369869877, 0.5119930886});
+          {-1.015409597, 1.354535715, -0.5015485792, -2.626072894, 0.08930039206, -4.043966787,
+           0.3830055276, -4.369979086, 0.5100060671});
     REQUIRE(analysis.alternate.has_value());
-    check(analysis.alternate->mu, {14.16315773, 0.5109795036, 14.15019255, 13.82357974, 14.5132476,
-                                   13.6011589, 14.79086349, 13.42148964, 14.94909953});
+    check(analysis.alternate->mu, {14.1629506, 0.5022422971, 14.15026138, 13.82458647, 14.51270522,
+                                   13.60230136, 14.78899877, 13.42609213, 14.94236546});
     check(analysis.alternate->log_sigma,
-          {-0.09373456643, 0.7378804963, -0.06505474596, -0.5933555213, 0.3695434171, -1.157393953,
-           0.7118711444, -1.636301693, 1.055228489});
-    CHECK_THAT(analysis.predictive.mean, WithinRel(14.119732520728105, kTolerance));
-    CHECK_THAT(analysis.predictive.std, WithinRel(0.8416323338277383, kTolerance));
+          {-0.09787951074, 0.7304648118, -0.06622840813, -0.5941800628, 0.3671284984, -1.158796816,
+           0.6999206811, -1.637932787, 1.025135634});
+    CHECK_THAT(analysis.predictive.mean, WithinRel(14.119789326858545, kTolerance));
+    CHECK_THAT(analysis.predictive.std, WithinRel(0.8401874447981008, kTolerance));
 
     // Both maps are pixels of the lattices, so a tolerance far below one
     // cap pixel (~1e-3 rad here) checks that the pixel is the same.
