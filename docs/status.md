@@ -5,8 +5,10 @@ fallimenti spiegati), Geant4 su tre direzioni fisse (7b, 184/186) e diagnosi del
 un altro split (7c, 62/62): l'unico fallimento della 7b è una fluttuazione (c)
 (`validation/7_results.md`). Prossima fase: 8 (Caso C).**
 
-La chiusura della fase 7 (diagnosi 7c, v0.9.0, report) è sul branch
-`fix/case-b-oblique-split`, da unire in `master` su richiesta.
+La chiusura della fase 7 (diagnosi 7c, v0.9.0, report) è unita in `master` con la PR #12
+(merge `b0fd4cf`, tag `v0.9.0`) dal branch `fix/case-b-oblique-split`, poi cancellato. Il
+design della fase 8 (D46–D48, `validation/8_predictions.md`) è sul branch `feat/case-c-model`,
+in attesa di approvazione prima del codice.
 
 La fase 7 fino alla 7b (motore del Caso B, `riptide_case_b_calibrate`,
 `riptide_case_b_geant4`, run +Z e obliqua, `validation/7_results.md`) e il report riscritto
@@ -32,13 +34,14 @@ l'accettanza in θ_p, che la likelihood non conteneva. Con q(θ_p | E_n, sel) di
 
 ## Ripartenza
 
-Fase 8, Caso C (spettro del neutrone ignoto). Prima del codice, come per D41–D45:
+Fase 8, Caso C (spettro del neutrone ignoto). Il design è scritto, il codice no:
 
-1. decisioni D46–D48: modello a due stadi (Ω_n come nel Caso B, poi griglia 2D su μ_E, σ_E con
-   gaussiana troncata al dominio, mai una griglia 4D), pseudo-esperienze e uso dei run Geant4
-   piatti della fase 7;
-2. `validation/8_predictions.md` con i numeri di riferimento del toy, committato prima dei run;
-3. approvazione dell'utente, poi il codice su `feat/case-c-model`.
+1. decisioni D46 (modello a due stadi su `CaseBModel`, griglia 2D su μ_E, σ_E con gaussiana
+   troncata, mai una griglia 4D), D47 (pseudo-esperienze, checklist, righe di troncatura) e D48
+   (ricampionamento dei pool della 7b sullo spettro rivelato, dominio [10, 19.5] MeV);
+2. `validation/8_predictions.md` v1 con i numeri del toy, prima di ogni run;
+3. **in attesa dell'approvazione di D46–D48**, poi il codice su `feat/case-c-model` (8a), e
+   prima della 8b la versione 2 delle previsioni con le esperienze disponibili per pool.
 
 Fonti: il `posterior_C.py` e la checklist del Caso C nel toy; record `stats/7b_*` e `7c_*`
 sotto la radice dei dati; prima di ogni run `scripts/data_root.sh check`.

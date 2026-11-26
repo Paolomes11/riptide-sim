@@ -124,10 +124,14 @@ progetto ricostruisce il neutrone incidente da ciò che interagisce nello scinti
 - 7c, la stessa obliqua con un altro split: 62/62, il fallimento della 7b è una fluttuazione.
 - Risultati: `validation/7_results.md`, previsioni in `validation/7_predictions.md` v3.
 
-## Fase 8 — Caso C
+## Fase 8 — Caso C (in corso)
 
-Due stadi (Ω_n come B, poi griglia 2D su μ_E, σ_E); mai griglia 4D. Verifica della troncatura al
-dominio.
+- Spettro del neutrone ignoto: E_n^(k) ~ N(μ_E, σ_E) troncata al dominio, direzione Ω_n
+  condivisa. Due stadi (Ω_n come nel Caso B, poi griglia 2D su μ_E, σ_E), mai griglia 4D (D46).
+- Pseudo-esperienze e checklist, con la verifica della troncatura al dominio (D47).
+- Geant4 per ricampionamento dei run piatti della 7b, senza simulazioni nuove (D48).
+- 8a, motore contro il toy; 8b, Geant4 sulle tre direzioni; 8c, diagnosi se serve.
+- Previsioni in `validation/8_predictions.md`, committate prima dei run.
 
 ## Fase 9 — Realismo
 
