@@ -112,9 +112,17 @@ progetto ricostruisce il neutrone incidente da ciò che interagisce nello scinti
   prior.
 - **Confronto toy vs Geant4 sullo stesso motore**: misura della circolarità del toy.
 
-## Fase 7 — Caso B 🔄 in corso (design: D41–D45, `validation/7_predictions.md`)
+## Fase 7 — Caso B ✅ completata (v0.9.0, 2026-11-26)
 
-Direzione Ω_n su griglia di Fibonacci con raffinamento locale; campo lontano.
+- Direzione Ω_n condivisa, E_n nuisance per evento: griglia di Fibonacci con raffinamento su
+  una calotta, kernel vMF della traccia, MAP e pull sul residuo angolare (D41, D42).
+- Pseudo-esperienze, calibrazione con thread fra esperienze a risultati identici, target
+  ≤ 2 s per esperienza a N = 1000 (D43, D44).
+- 7a, motore contro il toy: 70/76 alla lettera, i sei fallimenti spiegati.
+- 7b, Geant4 su tre direzioni fisse (+X, +Z, obliqua), con l'accettanza in θ_p di D40 (D45):
+  184/186; i due fallimenti sono una sola riga dell'obliqua.
+- 7c, la stessa obliqua con un altro split: 62/62, il fallimento della 7b è una fluttuazione.
+- Risultati: `validation/7_results.md`, previsioni in `validation/7_predictions.md` v3.
 
 ## Fase 8 — Caso C
 

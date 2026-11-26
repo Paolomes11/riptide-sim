@@ -1,16 +1,17 @@
 # Stato
 
-**v0.8.0 — 2026-11-25 — Fase 6 (Caso A su dati Geant4) completata: con l'accettanza di D40
-la famiglia Geant4 = toy passa 117/117 e la calibrazione assoluta 32/32
-(`validation/6_results.md`). Fase 7 (Caso B) in corso: motore C++ e checklist 7a contro il
-toy fatti (70/76 alla lettera, i sei fallimenti spiegati, `validation/7_results.md`); 7b
-(Geant4, tre direzioni di D45) fatta: 184/186 alla lettera, un solo fallimento (pull rms
-dell'obliqua a N = 300), ipotesi (d) fluttuazione non verificata.**
+**v0.9.0 — 2026-11-26 — Fase 7 (Caso B) completata: motore C++ contro il toy (7a, 70/76,
+fallimenti spiegati), Geant4 su tre direzioni fisse (7b, 184/186) e diagnosi dell'obliqua con
+un altro split (7c, 62/62): l'unico fallimento della 7b è una fluttuazione (c)
+(`validation/7_results.md`). Prossima fase: 8 (Caso C).**
+
+La chiusura della fase 7 (diagnosi 7c, v0.9.0, report) è sul branch
+`fix/case-b-oblique-split`, da unire in `master` su richiesta.
 
 La fase 7 fino alla 7b (motore del Caso B, `riptide_case_b_calibrate`,
 `riptide_case_b_geant4`, run +Z e obliqua, `validation/7_results.md`) e il report riscritto
-con il Caso B (`docs/riptide_report.pdf`, v0.8.0) sono uniti in `master` con merge commit dal
-branch `feat/case-b-model`, poi cancellato; nessun tag, la fase 7 resta in corso.
+con il Caso B (`docs/riptide_report.pdf`, v0.8.0) sono uniti in `master` con la PR #11 (merge
+`185626e`) dal branch `feat/case-b-model`, poi cancellato, senza tag.
 
 Prima di questo merge `master` era a v0.8.0 (tag `v0.8.0`): la fase 6 fino a D40 è unita con
 la PR #7 (merge `209707a`), il passo D e la chiusura con la PR #8 (merge `252d7be`); i due branch sono
@@ -31,15 +32,16 @@ l'accettanza in θ_p, che la likelihood non conteneva. Con q(θ_p | E_n, sel) di
 
 ## Ripartenza
 
-Due decisioni aperte, da prendere all'inizio della prossima sessione:
+Fase 8, Caso C (spettro del neutrone ignoto). Prima del codice, come per D41–D45:
 
-1. **Diagnosi dell'obliqua** (facoltativa): rilanciare `riptide_case_b_geant4` sul run obliquo
-   con un altro `--split-seed` per verificare l'ipotesi (d) di fluttuazione del pull rms a
-   N = 300. Le soglie non cambiano.
-2. **Chiusura della fase 7:** v0.9.0, roadmap, report, PR e tag.
+1. decisioni D46–D48: modello a due stadi (Ω_n come nel Caso B, poi griglia 2D su μ_E, σ_E con
+   gaussiana troncata al dominio, mai una griglia 4D), pseudo-esperienze e uso dei run Geant4
+   piatti della fase 7;
+2. `validation/8_predictions.md` con i numeri di riferimento del toy, committato prima dei run;
+3. approvazione dell'utente, poi il codice su `feat/case-c-model`.
 
-Punti di partenza: `validation/7_results.md` §6, record `stats/7b_*` sotto la radice dei dati,
-valutazione in `validation/7b_eval/`; prima di ogni run `scripts/data_root.sh check`.
+Fonti: il `posterior_C.py` e la checklist del Caso C nel toy; record `stats/7b_*` e `7c_*`
+sotto la radice dei dati; prima di ogni run `scripts/data_root.sh check`.
 
 ## Fatto
 
@@ -398,7 +400,7 @@ e, sulla radice dei dati, `validation/6_eval/`, `validation/6_diag_14MeV/`,
 - **Risultati (`validation/6_results.md`, f54b787).**
 - **Test:** `debug` 406/406, `ci` 382/382, clang-format pulito.
 
-### Fase 7 (in corso, branch `feat/case-b-model`, `calibration_version` 1 del Caso B)
+### Fase 7 (v0.9.0, branch `feat/case-b-model` e `fix/case-b-oblique-split`, `calibration_version` 1 del Caso B)
 
 Caso B, Ω_n condivisa ed E_n nuisance per evento, vedi `roadmap.md`. Design D41–D45 e previsioni
 `validation/7_predictions.md` (v1, `09634a8`) uniti con la PR #10 prima del codice.
@@ -444,14 +446,23 @@ Caso B, Ω_n condivisa ed E_n nuisance per evento, vedi `roadmap.md`. Design D41
     `validation/7_results.md` §6.
 - **Test:** `debug` 468/468, `ci` 443/443, clang-format pulito.
 
-**Prossimo passo:** su decisione, la diagnosi del fallimento 7b (stessa riga con un altro
-`--split-seed`); poi, su richiesta, la chiusura della fase 7 (v0.9.0, report, PR).
+- **Merge:** fino alla 7b, PR #11 (merge `185626e`), branch `feat/case-b-model` cancellato.
+- **7c, diagnosi dell'obliqua (`fix/case-b-oblique-split`):** previsioni §4.2 di
+  `7_predictions.md` v3 prima dei run (d7c6222, 7d4e4c2). Stesso run e stesso `--seed`,
+  `--split-seed 20260908`, record `7c_obl{,_acc}{,_toy}`, ≈ 3 min a chiamata con 4 thread.
+  - 62/62 alla lettera; a N = 300 il pull rms vale 0.974 / 0.971 e rms·√N 0.234 / 0.233:
+    il fallimento della 7b è una fluttuazione dello split (c).
+  - Bias a N = 1000 con e_θ positiva in tutti e due gli split, ≈ 0.1 σ_c (d), fra i punti
+    aperti.
+  - Valutazione in `validation/7c_eval/` sulla radice dei dati; sintesi in
+    `validation/7_results.md` §6.6 (eb60db6).
+- **Versione:** `CMakeLists.txt` a 0.9.0 alla chiusura; i record 7b e 7c riportano
+  `project_version` "0.8.0", li identifica `git_describe`.
+- **Report:** `docs/riptide_report.pdf` v0.9.0, con la 7c.
+- **Test:** `debug` 468/468, `ci` 443/443, clang-format pulito.
 
 ## Punti aperti
 
-- **Fase 7c, chiuso (c):** il pull rms dell'obliqua a N = 300 (0.859 / 0.845 nella 7b) è una
-  fluttuazione dello split. Con `--split-seed 20260908` vale 0.974 / 0.971, e la 7c passa 62/62
-  (`7_results.md` §6.6).
 - **Fase 7c (d):** sull'obliqua la componente e_θ del bias a N = 1000 è positiva in tutti e due
   gli split (z = +1.30, poi +2.19 / +2.05, stesso pool), con norma ≈ 0.1 σ_c, sotto la soglia di
   0.5 σ_c. Il toy non la mostra. La candidata è la parte della selezione che dipende dalla
