@@ -16,6 +16,35 @@ namespace {
 
 constexpr double kHalf = 0.5;
 
+// Below this a dot product of the linear-space stage 2 is redone exactly.
+// Each weight that underflowed to 0 was below 2^-1074 relative to its row
+// maximum, and the prior weights are at most 1, so the lost part of a dot
+// product is below n_En * 2^-1074; against a dot product of at least 2^-900
+// that is a relative error below 1e-49, far under the rounding of the sum.
+constexpr double kLinearDotFloor = 0x1p-900;
+
+// Four independent partial sums: without fast-math the compiler keeps a
+// single accumulator in order, and that chain of dependent additions would
+// bound the speed; four chains run in parallel and can be vectorised. The
+// order differs from a plain loop only in the last bits.
+double dotProduct(const double* a, const double* b, std::size_t n) noexcept {
+    double s0 = 0.0;
+    double s1 = 0.0;
+    double s2 = 0.0;
+    double s3 = 0.0;
+    std::size_t i = 0;
+    for (; i + 4 <= n; i += 4) {
+        s0 += a[i] * b[i];
+        s1 += a[i + 1] * b[i + 1];
+        s2 += a[i + 2] * b[i + 2];
+        s3 += a[i + 3] * b[i + 3];
+    }
+    for (; i < n; ++i) {
+        s0 += a[i] * b[i];
+    }
+    return (s0 + s1) + (s2 + s3);
+}
+
 void checkGridPoints(std::size_t n_mu, std::size_t n_sigma) {
     if (n_mu < 2 || n_sigma < 2) {
         throw std::invalid_argument("a hyperparameter grid needs at least 2 points per axis");
@@ -171,13 +200,40 @@ std::vector<double> CaseCModel::logLikelihood(const HierarchicalBase& base,
     if (base.points != n_En || base.values.size() != base.events * n_En) {
         throw std::invalid_argument("the Case C base is not on the E_n grid of the model");
     }
+    // log sum_i exp(b_ki + p_i) = m_k + M + log sum_i w_ki q_i, with
+    // w_ki = exp(b_ki - m_k) and q_i = exp(p_i - M) taken once per row and
+    // once per point: the sum over E_n becomes a dot product instead of n_En
+    // exponentials per event and point.
+    std::vector<double> row_max(base.events);
+    std::vector<double> weights(base.values.size());
+    for (std::size_t k = 0; k < base.events; ++k) {
+        const double* row = base.row(k);
+        row_max[k] = *std::max_element(row, row + n_En);
+        double* w = weights.data() + (k * n_En);
+        for (std::size_t i = 0; i < n_En; ++i) {
+            // An all -inf row keeps zero weights; it takes the exact path.
+            w[i] = std::isinf(row_max[k]) ? 0.0 : std::exp(row[i] - row_max[k]);
+        }
+    }
     std::vector<double> result(grid.size());
+    std::vector<double> prior_weights(n_En);
     std::vector<double> terms(n_En);
     for (std::size_t point = 0; point < grid.size(); ++point) {
         const std::vector<double> log_prior_En =
             truncatedNormalEnergyLogPrior(En_grid, grid.muAt(point), grid.sigmaAt(point));
+        const double prior_max = *std::max_element(log_prior_En.begin(), log_prior_En.end());
+        for (std::size_t i = 0; i < n_En; ++i) {
+            prior_weights[i] = std::exp(log_prior_En[i] - prior_max);
+        }
         double sum = 0.0;
         for (std::size_t k = 0; k < base.events; ++k) {
+            const double dot = dotProduct(weights.data() + (k * n_En), prior_weights.data(), n_En);
+            if (dot >= kLinearDotFloor) {
+                sum += row_max[k] + prior_max + std::log(dot);
+                continue;
+            }
+            // The row and the prior barely overlap: the weights that
+            // underflowed could carry the sum, so it is taken exactly.
             const double* row = base.row(k);
             for (std::size_t i = 0; i < n_En; ++i) {
                 terms[i] = row[i] + log_prior_En[i];
