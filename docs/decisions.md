@@ -1402,3 +1402,147 @@ run.
     resta quindi normalizzata e A(E_n) si cancella. Con r ≡ 1 il termine è nullo e il modello
     coincide con quello ideale. Il toy gemello accetta l'evento con probabilità r / max r, come
     in D40.
+
+## D46 — Modello del Caso C a due stadi (2026-11-26)
+
+- **Contesto.** Nel Caso C la direzione Ω_n è condivisa, come nel Caso B, ma le energie non sono
+  più indipendenti: E_n^(k) ~ N(μ_E, σ_E) troncata al dominio, con (μ_E, σ_E) incogniti. Il
+  posterior congiunto ha quattro dimensioni (due di Ω_n, μ_E, σ_E). Il toy lo fattorizza in due
+  stadi e la fattorizzazione costa ≤ 1.5% sulle incertezze in media, ≤ 8% nel caso peggiore (c,
+  `toy_model_findings.md` §4).
+- **Decisione.**
+  - **Classe separata.** `CaseCModel` in `analysis/stats` (`case_c.hpp/.cpp`, e
+    `case_c_posterior.hpp/.cpp` per gli stadi). Nessuna ereditarietà dal Caso B e nessun ramo
+    sul caso. `CaseBModel` si usa come componente e non cambia.
+  - **Stadio 1, direzione preliminare ω₀.** `CaseBModel` con il prior piatto su E_n nel dominio,
+    poi `refineSharedDirection` (griglia di Fibonacci, calotta di 8000 pixel, δlog = 10, D42).
+  - **Base per evento.** Con Ω_n = ω₀ e θ_obs,k l'angolo fra la traccia k e ω₀:
+    base[k, i] = log Σ_j exp[kernel(θ_obs,k | θ_j) + log ρ(θ_j | E_n,i) + log N(Ê_p,k; E_p(E_n,i, θ_j), σ_Ep)],
+    più l'accettanza di D40 se presente. È `CaseBModel::energyLogPosterior(Ê_p, θ_obs)` con log
+    prior ≡ 0: kernel valutato in θ_obs esatto, come la base gerarchica del toy. Si calcola una
+    volta per esperienza e serve alle due griglie dello stadio 2.
+  - **Prior di E_n dato (μ_E, σ_E).** Gaussiana normalizzata sulla griglia di E_n con i pesi
+    trapezoidali di `Grid`, quindi troncata al dominio per costruzione. Tutto in log
+    (log-pesi più logsumexp): a σ_E piccolo, o con μ_E lontano dalla griglia, niente underflow.
+  - **Stadio 2, iperparametri.**
+    - log L(μ, σ) = Σ_k log Σ_i exp(base[k, i] + log π(E_n,i | μ, σ)).
+    - log post = log prior(μ, σ) + log L(μ, σ): il prior si conta una volta.
+    - Griglia globale 60 × 60: μ_E lineare sul dominio di E_n, σ_E geometrica su
+      [0.01, 50] MeV, layout "ij" (μ esterno).
+    - Finestra: i punti con log post > max − 10, allargati di un passo per lato (passo
+      logaritmico in σ_E), tagliati al dominio della griglia globale. Griglia fine 40 × 40 nella
+      finestra, su cui si calcolano tutte le uscite.
+  - **Prior sugli iperparametri, propri sulla griglia.** Baseline uniforme in (μ_E, log σ_E),
+    cioè peso costante per punto della griglia geometrica. Variante di robustezza: uniforme in
+    σ_E, peso ∝ σ_E.
+  - **Stadio 1′, direzione finale Ω̂.** Momenti della predittiva di E_n dallo stadio 2:
+    m = E[μ_E], s² = E[σ_E²] + Var[μ_E]. Nuovo `CaseBModel` con prior N(m, s) troncato al
+    dominio, poi di nuovo `refineSharedDirection`. Lo stadio 2 non si ripete con Ω̂: il toy fa
+    lo stesso giro singolo.
+  - **Mai una griglia 4D.** La marginalizzazione dello stadio 2 su Ω_n (100 pixel) e il Laplace
+    congiunto del toy non entrano nella baseline. Sono diagnostiche, da portare con una
+    decisione a parte solo se la checklist fallisce sulla coverage.
+  - **Uscite per esperienza.**
+    - μ_E: media e deviazione standard a posteriori.
+    - log σ_E: media, deviazione standard e mediana.
+    - Intervalli credibili centrali 0.68 / 0.90 / 0.95 di μ_E e log σ_E sulle marginali della
+      griglia fine.
+    - Ω̂ (MAP sulla calotta dello stadio 1′), risoluzione dichiarata σ_Ω, copertura HPD e
+      `truth_in_cap` come nel Caso B.
+    - Le stime puntuali sono quelle del toy: μ_E = media, σ_E = exp(mediana di log σ_E),
+      Ω_n = MAP.
+  - **Test di limite (Catch2).**
+    - σ_E → 0: il marginale per evento coincide con la verosimiglianza del Caso B a
+      E_n = μ_E, entro l'errore di quadratura dichiarato.
+    - σ_E → ∞: il prior diventa piatto sul dominio e la base sommata ridà il Caso B con prior
+      piatto.
+    - Prior troncato: integrale trapezoidale 1 entro 1·10⁻¹², anche con μ_E fuori dal dominio.
+    - R1: un log post −∞ su tutta la griglia lancia un'eccezione, mai un NaN silenzioso.
+    - Valori del toy riprodotti su un'esperienza fissata, con la fonte scritta nel test.
+- **Motivo.** Il toy ha già validato questa fattorizzazione (c). Riusare `CaseBModel` senza
+  modificarlo lascia intatti gli oracoli della fase 7. La base per evento è il solo pezzo
+  costoso e si calcola una volta.
+- **Alternative scartate.**
+  - Griglia 4D su (Ω_n, μ_E, σ_E): vietata, costo proibitivo per un guadagno ≤ 1.5%.
+  - Stadi iterati fino a convergenza: il toy non lo fa e non c'è un difetto misurato che lo
+    richieda.
+  - σ_E lineare: a σ_E piccolo la risoluzione della griglia non basterebbe.
+
+## D47 — Pseudo-esperienze e checklist del Caso C (2026-11-26)
+
+- **Decisione.**
+  - **Verità per esperienza.** μ_E ~ U(13, 17) MeV, σ_E ~ log-U(0.8, 2.4) MeV, Ω_n isotropa.
+    E_n per evento dalla gaussiana troncata al dominio, la stessa densità del prior di D46.
+  - **Righe.** (N, M) = (50, 200), (150, 200), (300, 100), (1000, 40) come il toy, più la
+    ripetizione (1000, 240) su semi disgiunti, come nella fase 7. A N = 1000 l'esito si legge
+    sulla ripetizione; la riga M = 40 serve al confronto con il toy.
+  - **Robustezza al prior.** A N = 150, sulle stesse esperienze, prior uniforme in σ_E contro
+    la baseline.
+  - **Troncatura al dominio (roadmap).** Due righe in più, a N = 300 (M = 100) e
+    N = 1000 (M = 40):
+    - *bordo*: μ_E ~ U(17.5, 19) MeV, stessa σ_E, verità troncata. Il modello è esatto, quindi
+      ci si aspetta calibrazione anche con molta massa troncata;
+    - *sborda*: come la checklist, ma con E_n dalla gaussiana **non** troncata. Gli eventi fuori
+      dal dominio restano nel campione (con μ_E = 13 e σ_E = 2.4 sono circa il 10.6%), come nello
+      stress test del toy. È un test di sensibilità atteso fallire: nel toy il danno cresce
+      con N.
+  - **Semi.** Da (20260907, N, indice dell'esperienza), indipendenti dal numero di thread.
+    Thread fra esperienze come D44, con il test bit per bit a 1 e 4 thread.
+  - **App.** `riptide_case_c_calibrate`, un record `stats/<id>/case_c.json` per chiamata.
+  - **Ordine della checklist.** Bias → risoluzione → pull → coverage → contrazione 1/√N →
+    robustezza al prior, su μ_E, log σ_E e Ω_n.
+  - **Prestazioni.** Thread singolo, build `release`: un'esperienza a N = 1000 in ≤ 5 s (b:
+    circa due volte il Caso B, D44, più le griglie 2D). Prima l'implementazione semplice, poi
+    si profila; dopo ogni `perf` si rilanciano gli oracoli.
+- **Motivo.** Le stesse verità e righe del toy rendono il confronto voce per voce. Le due righe
+  di troncatura separano l'effetto del bordo (che il modello contiene) dall'errore di modello
+  (spettro fuori dal dominio, che il modello non contiene).
+- **Alternative scartate.**
+  - Solo la riga *sborda* del toy: non dice se il bordo in sé è trattato bene.
+  - Verità fissa per tutte le esperienze: copertura misurata in un solo punto dello spazio
+    degli iperparametri.
+
+## D48 — Caso C su campioni Geant4 (2026-11-26)
+
+- **Contesto.** I run della 7b hanno E_n incidente piatta in 10–19.5 MeV. Lo spettro degli eventi
+  selezionati non è piatto: segue σ_np(E_n) · A(E_n), con A l'accettanza della catena di
+  selezione. Il modello di D46 descrive lo spettro **rivelato** come una gaussiana troncata,
+  senza σ_np.
+- **Decisione.**
+  - **Nessuna simulazione nuova.** Si ricampionano i pool selezionati dei tre run della 7b
+    (+X, +Z, obliqua), catena e smearing di D45.
+  - **Bersaglio del ricampionamento: lo spettro rivelato.**
+    - ĝ(E) = densità empirica di `truth_En` nel pool selezionato, istogramma a passo 0.1 MeV
+      sul dominio.
+    - Per un'esperienza con verità (μ_E, σ_E): f(E) = gaussiana troncata al dominio, e
+      l'evento si accetta con probabilità f(E)/(c ĝ(E)), c = max f/ĝ sul dominio.
+    - Gli eventi accettati hanno spettro rivelato f, cioè quello che il modello assume.
+    - Deconvolvere σ_np (spettro incidente ≠ rivelato) resta nella fase 9, come da roadmap.
+  - **Esperienze disgiunte.** Il pool si mescola con il seme di split, registrato. Le esperienze
+    di una riga percorrono la lista in ordine, e ogni evento visitato, accettato o scartato,
+    non si riusa in quella riga. Le esperienze sono quindi disgiunte e ognuna è un campione
+    corretto di f. Se il pool finisce, la riga tiene le esperienze complete e il record lo
+    scrive (`experiments` < `experiments_planned`), come nella 7b. Righe diverse riusano il
+    pool.
+  - **Dominio [10, 19.5] MeV** (`EnergyDomain`, D32) nella troncatura, nella griglia di E_n e
+    nella griglia di μ_E. La sorgente arriva a 19.5 MeV (D25). Con [10, 20] e μ_E = 17,
+    σ_E = 2.4, circa il 4% della massa del prior cadrebbe in 19.5–20 MeV, dove non ci sono
+    eventi: un bias costruito. Nella 8a (contro il toy) il dominio resta [10, 20], come il toy.
+  - **Modello.** Ideale (r ≡ 1) e con `--acceptance` (r di D40), come la 7b.
+  - **Toy gemello.** Stesse verità e stessi N, M per esperienza, con il dominio [10, 19.5]. Il
+    toy genera direttamente da f, senza σ_np: il confronto misura il costo del rivelatore, non
+    quello del ricampionamento.
+  - **App.** `riptide_case_c_geant4`, un record `stats/<id>/case_c.json` per chiamata.
+  - **Sottofasi.** 8a: port e checklist contro il toy; 8b: Geant4 sulle tre direzioni; 8c:
+    diagnosi, solo se serve.
+- **Motivo.** Il ricampionamento riusa 3 × 10⁷ eventi già validati (c1). Il bersaglio rivelato
+  rende il test coerente con il modello di D46. Un bersaglio incidente misurerebbe solo l'assenza
+  di σ_np, che è nota e programmata per la fase 9.
+- **Alternative scartate.**
+  - Nuovi run con spettro gaussiano alla sorgente: una simulazione per ogni (μ_E, σ_E), e lo
+    spettro rivelato non sarebbe comunque gaussiano.
+  - Ricampionare lo spettro incidente (accettanza f/max f): spettro rivelato f · σ_np · A, non
+    gaussiano. Resta come diagnostica possibile della fase 9.
+  - ĝ da un fit liscio: introduce una forma scelta a mano; l'istogramma con ~2000 eventi per
+    bin (pool più piccolo, +Z) ha un errore ~2% sui pesi, trascurabile su gaussiane larghe
+    ≥ 0.8 MeV (b).
