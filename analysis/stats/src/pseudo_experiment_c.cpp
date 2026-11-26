@@ -32,6 +32,30 @@ double drawNormalEnergy(double mu, double sigma, random::Engine& engine) {
     return mu + (sigma * random::standardNormal(engine));
 }
 
+void requireBlockSize(std::size_t n) {
+    if (n > kMaxExperimentEvents) {
+        throw std::invalid_argument("too many events for one pseudo-experiment block");
+    }
+}
+
+void reserve(CaseBPseudoSample& sample, std::size_t n) {
+    sample.truth_En.reserve(n);
+    sample.truth_Ep.reserve(n);
+    sample.truth_theta_p.reserve(n);
+    sample.truth_track.reserve(n);
+    sample.reco_Ep.reserve(n);
+    sample.reco_track.reserve(n);
+}
+
+void append(CaseBPseudoSample& sample, const CaseBPseudoEvent& event) {
+    sample.truth_En.push_back(event.truth_En);
+    sample.truth_Ep.push_back(event.truth_Ep);
+    sample.truth_theta_p.push_back(event.truth_theta_p);
+    sample.truth_track.push_back(event.truth_track);
+    sample.reco_Ep.push_back(event.reco_Ep);
+    sample.reco_track.push_back(event.reco_track);
+}
+
 } // namespace
 
 CaseCTruth drawCaseCTruth(const CaseCTruthRange& range, random::Engine& engine) {
@@ -104,30 +128,47 @@ CaseCPseudoExperiment caseCPseudoExperiment(const EnergyDomain& domain, std::siz
                                             std::uint64_t seed, std::uint64_t section,
                                             std::uint64_t index) {
     requireValid(domain, resolution);
-    if (n > kMaxExperimentEvents) {
-        throw std::invalid_argument("too many events for one pseudo-experiment block");
-    }
+    requireBlockSize(n);
     const std::uint64_t first = experimentFirstEventId(section, index);
     auto truth_engine = random::perEventEngine(seed, first + kMaxExperimentEvents);
     CaseCPseudoExperiment experiment;
     experiment.truth = drawCaseCTruth(range, truth_engine);
-    CaseBPseudoSample& sample = experiment.sample;
-    sample.truth_En.reserve(n);
-    sample.truth_Ep.reserve(n);
-    sample.truth_theta_p.reserve(n);
-    sample.truth_track.reserve(n);
-    sample.reco_Ep.reserve(n);
-    sample.reco_track.reserve(n);
+    reserve(experiment.sample, n);
     for (std::size_t k = 0; k < n; ++k) {
         auto engine = random::perEventEngine(seed, first + k);
-        const CaseBPseudoEvent event =
-            drawCaseCPseudoEvent(domain, experiment.truth, spectrum, resolution, engine);
-        sample.truth_En.push_back(event.truth_En);
-        sample.truth_Ep.push_back(event.truth_Ep);
-        sample.truth_theta_p.push_back(event.truth_theta_p);
-        sample.truth_track.push_back(event.truth_track);
-        sample.reco_Ep.push_back(event.reco_Ep);
-        sample.reco_track.push_back(event.reco_track);
+        append(experiment.sample,
+               drawCaseCPseudoEvent(domain, experiment.truth, spectrum, resolution, engine));
+    }
+    return experiment;
+}
+
+CaseCTruth caseCTruthAtDirection(const CaseCTruthRange& range, const geometry::Direction& omega_n,
+                                 std::uint64_t seed, std::uint64_t section, std::uint64_t index) {
+    const std::uint64_t first = experimentFirstEventId(section, index);
+    auto engine = random::perEventEngine(seed, first + kMaxExperimentEvents);
+    CaseCTruth truth = drawCaseCTruth(range, engine);
+    truth.omega_n = omega_n;
+    return truth;
+}
+
+CaseCPseudoExperiment caseCPseudoExperimentAtTruth(const EnergyDomain& domain, std::size_t n,
+                                                   const CaseBResolution& resolution,
+                                                   const CaseCTruth& truth, std::uint64_t seed,
+                                                   std::uint64_t section, std::uint64_t index,
+                                                   const AcceptanceRatio* acceptance) {
+    requireValid(domain, resolution);
+    requireBlockSize(n);
+    const std::uint64_t first = experimentFirstEventId(section, index);
+    CaseCPseudoExperiment experiment;
+    experiment.truth = truth;
+    reserve(experiment.sample, n);
+    for (std::size_t k = 0; k < n; ++k) {
+        auto engine = random::perEventEngine(seed, first + k);
+        const double En = drawTruncatedNormalEnergy(domain, truth.mu, truth.sigma, engine);
+        append(experiment.sample,
+               acceptance == nullptr
+                   ? drawPseudoEventAtEnergy(En, truth.omega_n, resolution, engine)
+                   : drawPseudoEventAtEnergy(En, truth.omega_n, resolution, *acceptance, engine));
     }
     return experiment;
 }

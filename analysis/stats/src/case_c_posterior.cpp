@@ -104,7 +104,7 @@ DirectionPosterior refineHierarchicalDirection(const CaseCModel& model,
     const CaseBModel stage1_prime(
         stage1.energyGrid(), stage1.recoilAngleGrid(), stage1.observedAngleGrid(),
         truncatedNormalEnergyLogPrior(stage1.energyGrid(), spectrum.mean, spectrum.std),
-        stage1.resolution());
+        stage1.resolution(), stage1.logAcceptance());
     const TrackEnergyTable table = stage1_prime.trackEnergyTable(Ep_hat);
     return refineSharedDirection(stage1_prime, table, tracks, coarse_grid, log_prior);
 }

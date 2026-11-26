@@ -82,4 +82,25 @@ caseCPseudoExperiment(const EnergyDomain& domain, std::size_t n, const CaseBReso
                       const CaseCTruthRange& range, CaseCSpectrum spectrum, std::uint64_t seed,
                       std::uint64_t section, std::uint64_t index);
 
+// The truth of experiment (section, index) as caseCPseudoExperiment draws
+// it, with omega_n then replaced by the given direction: a Geant4 run has
+// one fixed direction (D48), and its experiments and their toy twins share
+// mu_E and sigma_E through this one function.
+[[nodiscard]] CaseCTruth caseCTruthAtDirection(const CaseCTruthRange& range,
+                                               const geometry::Direction& omega_n,
+                                               std::uint64_t seed, std::uint64_t section,
+                                               std::uint64_t index);
+
+// The toy twin of a Geant4 experiment (D48): n events on the ids of the
+// block of (section, index), E_n from the spectrum of the truth truncated to
+// the domain, then drawPseudoEventAtEnergy. With an acceptance (non-null)
+// the kinematics follows r of D40, as the selected Geant4 events do; E_n is
+// drawn before it, so the detected spectrum stays the truncated Gaussian.
+// Throws as caseCPseudoExperiment.
+[[nodiscard]] CaseCPseudoExperiment
+caseCPseudoExperimentAtTruth(const EnergyDomain& domain, std::size_t n,
+                             const CaseBResolution& resolution, const CaseCTruth& truth,
+                             std::uint64_t seed, std::uint64_t section, std::uint64_t index,
+                             const AcceptanceRatio* acceptance = nullptr);
+
 } // namespace riptide::stats

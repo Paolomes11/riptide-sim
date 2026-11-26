@@ -9,6 +9,7 @@ add_executable(stats_tests
     case_c_posterior_test.cpp
     pseudo_experiment_b_test.cpp
     pseudo_experiment_c_test.cpp
+    resample_c_test.cpp
     calibration_c_test.cpp
     direction_grid_test.cpp
     vmf_kernel_test.cpp

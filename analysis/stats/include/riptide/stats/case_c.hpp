@@ -144,9 +144,14 @@ struct HyperPosterior {
 // domain edge onto (mu_E at the edge, sigma_E at its minimum).
 class CaseCModel {
 public:
-    // The grids and the resolution of the stage-1 Case B model, ideal
-    // detector; throws as the CaseBModel constructor.
-    CaseCModel(Grid En_grid, Grid theta_grid, Grid theta_obs_grid, CaseBResolution resolution);
+    // The grids and the resolution of the stage-1 Case B model; throws as
+    // the CaseBModel constructor. log_acceptance is empty for the ideal
+    // detector, or the caseBAcceptanceLogWeights table of D40 on the same
+    // grids. That table is q(theta_p | E_n, sel), normalised in theta_p at
+    // each E_n, so it leaves the E_n marginal alone: the spectrum of stage 2
+    // stays the detected one, the density the hyperparameters describe.
+    CaseCModel(Grid En_grid, Grid theta_grid, Grid theta_obs_grid, CaseBResolution resolution,
+               const std::vector<double>& log_acceptance = {});
 
     [[nodiscard]] const CaseBModel& stage1Model() const noexcept {
         return stage1_;

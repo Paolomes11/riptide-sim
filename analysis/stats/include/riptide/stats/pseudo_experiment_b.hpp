@@ -43,6 +43,17 @@ struct CaseBPseudoEvent {
                                                        const CaseBResolution& resolution,
                                                        random::Engine& engine);
 
+// The same with the selection acceptance of D40 at that E_n: the kinematics
+// is drawn as above and kept with probability r(E_n, theta_p) / max r,
+// repeating on the same engine until one is kept; the noise is drawn for the
+// kept event only. The E_n of the event is the one given, so any E_n
+// spectrum passes through unchanged.
+[[nodiscard]] CaseBPseudoEvent drawPseudoEventAtEnergy(double En,
+                                                       const geometry::Direction& omega_n,
+                                                       const CaseBResolution& resolution,
+                                                       const AcceptanceRatio& acceptance,
+                                                       random::Engine& engine);
+
 // One event with neutrons along the unit vector omega_n: E_n uniform on the
 // domain, then drawPseudoEventAtEnergy on the same engine.
 [[nodiscard]] CaseBPseudoEvent drawCaseBPseudoEvent(const EnergyDomain& domain,
@@ -52,8 +63,7 @@ struct CaseBPseudoEvent {
 
 // The same with the selection acceptance of D40, as the toy twin of a
 // Geant4 sample analysed with --acceptance (D45 note): E_n is drawn once,
-// then the rest of the event is drawn as above and kept with probability
-// r(E_n, theta_p) / max r, repeating on the same engine until one is kept.
+// then drawPseudoEventAtEnergy with the acceptance on the same engine.
 [[nodiscard]] CaseBPseudoEvent drawCaseBPseudoEvent(const EnergyDomain& domain,
                                                     const geometry::Direction& omega_n,
                                                     const CaseBResolution& resolution,

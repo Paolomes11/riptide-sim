@@ -60,8 +60,8 @@ struct PredictiveEnergy {
 
 [[nodiscard]] PredictiveEnergy predictiveEnergyMoments(const HyperPosterior& posterior);
 
-// Stage 1': a Case B model on the grids of stage 1 with the truncated
-// N(mean, std) prior on E_n, then refineSharedDirection. Throws as
+// Stage 1': a Case B model on the grids and with the acceptance of stage 1,
+// with the truncated N(mean, std) prior on E_n, then refineSharedDirection. Throws as
 // truncatedNormalEnergyLogPrior and refineSharedDirection.
 [[nodiscard]] DirectionPosterior
 refineHierarchicalDirection(const CaseCModel& model, const std::vector<double>& Ep_hat,

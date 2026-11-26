@@ -167,9 +167,9 @@ void checkHyperLogPosterior(const std::vector<double>& log_posterior) {
 }
 
 CaseCModel::CaseCModel(Grid En_grid, Grid theta_grid, Grid theta_obs_grid,
-                       CaseBResolution resolution)
+                       CaseBResolution resolution, const std::vector<double>& log_acceptance)
     : stage1_(En_grid, std::move(theta_grid), std::move(theta_obs_grid),
-              flatEnergyLogPrior(En_grid), resolution),
+              flatEnergyLogPrior(En_grid), resolution, log_acceptance),
       log_flat_prior_(flatEnergyLogPrior(En_grid).front()) {}
 
 HierarchicalBase CaseCModel::base(const std::vector<double>& Ep_hat,
