@@ -1,12 +1,13 @@
 # Stato
 
-**v0.9.0 — 2026-11-26 — Fase 7 (Caso B) completata: motore C++ contro il toy (7a, 70/76,
+**v0.9.0 — 2026-11-27 — Fase 7 (Caso B) completata: motore C++ contro il toy (7a, 70/76,
 fallimenti spiegati), Geant4 su tre direzioni fisse (7b, 184/186) e diagnosi dell'obliqua con
 un altro split (7c, 62/62): l'unico fallimento della 7b è una fluttuazione (c)
 (`validation/7_results.md`). Fase 8 (Caso C) in corso: 8a fatta sul branch
 `feat/case-c-model`, checklist 64/68 dopo la correzione D49; diagnosi 8c su μ_E a N = 150 con
 altri semi non conclusiva per il criterio scritto (pull di μ_E 1.070 → 0.913, coverage
-nominali), nessun difetto del modello (`validation/8_results.md`).**
+nominali), nessun difetto del modello (`validation/8_results.md`). 8b (Geant4, D48)
+preparata: previsioni v3 scritte, run da lanciare.**
 
 La chiusura della fase 7 (diagnosi 7c, v0.9.0, report) è unita in `master` con la PR #12
 (merge `b0fd4cf`, tag `v0.9.0`) dal branch `fix/case-b-oblique-split`, poi cancellato. Il
@@ -50,7 +51,10 @@ Fase 8, Caso C (spettro del neutrone ignoto), sul branch `feat/case-c-model`:
 4. diagnosi 8c (`stats/8c_n150`, previsioni v2 §2.1, `--row-events 150 --seed 20260908`):
    1/17, non conclusiva per il criterio; il difetto previsto non c'è, le 400 esperienze insieme
    sono calibrate;
-5. **prossimo passo:** la versione 3 delle previsioni per la 8b (Geant4, D48), poi i run.
+5. 8b preparata: ricampionamento di D48 (`resample_c`), app `riptide_case_c_geant4`, previsioni
+   v3 (§4.1–4.3). Dry run del pool: ripetizione piena su +X, M = 62 su +Z e 73 sull'obliqua;
+   pilota della catena su +Z;
+6. **prossimo passo:** le 12 chiamate della 8b (v3 §4.2, ~2 h), solo col via.
 
 Fonti: il `posterior_C.py` e la checklist del Caso C nel toy; record `stats/7b_*` e `7c_*`
 sotto la radice dei dati; prima di ogni run `scripts/data_root.sh check`.

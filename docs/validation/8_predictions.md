@@ -7,6 +7,10 @@ citeranno l'hash di quel commit. Dopo i run le soglie non si toccano.
 Versione 2 (2026-11-26): aggiunge la §2.1, la diagnosi 8c di μ_E a N = 150, scritta dopo la 8a e
 prima del run della 8c. Le soglie delle §2–3 non cambiano.
 
+Versione 3 (2026-11-27): aggiunge le §4.1–4.3 per la 8b (righe e pool dal solo
+ricampionamento, chiamate, falsi allarmi attesi). Sono scritte dopo il dry run del pool e un
+pilota a M/10 su +Z, prima dei run completi. Le soglie della §4 non cambiano.
+
 La fase 8 porta il Caso C del toy in C++: Ω_n condivisa e incognita, E_n^(k) ~ N(μ_E, σ_E)
 troncata al dominio, stima a due stadi (D46). Come nella fase 7, prima il port contro il toy con
 pseudo-esperienze (8a, D47), poi i campioni Geant4 ricampionati dai run piatti della 7b
@@ -171,6 +175,122 @@ stesse verità, N e M.
   e per direzione, calcolato dal solo pool (nessuna ricostruzione). Se una riga non si riempie
   vale la regola della 7b: soglie con le M disponibili, registrate nel record.
 - Un fallimento apre una diagnosi (8c) con una decisione a parte. Le soglie non si correggono.
+
+### 4.1 Righe e pool (versione 3)
+
+App `riptide_case_c_geant4`, modi `--pool-only`, `--toy --match` e ricostruzione con `--twin`.
+- **Righe (a).**
+  - Le righe di D47 stanno sulle sezioni 16–19 della 8a; la ripetizione (1000, 240) sta sulla
+    sezione 24. Le verità (μ_E, σ_E) sono quindi quelle della 8a, con Ω_n sostituita dalla
+    direzione del run.
+  - Ogni riga ha la sua permutazione del pool (`perEventEngine(split_seed, sezione)`). Righe
+    diverse riusano gli stessi eventi; dentro una riga le esperienze sono disgiunte (D48).
+- **ĝ (a).** È l'istogramma di `truth_En` a passo 0.1 MeV su [10, 19.5] (95 bin). Su tutte e tre
+  le direzioni la densità sta fra 0.075 e 0.147 MeV⁻¹ e non ha bin vuoti.
+- **Esperienze disponibili su pianificate, ed eventi visitati.** Dal dry run
+  `stats/8b_pool_{x,z,obl}`, seme di split `20260907` (a):
+
+| Riga | +X (799076) | +Z (193863) | obliqua (222456) |
+|---|---|---|---|
+| N = 50 | 200/200 (31969) | 200/200 (32354) | 200/200 (31811) |
+| N = 150 | 200/200 (92785) | 200/200 (94775) | 200/200 (93470) |
+| N = 300 | 100/100 (92939) | 100/100 (95441) | 100/100 (94497) |
+| N = 1000 | 40/40 (121406) | 40/40 (124561) | 40/40 (122702) |
+| ripetizione N = 1000 | 240/240 (726207) | **62**/240 (pool esaurito) | **73**/240 (pool esaurito) |
+
+- **c e frazione accettata (a).**
+  - c = max f/ĝ vale in media 3.03–3.24 secondo la riga, con un massimo di 5.04–5.58.
+  - La frazione accettata è 0.31–0.33, cioè ≈ 1/c.
+  - Le M della ripetizione su +Z e obliqua cadono nell'intervallo stimato a mano prima del dry
+    run (50–75).
+- **Regola della 7b (a).** Alla ripetizione le soglie si applicano con M = 62 (+Z) e M = 73
+  (obliqua), registrate nel record.
+- **Git describe dei record del pool (a).** Portano `-dirty`, perché sono stati prodotti prima
+  del commit dell'app. Il codice del ricampionamento è quello committato, e la ricostruzione
+  rifà lo split da sé, senza leggere quei record.
+- **Ruolo delle voci, come nella 8a (a).**
+  - A N = 1000 conta la ripetizione; la riga M = 40 si riporta senza esito che conti.
+  - La coverage di log σ_E a N = 50 si confronta con il gemello entro 3σ binomiali combinati
+    (3 √(2p(1 − p)/M), con p quella del gemello), senza esito che conti.
+  - `truth_in_cap` e il rapporto fra le risoluzioni dichiarate di Ω_n si riportano soltanto.
+  - Il bias di Ω̂ si giudica per componente sulle direzioni d'asse e per norma sull'obliqua.
+
+### 4.2 Chiamate (versione 3)
+
+Build `release`, 4 thread, semi di default (`--seed` e `--split-seed` `20260907`). Per ogni
+direzione `d` ∈ {x, z, obl}, con il run `R` della 7b (`6_ff_flat_10_19p5MeV_x_1e7`,
+`7_ff_flat_10_19p5MeV_z_1e7`, `7_ff_flat_10_19p5MeV_obl_1e7`):
+
+```bash
+B=build/release/analysis/apps/riptide_case_c_geant4
+A=6acc_s20260908
+scripts/run_capped.sh -m 5G -- $B --toy --match 8b_pool_$d --stats-id 8b_${d}_toy
+scripts/run_capped.sh -m 5G -- $B --toy --match 8b_pool_$d --acceptance $A --stats-id 8b_${d}_acc_toy
+scripts/run_capped.sh -m 5G -- $B --run-id $R --twin 8b_${d}_toy --stats-id 8b_$d
+scripts/run_capped.sh -m 5G -- $B --run-id $R --acceptance $A --twin 8b_${d}_acc_toy --stats-id 8b_${d}_acc
+```
+
+- In tutto 12 chiamate. Come nella 7b, il gemello del modello con accettanza è estratto e
+  ricostruito con la stessa r (a). L'app rifiuta un gemello con un altro run, altri semi, altre
+  righe o un'altra `--acceptance`.
+- **Pilota su +Z (a).**
+  - Record `stats/8b_pilot_{pool_z,z_toy,z}`, `--pilot`, M/10.
+  - La catena gira intera. Il gemello richiede 89 s, la ricostruzione Geant4 104 s.
+  - RSS massimo: 1.40 GB per Geant4 (lettura del pool) e 0.12 GB per il toy.
+  - Con M ≤ 24 i numeri del pilota non entrano in alcun esito.
+- **Stima dei run completi (b).**
+  - Durata per chiamata: ~15 min su +X, ~8 min su +Z e sull'obliqua.
+  - In sequenza, ~2 h in tutto.
+
+### 4.3 Falsi allarmi attesi (versione 3)
+
+Ipotesi (b): modello calibrato e Geant4 equivalente al gemello. Pull e stime sono trattati come
+normali, e le voci come indipendenti.
+- **Larghezza del pull di μ_E e log σ_E.** sd ≈ 1/√(2M), quindi P(|w − 1| > 0.1) = 2Φ(−0.1√(2M)).
+- **Pull rms di Ω_n.** pull² ~ χ²₂M/(2M), sd ≈ 1/(2√M), quindi P = 2Φ(−0.2√M).
+- **Rapporto rms G4 / gemello.**
+  - Per μ_E e log σ_E vale sd(ln r) ≈ 1/√M, quindi P = Φ(−ln 1.15 · √M).
+  - Per Ω_n, errore in 2D, sd ≈ 1/√(2M).
+  - Il gemello ha le stesse verità: la correlazione positiva riduce la dispersione, quindi queste
+    probabilità sono per eccesso.
+- **Coverage.** 0.27% per voce.
+- **Bias.**
+  - μ_E e log σ_E: con l'rms ≈ std media vale z = 0.5√M ≥ 3.9, quindi P < 10⁻⁴.
+  - Ω̂ sugli assi: 4.6% per componente.
+  - Ω̂ sull'obliqua: P = exp(−M/8) ≈ 10⁻⁴.
+
+| M | larghezza pull | pull rms Ω_n | rapporto rms μ_E, log σ_E | rapporto rms Ω_n |
+|---|---|---|---|---|
+| 240 | 2.8% | 0.2% | 1.5% | 0.1% |
+| 200 | 4.6% | 0.5% | 2.4% | 0.3% |
+| 100 | **15.7%** | 4.6% | 8.1% | 2.4% |
+| 73 | **22.7%** | 8.7% | **11.6%** | 4.6% |
+| 62 | **26.5%** | **11.5%** | **13.6%** | 6.0% |
+
+| | +X | +Z | obliqua |
+|---|---|---|---|
+| voci contate per chiamata Geant4 | 61 | 61 | 60 |
+| falsi allarmi attesi per chiamata | 1.1 | 2.0 | 1.75 |
+| attesi per le due chiamate (ideale + accettanza) | 2.2 | 4.0 | 3.5 |
+| quantile 99% di Poisson | 6 | 9 | 8 |
+
+- In tutto 364 voci contate e ≈ 9.7 falsi allarmi attesi (b).
+- **Criterio, per direzione.**
+  - Se i fallimenti delle due chiamate insieme superano il quantile 99% di Poisson, si apre la 8c
+    con una decisione a parte. Altrimenti l'esito si legge voce per voce.
+  - Le due chiamate condividono le esperienze, quindi i loro fallimenti sono correlati e la
+    Poisson è un'approssimazione (b).
+- **Voci a bassa potenza (b).** Sono quelle in grassetto nella tabella, con falso allarme
+  > 10%. Un loro fallimento da solo non apre la 8c:
+  - le larghezze dei pull a N = 300 (M = 100) su tutte e tre le direzioni;
+  - alla ripetizione su +Z e sull'obliqua, le larghezze dei pull e i rapporti rms di μ_E e
+    log σ_E;
+  - su +Z, anche il pull rms di Ω_n.
+- **Fallimento atteso dal toy (c).**
+  - La larghezza del pull di μ_E a N = 50 vale 0.88 nel toy e 0.893 nella 8a: sotto 0.9, a
+    causa del prior che domina la std a posteriori.
+  - Ci si aspetta che fallisca in tutte e sei le chiamate Geant4. Si riporta accanto al valore
+    del gemello e resta fuori dal conteggio di Poisson.
 
 ## 5. Prestazioni (b)
 
