@@ -33,10 +33,18 @@ struct CaseBPseudoEvent {
 // in [0, 2 pi), in this order.
 [[nodiscard]] geometry::Direction isotropicDirection(random::Engine& engine);
 
-// One event with neutrons along the unit vector omega_n. Draws, in this
-// order: E_n uniform on the domain; cos theta_CM uniform in [-1, 1], hence Ep
-// and theta_p from the exact kinematics; the azimuth of the track about
-// omega_n, uniform; the noise on Ep; the track offset (smearDirection).
+// One event at a given E_n with neutrons along the unit vector omega_n.
+// Draws, in this order: cos theta_CM uniform in [-1, 1], hence Ep and theta_p
+// from the exact kinematics; the azimuth of the track about omega_n, uniform;
+// the noise on Ep; the track offset (smearDirection). Any E_n spectrum (Case
+// C) reuses the kinematics and the detector response of Case B through it.
+[[nodiscard]] CaseBPseudoEvent drawPseudoEventAtEnergy(double En,
+                                                       const geometry::Direction& omega_n,
+                                                       const CaseBResolution& resolution,
+                                                       random::Engine& engine);
+
+// One event with neutrons along the unit vector omega_n: E_n uniform on the
+// domain, then drawPseudoEventAtEnergy on the same engine.
 [[nodiscard]] CaseBPseudoEvent drawCaseBPseudoEvent(const EnergyDomain& domain,
                                                     const geometry::Direction& omega_n,
                                                     const CaseBResolution& resolution,

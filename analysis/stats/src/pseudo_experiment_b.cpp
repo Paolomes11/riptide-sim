@@ -80,12 +80,18 @@ geometry::Direction isotropicDirection(random::Engine& engine) {
     return {sin_theta * std::cos(phi), sin_theta * std::sin(phi), cos_theta};
 }
 
+CaseBPseudoEvent drawPseudoEventAtEnergy(double En, const geometry::Direction& omega_n,
+                                         const CaseBResolution& resolution,
+                                         random::Engine& engine) {
+    CaseBPseudoEvent event = drawTruthAtEnergy(En, omega_n, engine);
+    addNoise(event, resolution, engine);
+    return event;
+}
+
 CaseBPseudoEvent drawCaseBPseudoEvent(const EnergyDomain& domain,
                                       const geometry::Direction& omega_n,
                                       const CaseBResolution& resolution, random::Engine& engine) {
-    CaseBPseudoEvent event = drawTruthAtEnergy(drawEnergy(domain, engine), omega_n, engine);
-    addNoise(event, resolution, engine);
-    return event;
+    return drawPseudoEventAtEnergy(drawEnergy(domain, engine), omega_n, resolution, engine);
 }
 
 CaseBPseudoEvent drawCaseBPseudoEvent(const EnergyDomain& domain,
