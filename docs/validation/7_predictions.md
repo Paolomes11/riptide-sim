@@ -7,6 +7,9 @@ citeranno l'hash di quel commit. Dopo i run le soglie non si toccano.
 Versione 2 (2026-11-25): aggiunge la §4.1, scritta dopo la 7a e prima del codice e dei run della
 7b. Precisa come si leggono le soglie della §4 e non cambia nessun numero.
 
+Versione 3 (2026-11-26): aggiunge la §4.2, la diagnosi 7c del pull rms dell'obliqua a N = 300,
+scritta dopo la 7b e prima dei run della 7c. Le soglie della §4 non cambiano.
+
 La fase 7 porta il Caso B del toy in C++: Ω_n incognita e condivisa, E_n nuisance per evento con
 prior piatto su [10, 20] MeV, stima MAP su una griglia di Fibonacci con calotta raffinata
 (D41, D42). Come nelle fasi 5 → 6, prima si valida il port contro il toy con pseudo-esperienze
@@ -125,6 +128,42 @@ correzione delle soglie.
 - **Accettanza.** `--acceptance 6acc_s20260908`: la r(E_n, θ_p) di D40, misurata lungo +X sul
   run indipendente `6_ff_flat_10_19p5MeV_x_1e7_s20260908`. Per +Z e l'obliqua è
   un'approssimazione dichiarata (D45).
+
+### 4.2 Diagnosi 7c: l'obliqua con un altro split (versione 3)
+
+Nella 7b l'unico fallimento è il pull rms dell'obliqua a N = 300, M = 100: 0.859 senza
+accettanza e 0.845 con l'accettanza, sulle stesse esperienze (`7_results.md` §6.4). L'ipotesi
+(d) è una fluttuazione dello split. Qui la si mette alla prova.
+
+- **Chiamate.** Le stesse quattro della 7b per l'obliqua, cambiando solo `--split-seed 20260908`.
+  Due chiamate Geant4 sul run `7_ff_flat_10_19p5MeV_obl_1e7`, senza e con
+  `--acceptance 6acc_s20260908`, e i due toy gemelli con lo stesso numero di eventi (222456).
+  Restano invariati `--seed 20260907` (smearing e toy), la catena dei tagli, le griglie e le
+  risoluzioni. I record sono `stats/7c_obl{,_acc}{,_toy}`.
+- **Cosa cambia.** Cambia solo la permutazione del pool, quindi l'assegnazione degli eventi alle
+  esperienze; gli eventi e il loro smearing sono gli stessi. Le 30 000 righe di N = 300
+  condividono con quelle della 7b in media 30 000² / 222 456 ≈ 4.0·10³ eventi, cioè circa il
+  13.5% **(b)**. Le esperienze sono quindi quasi indipendenti, ma non lo è il pool: un difetto
+  legato a questo campione di eventi non si vede con questo test.
+- **Soglie.** Quelle della §4 lette come nella §4.1, senza modifiche: pull rms 1 ± 0.1,
+  risoluzione G4 / toy ≤ 1.15, copertura HPD entro 3σ binomiali, bias < 0.5 σ_c a N = 1000 con
+  la ripetizione (qui M = 182). Si valutano tutte le 25 voci per ciascuna delle due chiamate
+  Geant4.
+- **Attese (b).**
+  - Con M = 100 l'errore del pull rms è ≈ 1/√(2M) = 0.071, quindi una riga corretta esce da
+    1 ± 0.1 con probabilità ≈ 16%.
+  - Sulle 25 voci di una chiamata si attende ≈ 0.4 fallimenti di pull da falso allarme (righe
+    con M da 100 a 400). Le due chiamate condividono le esperienze e contano come una.
+- **Criterio di esito della diagnosi.**
+  - **Fluttuazione (d → c):** il pull rms a N = 300 cade in 1 ± 0.1 in tutte e due le
+    chiamate e rms·√N torna nella banda 0.22–0.27 rad della 7a.
+  - **Non conclusiva:** il pull rms a N = 300 cade in 1 ± 0.1 in una sola chiamata, oppure il
+    fallimento si sposta su un'altra riga con un valore compatibile con il falso allarme atteso.
+    La si riporta così, senza ripetere lo split cercando l'esito voluto.
+  - **Difetto possibile:** di nuovo sotto 0.9 a N = 300. Allora si apre una diagnosi del
+    modello con una decisione a parte; la prima candidata è la parte della selezione che
+    dipende dalla direzione, rimasta fuori dal modello (D45).
+- Il fallimento della 7b resta registrato com'è: la 7c lo spiega, non lo sostituisce.
 
 ## 5. Tempi e risorse
 
