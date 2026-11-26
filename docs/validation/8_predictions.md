@@ -4,6 +4,9 @@ Versione 1 (2026-11-26). Va committata prima di qualsiasi riga di codice del Cas
 prima della checklist 8a e delle chiamate Geant4 della 8b. I risultati (`8_results.md`)
 citeranno l'hash di quel commit. Dopo i run le soglie non si toccano.
 
+Versione 2 (2026-11-26): aggiunge la §2.1, la diagnosi 8c di μ_E a N = 150, scritta dopo la 8a e
+prima del run della 8c. Le soglie delle §2–3 non cambiano.
+
 La fase 8 porta il Caso C del toy in C++: Ω_n condivisa e incognita, E_n^(k) ~ N(μ_E, σ_E)
 troncata al dominio, stima a due stadi (D46). Come nella fase 7, prima il port contro il toy con
 pseudo-esperienze (8a, D47), poi i campioni Geant4 ricampionati dai run piatti della 7b
@@ -94,6 +97,43 @@ meno le 3 dell'eccezione: 65 in tutto, più 3 pendenze. A 2σ la probabilità di
 circa 0.05 per voce, ma le coverage dello stesso parametro sono correlate. Attesi 2–4 fallimenti
 senza difetto. Con più di 7 fallimenti, o con fallimenti concentrati su un parametro o un N,
 si apre una diagnosi (8c).
+
+### 2.1 Diagnosi 8c: μ_E a N = 150 con altri semi (versione 2)
+
+Nella 8a (`stats/8a_w`) tre fallimenti su quattro cadono sulla riga N = 150, M = 200, tutti su
+μ_E: larghezza del pull 1.0702, coverage 0.590 a 0.68 e 0.855 a 0.90 (`8_results.md` §2.1).
+La std a posteriori media di μ_E è 0.306 MeV, contro 0.328 nel toy, con lo stesso rms (0.344
+contro 0.350). L'ipotesi (d) è una fluttuazione delle 200 esperienze. Qui la si mette alla
+prova.
+
+- **Run.** Solo la riga N = 150, M = 200 della checklist, con il prior baseline, cambiando solo
+  `--seed 20260908`. Restano invariati la sezione della riga, le verità (μ_E ~ U(13, 17) MeV,
+  σ_E ~ log-U(0.8, 2.4) MeV, Ω_n isotropa), le risoluzioni, le griglie e la build. Il record è
+  `stats/8c_n150`.
+- **Cosa cambia.** Il seme entra in `perEventSeed` attraverso splitMix64, quindi verità, eventi e
+  rumore sono flussi nuovi: le 200 esperienze sono indipendenti da quelle della 8a **(b)**.
+- **Soglie.** Quelle della §2 per N = 150 e M = 200, senza modifiche: 17 voci (2 bias, 3 rms
+  contro il toy, 3 pull, 9 coverage).
+- **Attese (b).**
+  - Con M = 200 l'errore della larghezza del pull è ≈ 1/√(2M) = 0.05, quindi ± 0.07 vale circa
+    1.4σ. Una riga corretta esce dalla soglia con probabilità ≈ 16% per ciascuna delle tre voci
+    di pull, ≈ 5% per ogni coverage e ogni rms.
+  - Sulle 17 voci si attende circa un falso allarme.
+- **Criterio di esito della diagnosi.**
+  - **Fluttuazione (d → c):** passano le tre voci di μ_E fallite nella 8a (larghezza del pull,
+    coverage a 0.68 e a 0.90), e la riga ha al più 2 fallimenti in tutto.
+  - **Difetto possibile:** la larghezza del pull di μ_E supera di nuovo 1.07 **e** la coverage
+    di μ_E a 0.68 cade di nuovo sotto la banda dei 2σ binomiali. Allora si apre una diagnosi
+    del modello con una decisione a parte. La prima candidata è la larghezza del posterior di
+    μ_E, cioè la std media più stretta di quella del toy: finestra e griglia fine dello stadio 2,
+    poi la predittiva.
+  - **Non conclusiva:** ogni altro esito, per esempio una sola delle due condizioni del difetto,
+    oppure più di 2 fallimenti su altre voci. La si riporta così, senza cambiare seme cercando
+    l'esito voluto.
+- **Di riferimento, senza esito.**
+  - La std a posteriori media di μ_E, contro 0.306 (8a) e 0.328 (toy).
+  - Le voci di μ_E sulle 400 esperienze della 8a e della 8c insieme.
+- I fallimenti della 8a restano registrati come sono: la 8c li spiega, non li sostituisce.
 
 ## 3. Robustezza al prior e troncatura (8a)
 
