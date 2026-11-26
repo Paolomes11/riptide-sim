@@ -677,6 +677,16 @@ json geant4Record(const fs::path& root, const Options& o) {
         if (twin->at("source").at("match").at("run_id").get<std::string>() != o.run_id) {
             throw std::invalid_argument("the twin " + o.twin_id + " matches another run");
         }
+        // The twin must share the model: an ideal Geant4 run against an
+        // ideal toy, a weighted one against a toy drawn and fitted with the
+        // same acceptance.
+        const json& twin_acceptance = twin->at("settings").at("acceptance");
+        const std::string twin_acceptance_id =
+            twin_acceptance.is_null() ? std::string{}
+                                      : twin_acceptance.at("stats_id").get<std::string>();
+        if (twin_acceptance_id != o.acceptance_id) {
+            throw std::invalid_argument("the twin " + o.twin_id + " has another --acceptance");
+        }
     }
     const Acceptance acceptance = loadAcceptance(root, o.acceptance_id);
     std::optional<Setup> setup;
