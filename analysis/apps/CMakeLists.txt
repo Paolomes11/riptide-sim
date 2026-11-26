@@ -60,6 +60,11 @@ if(RIPTIDE_BUILD_ROOT_IO)
         riptide::case_b_geant4_core riptide::case_a_geant4_core riptide::io_core riptide::io_root
         riptide::stats riptide::common riptide::ext_json riptide::ext_lyra riptide::options
         riptide::warnings)
+    add_executable(riptide_case_c_geant4 src/riptide_case_c_geant4.cpp)
+    target_link_libraries(riptide_case_c_geant4 PRIVATE
+        riptide::case_b_geant4_core riptide::case_a_geant4_core riptide::io_core riptide::io_root
+        riptide::stats riptide::common riptide::ext_json riptide::ext_lyra riptide::options
+        riptide::warnings)
     add_executable(riptide_acceptance src/riptide_acceptance.cpp)
     target_link_libraries(riptide_acceptance PRIVATE
         riptide::analysis_cli riptide::io_core riptide::io_root riptide::common
