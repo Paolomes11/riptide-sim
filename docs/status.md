@@ -3,12 +3,14 @@
 **v0.9.0 — 2026-11-26 — Fase 7 (Caso B) completata: motore C++ contro il toy (7a, 70/76,
 fallimenti spiegati), Geant4 su tre direzioni fisse (7b, 184/186) e diagnosi dell'obliqua con
 un altro split (7c, 62/62): l'unico fallimento della 7b è una fluttuazione (c)
-(`validation/7_results.md`). Prossima fase: 8 (Caso C).**
+(`validation/7_results.md`). Fase 8 (Caso C) in corso: 8a fatta sul branch
+`feat/case-c-model`, checklist 64/68 dopo la correzione D49; la diagnosi 8c su μ_E a N = 150 è
+da decidere (`validation/8_results.md`).**
 
 La chiusura della fase 7 (diagnosi 7c, v0.9.0, report) è unita in `master` con la PR #12
 (merge `b0fd4cf`, tag `v0.9.0`) dal branch `fix/case-b-oblique-split`, poi cancellato. Il
-design della fase 8 (D46–D48, `validation/8_predictions.md`) è sul branch `feat/case-c-model`,
-in attesa di approvazione prima del codice.
+design della fase 8 (D46–D48, `validation/8_predictions.md`) e la 8a sono sul branch
+`feat/case-c-model`, non ancora pushato.
 
 La fase 7 fino alla 7b (motore del Caso B, `riptide_case_b_calibrate`,
 `riptide_case_b_geant4`, run +Z e obliqua, `validation/7_results.md`) e il report riscritto
@@ -34,14 +36,18 @@ l'accettanza in θ_p, che la likelihood non conteneva. Con q(θ_p | E_n, sel) di
 
 ## Ripartenza
 
-Fase 8, Caso C (spettro del neutrone ignoto). Il design è scritto, il codice no:
+Fase 8, Caso C (spettro del neutrone ignoto), sul branch `feat/case-c-model`:
 
 1. decisioni D46 (modello a due stadi su `CaseBModel`, griglia 2D su μ_E, σ_E con gaussiana
-   troncata, mai una griglia 4D), D47 (pseudo-esperienze, checklist, righe di troncatura) e D48
-   (ricampionamento dei pool della 7b sullo spettro rivelato, dominio [10, 19.5] MeV);
-2. `validation/8_predictions.md` v1 con i numeri del toy, prima di ogni run;
-3. **in attesa dell'approvazione di D46–D48**, poi il codice su `feat/case-c-model` (8a), e
-   prima della 8b la versione 2 delle previsioni con le esperienze disponibili per pool.
+   troncata, mai una griglia 4D), D47 (pseudo-esperienze, checklist, righe di troncatura), D48
+   (ricampionamento dei pool della 7b sullo spettro rivelato, dominio [10, 19.5] MeV) e D49
+   (pesi trapezoidali nello stadio 2);
+2. 8a fatta: `CaseCModel`, stadio 1′, generatore, calibrazione, `riptide_case_c_calibrate`,
+   bench `--case c` (8.4 s per esperienza a N = 1000, sopra i 5 s di obiettivo);
+3. checklist 8a (`stats/8a_w`): 64/68, robustezza al prior 5/5, bordo 23/24, sborda come
+   previsto. Il primo run (`stats/8a`) ha trovato il difetto del bordo corretto da D49;
+4. **da decidere:** diagnosi 8c dei fallimenti concentrati su μ_E a N = 150 (stile 7c, semi
+   disgiunti, previsioni prima), poi la versione 2 delle previsioni per la 8b.
 
 Fonti: il `posterior_C.py` e la checklist del Caso C nel toy; record `stats/7b_*` e `7c_*`
 sotto la radice dei dati; prima di ogni run `scripts/data_root.sh check`.
