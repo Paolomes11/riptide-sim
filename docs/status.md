@@ -4,8 +4,9 @@
 fallimenti spiegati), Geant4 su tre direzioni fisse (7b, 184/186) e diagnosi dell'obliqua con
 un altro split (7c, 62/62): l'unico fallimento della 7b è una fluttuazione (c)
 (`validation/7_results.md`). Fase 8 (Caso C) in corso: 8a fatta sul branch
-`feat/case-c-model`, checklist 64/68 dopo la correzione D49; la diagnosi 8c su μ_E a N = 150 è
-da decidere (`validation/8_results.md`).**
+`feat/case-c-model`, checklist 64/68 dopo la correzione D49; diagnosi 8c su μ_E a N = 150 con
+altri semi non conclusiva per il criterio scritto (pull di μ_E 1.070 → 0.913, coverage
+nominali), nessun difetto del modello (`validation/8_results.md`).**
 
 La chiusura della fase 7 (diagnosi 7c, v0.9.0, report) è unita in `master` con la PR #12
 (merge `b0fd4cf`, tag `v0.9.0`) dal branch `fix/case-b-oblique-split`, poi cancellato. Il
@@ -46,8 +47,10 @@ Fase 8, Caso C (spettro del neutrone ignoto), sul branch `feat/case-c-model`:
    bench `--case c` (8.4 s per esperienza a N = 1000, sopra i 5 s di obiettivo);
 3. checklist 8a (`stats/8a_w`): 64/68, robustezza al prior 5/5, bordo 23/24, sborda come
    previsto. Il primo run (`stats/8a`) ha trovato il difetto del bordo corretto da D49;
-4. **da decidere:** diagnosi 8c dei fallimenti concentrati su μ_E a N = 150 (stile 7c, semi
-   disgiunti, previsioni prima), poi la versione 2 delle previsioni per la 8b.
+4. diagnosi 8c (`stats/8c_n150`, previsioni v2 §2.1, `--row-events 150 --seed 20260908`):
+   1/17, non conclusiva per il criterio; il difetto previsto non c'è, le 400 esperienze insieme
+   sono calibrate;
+5. **prossimo passo:** la versione 3 delle previsioni per la 8b (Geant4, D48), poi i run.
 
 Fonti: il `posterior_C.py` e la checklist del Caso C nel toy; record `stats/7b_*` e `7c_*`
 sotto la radice dei dati; prima di ogni run `scripts/data_root.sh check`.

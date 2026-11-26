@@ -1,7 +1,8 @@
 # Risultati della fase 8 — Caso C
 
 Data: 2026-11-26. Previsioni e soglie: `docs/validation/8_predictions.md`, versione 1 in
-`58bb185`, committata **prima** del codice del Caso C e dei run. Dopo i run le soglie non sono
+`58bb185`, committata **prima** del codice del Caso C e dei run; versione 2 (§2.1, diagnosi
+8c) in `daa2491`, committata prima del run della 8c. Dopo i run le soglie non sono
 state toccate. Questo documento copre la 8a (port contro toy); la 8b (Geant4) avrà la sua
 sezione.
 
@@ -18,6 +19,13 @@ sezione.
   riguardano tutti μ_E. Tre su quattro sono la stessa riga, N = 150: la larghezza del pull e la
   coverage a 0.68 e 0.90, misurate sulle stesse esperienze. Per la regola della §2 delle
   previsioni ("fallimenti concentrati su un parametro o un N") **si apre la diagnosi 8c** (§5).
+
+**Esito 8c: non conclusiva** per il criterio della §2.1 delle previsioni. Su 200 esperienze
+nuove a N = 150 fallisce 1 voce su 17, la larghezza del pull di μ_E, ma dall'altra parte: 0.913
+contro 1.070 della 8a. Le coverage di μ_E tornano nominali (0.700 / 0.935 / 0.965). Il
+difetto previsto dal criterio (pull di nuovo sopra 1.07 e coverage a 0.68 di nuovo bassa) non
+c'è, e le 400 esperienze insieme sono calibrate (riferimento, §5). Non si apre una diagnosi del
+modello.
 
 Etichette: **(a)** fatto stabilito; **(b)** stima con ipotesi esplicite; **(c)** verificato con
 Monte Carlo; **(d)** ipotesi da mettere alla prova.
@@ -176,15 +184,68 @@ stime per esperienza, quindi la frazione esatta non è misurata.
   toy con gli stessi pesi aggiunti al prior. Coincide con il C++ entro 1e-3 relativo e con lo
   stesso pixel per ω₀ e ω̂.
 
-## 5. Diagnosi 8c (da decidere)
+## 5. Diagnosi 8c: μ_E a N = 150 con altri semi (§2.1 delle previsioni)
 
-I fallimenti sono concentrati su μ_E a N = 150, quindi la regola della §2 apre la 8c. Il
-controllo naturale è quello della 7c:
-- rilanciare la riga N = 150 (M = 200) con semi disgiunti;
-- scrivere prima le previsioni (versione 2 di `8_predictions.md`, §2.1), con il criterio per
-  dire fluttuazione o difetto.
+**Run.** Build `release` a `035bb44` (`git describe` v0.9.0-15-g035bb44), che aggiunge
+all'app l'opzione `--row-events` per lanciare una sola riga della checklist.
 
-Non è lanciato: serve il via.
+```
+scripts/run_capped.sh -m 5G -- /usr/bin/time -f "RSS %M kB, %e s" \
+  build/release/analysis/apps/riptide_case_c_calibrate \
+  --calibration-id 8c_n150 --row-events 150 --seed 20260908
+```
+
+- La riga è N = 150, M = 200, con il prior baseline. Sezione, verità, risoluzioni e griglie sono
+  quelle della 8a; cambia solo il seme.
+- Output: `stats/8c_n150/case_c.json`, e il pilot (M = 20) in `stats/8c_pilot/`.
+- Tempo 79 s con 4 thread, RSS massimo 46 MB (a).
+
+**Voci della §2 a N = 150 (c):** fallisce 1 di 17, nessuna obbligatoria.
+
+| Voce | 8a (`8a_w`) | 8c | Soglia (8c) | Toy |
+|---|---|---|---|---|
+| bias μ_E (MeV) | −0.003 ± 0.024 | +0.032 ± 0.022 | \|·\| < 0.080 | +0.029 ± 0.025 |
+| bias log σ_E | −0.005 ± 0.017 | −0.024 ± 0.019 | \|·\| < 0.057 | +0.004 ± 0.019 |
+| rms μ_E / toy | 0.98 | 0.87 | 0.86–1.14 | 1 |
+| rms log σ_E / toy | 0.90 | 1.01 | 0.86–1.14 | 1 |
+| rms Ω_n / toy | 1.07 | 1.07 | 0.86–1.14 | 1 |
+| larghezza del pull di μ_E | **1.070** | **0.913** | 1 ± 0.07 | 1.00 |
+| larghezza del pull di log σ_E | 1.00 | 0.97 | 1 ± 0.07 | 0.95 |
+| pull rms Ω_n | 1.01 | 0.99 | 1 ± 0.07 | 0.93 |
+| coverage μ_E 68/90/95 | **0.590** / **0.855** / 0.935 | 0.700 / 0.935 / 0.965 | ± 2σ binomiali | 0.68 / 0.90 / 0.95 |
+| coverage log σ_E 68/90/95 | 0.645 / 0.890 / 0.930 | 0.650 / 0.860 / 0.920 | ± 2σ binomiali | 0.67 / 0.87 / 0.94 |
+| coverage Ω_n 68/90/95 | 0.680 / 0.885 / 0.935 | 0.670 / 0.900 / 0.960 | ± 2σ binomiali | 0.73 / 0.95 / 0.98 |
+
+Le soglie del bias dipendono dalla std media di ciascun run: nella 8a erano 0.077 e 0.054. La
+coverage di log σ_E a 0.90 (0.860) e a 0.95 (0.920) della 8c
+passa per meno di 0.002.
+
+**Esito per il criterio della §2.1: non conclusiva.**
+- *Fluttuazione* chiede che passino le tre voci di μ_E fallite nella 8a. Passano le due
+  coverage, ma la larghezza del pull fallisce di nuovo, a 0.913 (−1.7σ statistici, con
+  σ ≈ 1/√(2M) = 0.05).
+- *Difetto possibile* chiede la larghezza sopra 1.07 **e** la coverage a 0.68 sotto banda. Non
+  succede: la larghezza è sotto 1 e la coverage è 0.700.
+- Quindi, come scritto nelle previsioni, la si riporta così e non si cambia seme.
+
+**Di riferimento, senza esito (b).**
+- Std a posteriori media di μ_E: 0.321 MeV, contro 0.306 nella 8a e 0.328 nel toy. La std
+  più stretta della 8a non si ripete: è variata fra i due campioni di 200 esperienze.
+- Le 400 esperienze della 8a e della 8c insieme, per μ_E:
+  - larghezza del pull 0.995;
+  - coverage 0.645 / 0.895 / 0.950, entro 2σ binomiali a M = 400 (0.633–0.727, 0.870–0.930,
+    0.928–0.972);
+  - rms 0.325 e std media 0.313 MeV.
+- La larghezza del pull si è spostata da +1.4σ a −1.7σ attorno a 1. Un difetto del modello
+  sposterebbe i due campioni dalla stessa parte; qui si spostano da parti opposte. Questo
+  sostiene la fluttuazione (d), ma la 8c, letta con il criterio scritto, non la conferma.
+- La soglia ± 0.07 della larghezza a M = 200 vale circa 1.4σ, quindi una riga corretta la
+  supera con probabilità ≈ 16% (`8_predictions.md` §2.1). È la stessa soglia stretta che fa
+  fallire la riga N = 50 nel toy (0.88).
+
+**Che cosa resta.** I fallimenti della 8a restano registrati come sono. Nessuna diagnosi del
+modello si apre: il criterio del difetto non scatta. Si passa alla 8b con le previsioni
+versione 3.
 
 ## 6. Prestazioni (§5 delle previsioni)
 
