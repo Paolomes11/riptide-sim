@@ -477,7 +477,46 @@ Caso B, Ω_n condivisa ed E_n nuisance per evento, vedi `roadmap.md`. Design D41
 - **Report:** `docs/riptide_report.pdf` v0.9.0, con la 7c.
 - **Test:** `debug` 468/468, `ci` 443/443, clang-format pulito.
 
+### Fase 8 (in corso, branch `feat/case-c-model`, `calibration_version` 1 del Caso C)
+
+Caso C, spettro del neutrone ignoto con iperparametri (μ_E, σ_E), vedi `roadmap.md`. Design
+D46–D48 (75b6f0a) e previsioni `validation/8_predictions.md` v1 (58bb185) prima del codice.
+
+- **Codice:**
+  - prior gaussiano troncato e griglie degli iperparametri (c63038e);
+  - `CaseCModel`, base per evento e stadio 2 (D46, f6431ea); riassunti, predittiva e
+    stadio 1′ (1b07956); cinematica del Caso B dato E_n (refactor, f66ce3e);
+  - pseudo-esperienze (D47, a0191fd) e calibrazione (ed5b991);
+  - app `riptide_case_c_calibrate` e `riptide_stats_bench --case c` (4f66b26);
+    `--row-events` per la diagnosi (035bb44);
+  - stadio 2 come prodotto scalare in spazio lineare, da 10.8 a 1.4 s (9e2227f);
+  - pesi trapezoidali nello stadio 2 (D49, 813d154 e ee218bd).
+- **Checklist 8a (record `8a_w`, 23 min 15 s con 4 thread, RSS 100 MB):** 64/68 voci contate,
+  nessuna obbligatoria fallita; robustezza al prior 5/5, bordo 23/24, sborda rotta come
+  previsto.
+  - Il primo run (`8a`) ha trovato il difetto di quadratura al bordo (20/24 voci fallite),
+    presente anche nel toy: corretto da D49 e checklist rilanciata per intero.
+  - I 4 fallimenti riguardano μ_E: N = 50 come nel toy (pull 0.893 contro 0.88), tre voci
+    sulle stesse 200 esperienze a N = 150.
+  - Sintesi in `validation/8_results.md` §1–4 (53eaeda).
+- **Diagnosi 8c (record `8c_n150`, previsioni v2 §2.1, daa2491):** `--row-events 150
+  --seed 20260908`, 79 s. 1/17, non conclusiva per il criterio: il pull di μ_E va dall'altra
+  parte (1.070 → 0.913), le coverage tornano nominali, le 400 esperienze insieme sono
+  calibrate. Nessun difetto del modello (`8_results.md` §5, c33782b).
+- **8b, preparazione (D48):** ricampionamento dei pool della 7b sullo spettro rivelato
+  (`resample_c`, 1cfd799); app `riptide_case_c_geant4` (551fb29) con la guardia sul gemello
+  (75468e5), `case_c.json` in `architecture/data_layout.md`; previsioni v3 §4.1–4.3
+  (3818815). Pool (`8b_pool_{x,z,obl}`): ripetizione piena su +X, M = 62 su +Z e 73
+  sull'obliqua; pilota della catena su +Z (`8b_pilot_*`).
+- **Prestazioni:** `riptide_stats_bench --case c`, un'esperienza a N = 1000: 8.37 s, sopra
+  l'obiettivo di 5 s (`8_results.md` §6).
+- **Test:** `debug` 512/512, `ci` 487/487, clang-format pulito.
+
 ## Punti aperti
+
+- **Fase 8 (a):** un'esperienza del Caso C a N = 1000 costa 8.37 s contro l'obiettivo di 5 s;
+  i 6.9 s fuori dallo stadio 2 sono codice del Caso B (`energyLogPosterior`). Da profilare
+  prima di ottimizzare, poi rilanciare gli oracoli.
 
 - **Fase 7c (d):** sull'obliqua la componente e_θ del bias a N = 1000 è positiva in tutti e due
   gli split (z = +1.30, poi +2.19 / +2.05, stesso pool), con norma ≈ 0.1 σ_c, sotto la soglia di
