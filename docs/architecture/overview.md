@@ -16,12 +16,16 @@ riptide-sim/
 ├── analysis/
 │   ├── stats/   motore statistico, C++ puro (niente ROOT, niente Geant4): griglie, prior,
 │   │            logsumexp, modello e posterior del Caso A, combinazione, validazione,
-│   │            pseudo-esperienze
+│   │            accettanza; Caso B (griglia di direzioni, nucleo vMF, posterior su E_n × Ω_n);
+│   │            Caso C (gaussiana troncata a due stadi, ricampionamento sul pool Geant4);
+│   │            pseudo-esperienze e calibrazioni dei tre casi
 │   ├── io/      core/: run.json, selezione, conversione HP, smearing, analysis.json (senza ROOT);
 │   │            root/: lettura RDataFrame → EventColumns, ordinate per event_id; la
 │   │            selezione in core/ ne fa un EventSample (struct-of-arrays, in common)
-│   └── apps/    riptide_analysis_prepare (selezione, conversione HP, risoluzione; con ROOT);
-│                riptide_stats_bench, riptide_stats_calibrate (senza ROOT, anche in ci)
+│   └── apps/    con ROOT: riptide_analysis_prepare (selezione, conversione HP, risoluzione),
+│                riptide_acceptance, riptide_case_{a,b,c}_geant4 (i tre casi su eventi Geant4);
+│                senza ROOT, anche in ci: riptide_stats_bench (--case a|b|c),
+│                riptide_stats_calibrate, riptide_case_{b,c}_calibrate (calibrazioni sul toy)
 ├── config/      (fase 1) configurazioni di run JSON versionate
 ├── scripts/     wrapper shell; Python solo per figure da risultati ridotti
 ├── docs/

@@ -115,7 +115,9 @@ $RIPTIDE_DATA_DIR/
 ├── stats/<stats_id>/
 │   ├── case_a.json           # Caso A su eventi Geant4 o sul toy con la stessa verità (D37, D38)
 │   ├── case_b_calibration.json  # checklist del Caso B sul toy (7a)
-│   └── case_b.json           # Caso B su eventi Geant4 con Ω_n fissa o sul toy gemello (D45)
+│   ├── case_b.json           # Caso B su eventi Geant4 con Ω_n fissa o sul toy gemello (D45)
+│   └── case_c.json           # Caso C: calibrazione sul toy (8a, 8c) oppure, con
+│                             #   case_c_geant4_version, pool, gemello o Geant4 (8b, D48)
 └── reference/                # dati di riferimento, sola lettura
     ├── endfb80/              # file ENDF-6 estratti (D13); download/ con gli originali
     ├── jeff33/
@@ -594,6 +596,105 @@ Contenuto (`case_b_version` = 1):
   analizzate con N ≥ 30) e `slope_with_repeat` (la stessa con la ripetizione al posto della riga
   N = 1000). Sono `null` con meno di due punti, e `slope_with_repeat` lo è anche se la ripetizione
   è saltata.
+
+## Calibrazione del Caso B (`riptide_case_b_calibrate`)
+
+`riptide_case_b_calibrate --calibration-id <id>` estrae pseudo-esperienze dal toy del Caso B
+(D43) e scrive `stats/<calibration_id>/case_b_calibration.json`. Non legge run. Opzioni:
+`--seed`, `--sigma-Ep`, `--sigma-theta`, `--threads` (default 4, non cambia i numeri, D44) e
+`--pilot`, come nelle altre app. Se la cartella esiste già si ferma; il file non contiene tempi.
+
+Righe: checklist N/M = 10/400, 30/300, 100/200, 300/100, 1000/40 sulle sezioni 16–20, più la
+ripetizione 1000/240 sulla sezione 24. Robustezza al prior sulle righe con N ≥ 100, sulle stesse
+esperienze: prior vMF con κ = 1 e asse a π/2 dalla verità (sezioni 32 e successive) e prior su
+E_n allargato.
+
+Contenuto (`calibration_version` = 1):
+- `calibration_version`, `calibration_id`, `project_version`, `git_describe`;
+- `settings`: come in `case_b.json`, senza `split_seed` e `acceptance`;
+- `checklist`: `rows` e `repeat`, per riga `events`, `experiments`, `section`, `ensemble` (campi
+  di `case_b.json`) ed `error_rms_sqrt_N_rad`;
+- `contraction`: `slope_min_events` (30), `slope`, `slope_with_repeat`;
+- `prior`: per riga `events`, `experiments`, `vmf` (`kappa`, `axis_angle_rad`, `axis_section`,
+  `shift`, `ensemble`) ed `energy` (`prior_domain`, `shift`, `ensemble`).
+
+## Calibrazione del Caso C (`riptide_case_c_calibrate`)
+
+`riptide_case_c_calibrate --calibration-id <id>` estrae pseudo-esperienze dal toy del Caso C
+(D46, D47) e scrive `stats/<calibration_id>/case_c.json`. Opzioni come in
+`riptide_case_b_calibrate`, più `--row-events <N>`: solo la riga della checklist con quel N, per
+una diagnosi (8c) con un altro `--seed`. Ogni numero con una soglia delle previsioni porta il suo
+verdetto (`value`, `lo`, `hi`, `pass`, `role`), e i verdetti sono contati per gruppo
+(`tally`: `counted`, `counted_failures`, `required_failures`, `reference_failures`). Il ruolo
+`counted` entra nel conteggio dei falsi allarmi, `required` deve passare, `reference` si riporta
+soltanto.
+
+Righe:
+- **checklist** (sezioni 16–19): N/M = 50/200, 150/200, 300/100, 1000/40, verità
+  μ_E ∈ [13, 17] MeV, σ_E ∈ [0.8, 2.4] MeV, spettro troncato al dominio. A N = 1000 conta la
+  **ripetizione** 1000/240 (sezione 24); la riga M = 40 è `reference`;
+- **prior**: la riga N = 150, sulle stesse esperienze, con prior uniforme in σ_E al posto di
+  quello uniforme in log σ_E;
+- **edge** (sezioni 40+): N/M = 300/100 e 1000/40, μ_E ∈ [17.5, 19] MeV, spettro troncato;
+- **spill** (sezioni 48+): le stesse N/M, verità della checklist ma spettro non troncato; test di
+  sensibilità, tutto `reference`.
+
+Contenuto (`calibration_version` = 1):
+- `calibration_version`, `calibration_id`, `project_version`, `git_describe`;
+- `settings`: `seed`, `row_events`, `sigma_Ep_MeV`, `sigma_theta_rad`, `pilot`, `levels`,
+  `En_domain`, le griglie del Caso B (`theta_points`, `theta_obs_points`, `sphere_pixels`,
+  `cap_pixels`, `cap_delta_log`) e quelle dello stadio 2 (`hyper_global_points`,
+  `hyper_sigma_range_MeV`, `hyper_fine_points`, `hyper_window_delta_log`);
+- per riga: `events`, `experiments`, `section`, `truth` (intervalli di μ_E e σ_E), `spectrum`
+  (`truncated` | `untruncated`), `ensemble` con `mu_MeV` e `log_sigma` (`entries`, `bias`,
+  `bias_error`, `rms`, `std_mean`, `pull_mean`, `pull_mean_error`, `pull_width`, `coverage`) e
+  `omega` (campi di `case_b.json` più `tangent_bias_rad` e il suo errore), e `checks`;
+- senza `--row-events`: `checklist` (`rows`, `repeat`, `contraction` con le pendenze di μ_E,
+  log σ_E e Ω_n, `common_mu_pull`, `tally`), `prior`, `edge`, `spill`, ognuno con il suo
+  `tally`;
+- con `--row-events`: solo `diagnosis` (`row`, `tally`).
+
+## Caso C su eventi Geant4 (`riptide_case_c_geant4`)
+
+`riptide_case_c_geant4 --stats-id <id>` lavora su un run piatto con direzione fissa della 7b
+(D48). Catena `single_np,has_proton,contained`, conversione HP, risoluzione e `--hp-from-check`
+come in `riptide_case_b_geant4`. Lo spettro del run deve essere il dominio del Caso C,
+[10, 19.5] MeV, entro 10⁻¹² in relativo. Ogni esperienza tiene gli eventi del pool con
+probabilità f/(c ĝ): f è la gaussiana troncata della sua verità, ĝ l'istogramma di `truth_En`
+del pool a passo 0.1 MeV. Righe diverse riusano il pool, ognuna con la sua permutazione
+(`perEventEngine(split_seed, sezione)`); dentro una riga le esperienze sono disgiunte.
+
+Tre modi, da eseguire in quest'ordine:
+- `--run-id <run> --pool-only`: solo il ricampionamento, senza ricostruzione: quante esperienze
+  riceve ogni riga. Esclude `--twin` e `--acceptance`;
+- `--toy --match <pool>`: il gemello del toy di un record del pool, con le stesse verità, N e M;
+  E_n da f, cinematica e risposta del toy. Esclude `--run-id`, `--hp-from-check`, `--twin`;
+- `--run-id <run> --twin <toy>` (default): la ricostruzione delle esperienze Geant4. Il gemello
+  deve avere gli stessi `--seed`, `--split-seed`, `--pilot`, righe e run, e la stessa
+  `--acceptance`; ogni riga deve avere lo stesso M del gemello.
+
+`--acceptance <id>` aggiunge i pesi di D40 al modello e, nel toy, l'accept-reject; `--seed` e
+`--split-seed` (default `20260907`), `--sigma-Ep`, `--sigma-theta`, `--threads` e `--pilot` come
+nelle altre app. Se la cartella esiste già si ferma; il file non contiene tempi.
+
+Righe (`8_predictions.md` §4.1): N/M = 50/200, 150/200, 300/100, 1000/40 sulle sezioni 16–19 e
+la ripetizione 1000/240 sulla sezione 24, con le verità della 8a e Ω_n del run. Gli M eseguiti
+sono quelli che il pool riempie; sotto il minimo la riga ha `skipped`.
+
+Contenuto (`case_c_geant4_version` = 1):
+- `case_c_geant4_version`, `stats_id`, `mode` (`pool_only` | `toy` | `geant4`),
+  `project_version`, `git_describe`;
+- `settings`: come in `case_c.json` della calibrazione, più `split_seed`, `truth_range`,
+  `resample_bin_width_MeV` e `acceptance` (come in `case_a.json`);
+- `source`: per Geant4 come in `case_b.json`, più `pool_events` e `pool_density`
+  (`bin_width_MeV`, `bins`, `density_min_per_MeV`, `density_max_per_MeV`); per il toy
+  `kind` = `toy` e `match` (`stats_id`, `run_id`, `mode`);
+- `truth`: `omega_n`;
+- `rows`: per riga `events`, `section`, `repeat`, `experiments_planned`, `experiments`,
+  `skipped`, `resampling` (`exhausted`, `visited_total`, `visited_mean`, `kept_fraction`,
+  `bound_mean`, `bound_max`; `null` nel toy) ed `ensemble` (come nella calibrazione);
+- solo nel modo `geant4`: `twin_id`, `checks` (per riga: bias, larghezze dei pull, pull rms di
+  Ω_n, coverage, rapporti rms con il gemello, `sigma_ratio_omega`, `truth_in_cap`) e `tally`.
 
 ## Accettanza in θ_p del Caso A (`riptide_acceptance`)
 
