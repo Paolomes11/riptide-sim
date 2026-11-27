@@ -11,6 +11,9 @@ Versione 3 (2026-11-27): aggiunge le §4.1–4.3 per la 8b (righe e pool dal sol
 ricampionamento, chiamate, falsi allarmi attesi). Sono scritte dopo il dry run del pool e un
 pilota a M/10 su +Z, prima dei run completi. Le soglie della §4 non cambiano.
 
+Versione 4 (2026-11-27): aggiunge la §4.4, la diagnosi 8c di +Z (D50), scritta dopo la 8b e
+prima dei suoi run. Le soglie della §4 non cambiano.
+
 La fase 8 porta il Caso C del toy in C++: Ω_n condivisa e incognita, E_n^(k) ~ N(μ_E, σ_E)
 troncata al dominio, stima a due stadi (D46). Come nella fase 7, prima il port contro il toy con
 pseudo-esperienze (8a, D47), poi i campioni Geant4 ricampionati dai run piatti della 7b
@@ -291,6 +294,53 @@ normali, e le voci come indipendenti.
     causa del prior che domina la std a posteriori.
   - Ci si aspetta che fallisca in tutte e sei le chiamate Geant4. Si riporta accanto al valore
     del gemello e resta fuori dal conteggio di Poisson.
+
+### 4.4 Diagnosi 8c di +Z con semi nuovi (versione 4)
+
+Nella 8b il criterio della §4.3 scatta su +Z: 10 fallimenti contati contro un quantile di 9
+(`8_results.md` §7). Sei sono rapporti rms contro un gemello ideale di rms bassa, quattro sono
+voci a bassa potenza della ripetizione, due sono la componente 2 del bias di Ω_n sulle stesse
+esperienze. L'ipotesi (d) è una fluttuazione, soprattutto del gemello ideale. Qui la si mette
+alla prova (D50).
+
+- **Chiamate.** Build `release`, 4 thread, ognuna sotto `scripts/run_capped.sh -m 5G`:
+
+  ```bash
+  B=build/release/analysis/apps/riptide_case_c_geant4
+  A=6acc_s20260908
+  R=7_ff_flat_10_19p5MeV_z_1e7
+  S="--seed 20260908 --split-seed 20260908"
+  $B --run-id $R --pool-only $S --stats-id 8c_pool_z
+  $B --toy --match 8c_pool_z $S --stats-id 8c_z_toy
+  $B --toy --match 8c_pool_z --acceptance $A $S --stats-id 8c_z_acc_toy
+  $B --run-id $R --twin 8c_z_toy $S --stats-id 8c_z
+  $B --run-id $R --acceptance $A --twin 8c_z_acc_toy $S --stats-id 8c_z_acc
+  ```
+
+- **Cosa cambia (a).** Verità (μ_E, σ_E), smearing degli eventi Geant4, eventi dei gemelli e
+  permutazione del pool. Il pool è lo stesso (193863 eventi, tagli sulla verità): un difetto
+  legato a questo campione di eventi non si vede con questo test.
+- **Attese (b).**
+  - Durata ~37 min in tutto (8b: ~8.5 min per chiamata su +Z, più il pool), RSS ≤ 1.41 GB.
+  - M della ripetizione fra 50 e 75 (8b: 62); M delle altre righe come pianificate.
+  - Le stesse 61 voci contate per chiamata; ≈ 4.0 falsi allarmi attesi sulle due chiamate,
+    quantile 99% di Poisson 9 (tabella della §4.3, con la M della ripetizione registrata).
+  - La larghezza del pull di μ_E a N = 50 fallisce nelle due chiamate, fuori conteggio.
+- **Criterio di esito della diagnosi.**
+  - **Fluttuazione (d → c):** il conteggio delle due chiamate è ≤ 9, **e** a N = 300 i rapporti
+    rms di μ_E e log σ_E passano in tutte e due le chiamate, **e** il bias di Ω_n alla
+    ripetizione è entro 2 errori su tutte e due le componenti.
+  - **Difetto possibile:** il rapporto rms di μ_E a N = 300 supera 1.15 in tutte e due le
+    chiamate, cioè contro due gemelli nuovi, **oppure** la componente 2 del bias di Ω_n esce di
+    nuovo da 2 errori con lo stesso segno della 8b (positivo). Allora si apre una diagnosi con una
+    decisione a parte; la prima candidata è la parte della selezione che dipende dalla direzione
+    (D45).
+  - **Non conclusiva:** ogni altro esito. La si riporta così, senza cambiare seme cercando
+    l'esito voluto.
+- **Di riferimento, senza esito (d).** Il bias di μ_E alla ripetizione in Geant4: previsto fra
+  −0.03 e −0.05 MeV nella chiamata ideale, meno negativo di ≈ 0.02 MeV con l'accettanza, ≈ 0 nei
+  gemelli. Se si ripete va fra i punti aperti come candidato della fase 9, e non apre altro.
+- I fallimenti della 8b restano registrati come sono: la 8c li spiega, non li sostituisce.
 
 ## 5. Prestazioni (b)
 

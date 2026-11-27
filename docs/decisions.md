@@ -1587,3 +1587,38 @@ run.
     dalla stessa regola usata ovunque nel progetto.
   - Escludere i nodi estremi dalla griglia di μ_E: non basta, perché un μ_E vicino al bordo con
     σ_E piccolo concentra comunque la massa sull'estremo.
+
+## D50 — Diagnosi 8c di +Z con semi nuovi (2026-11-27)
+
+- **Contesto.** Nella 8b il criterio della §4.3 delle previsioni scatta su +Z: 10 fallimenti
+  contati nelle due chiamate Geant4 contro un quantile 99% di Poisson di 9
+  (`validation/8_results.md` §7). Dei 10:
+  - 6 sono rapporti rms Geant4 / gemello in cui il gemello ideale ha un'rms bassa; contro il
+    gemello con accettanza gli stessi rapporti passano;
+  - 4 sono voci a bassa potenza della ripetizione (M = 62), 2 delle quali sono anche rapporti;
+  - 2 sono la componente 2 del bias di Ω_n alla ripetizione, sulle stesse esperienze nelle due
+    chiamate: un fatto solo.
+- **Decisione.**
+  - Si rifà la catena +Z della 8b con **`--seed 20260908 --split-seed 20260908`**: verità,
+    smearing di Geant4, eventi dei gemelli e permutazione del pool sono flussi nuovi. Restano
+    invariati il run (`7_ff_flat_10_19p5MeV_z_1e7`), i tagli (sulla verità, quindi lo stesso
+    pool di 193863 eventi), l'accettanza `6acc_s20260908`, le righe, le griglie, le risoluzioni
+    e la build. Nessun cambio di codice.
+  - Cinque chiamate: il pool (`--pool-only`, perché `--match` richiede gli stessi semi), i due
+    gemelli e le due ricostruzioni. Record `stats/8c_pool_z`, `8c_z_toy`, `8c_z_acc_toy`,
+    `8c_z`, `8c_z_acc`.
+  - Voci, soglie e criterio di conteggio della §4 delle previsioni senza modifiche; criterio di
+    esito della diagnosi nella §4.4 (versione 4), scritto prima dei run.
+- **Motivo.** La replica separa le tre spiegazioni: un gemello sfortunato, uno split sfortunato,
+  un comportamento di Geant4 su +Z. Se i rapporti a N = 300 falliscono di nuovo contro due
+  gemelli nuovi il problema non è il gemello; se torna la stessa componente del bias di Ω_n il
+  problema non è lo split.
+- **Alternative scartate.**
+  - Cambiare solo `--split-seed`, come nella 7c: le verità e gli eventi del gemello dipendono
+    solo da `--seed`, e a M fissa (righe da 200, 100 e 40 esperienze) il gemello ideale
+    riprodurrebbe identica la sua rms bassa. I rapporti fallirebbero di nuovo per costruzione.
+  - Rifare solo il gemello ideale con un altro seme: costa ~8 min, ma non mette alla prova né il
+    bias di Ω_n né le voci della ripetizione in Geant4.
+  - Ripetere anche +X e l'obliqua: lì il criterio non è scattato.
+- **Conseguenze.** I fallimenti della 8b restano registrati come sono: la 8c li spiega, non li
+  sostituisce. La fase 8 si chiude dopo l'esito.
