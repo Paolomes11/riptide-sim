@@ -124,21 +124,27 @@ progetto ricostruisce il neutrone incidente da ciò che interagisce nello scinti
 - 7c, la stessa obliqua con un altro split: 62/62, il fallimento della 7b è una fluttuazione.
 - Risultati: `validation/7_results.md`, previsioni in `validation/7_predictions.md` v3.
 
-## Fase 8 — Caso C (in corso)
+## Fase 8 — Caso C ✅ completata (v0.10.0, 2026-11-27)
 
 - Spettro del neutrone ignoto: E_n^(k) ~ N(μ_E, σ_E) troncata al dominio, direzione Ω_n
   condivisa. Due stadi (Ω_n come nel Caso B, poi griglia 2D su μ_E, σ_E), mai griglia 4D (D46).
-- Pseudo-esperienze e checklist, con la verifica della troncatura al dominio (D47).
-- Geant4 per ricampionamento dei run piatti della 7b, senza simulazioni nuove (D48).
-- 8a, motore contro il toy; 8b, Geant4 sulle tre direzioni; 8c, diagnosi se serve.
-- Previsioni in `validation/8_predictions.md`, committate prima dei run.
+- Pseudo-esperienze e checklist, con la verifica della troncatura al dominio (D47); pesi
+  trapezoidali nello stadio 2 (D49).
+- 8a, motore contro il toy: 64/68 dopo D49, robustezza al prior 5/5, bordo 23/24; diagnosi 8c
+  su μ_E a N = 150 senza difetto del modello.
+- 8b, Geant4 per ricampionamento dei run piatti della 7b (D48): passa su +X (3 contro 6) e
+  sull'obliqua (7 contro 8), scatta su +Z (10 contro 9).
+- 8c di +Z con semi nuovi (D50): non conclusiva (13 contro 9); i due andamenti ripetuti (d)
+  sono fra i punti aperti.
+- Risultati: `validation/8_results.md`, previsioni in `validation/8_predictions.md` v4.
 
 ## Fase 9 — Realismo
 
 σ_np(E) nella verosimiglianza (spettro rivelato ≠ incidente), soglia su E_p, eventi n–C nel
 modello, sorgenti multiple e fondo (mistura con frazione f), spettri non gaussiani. Sistematiche:
-bordo 19.5–20 MeV del modello HP (D25), eccesso di `ionIoni` sui rinculi C12 (D26) e doppio
-conteggio del C-13 (D15).
+bordo 19.5–20 MeV del modello HP (D25), eccesso di `ionIoni` sui rinculi C12 (D26), doppio
+conteggio del C-13 (D15) e parte della selezione che dipende dalla direzione (D45): bias di Ω_n
+sull'obliqua (7c), rms di log σ_E e bias di μ_E su +Z nel Caso C (8c).
 
 ## Fase 10 — Produzione batch
 

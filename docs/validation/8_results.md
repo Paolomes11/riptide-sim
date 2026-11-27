@@ -6,6 +6,8 @@ Data: 2026-11-26. Previsioni e soglie: `docs/validation/8_predictions.md`, versi
 state toccate. Versione 3 (§4.1–4.3, 8b) in `3818815`, committata prima dei run della 8b.
 Questo documento copre la 8a (port contro toy), la diagnosi 8c, la 8b (Geant4, §7, del
 2026-11-27) e la diagnosi 8c di +Z (§8, D50, versione 4 delle previsioni in `6e539f4`).
+Con la §8 la fase 8 è chiusa in v0.10.0; i due andamenti (d) di +Z sono fra i punti aperti
+di `status.md`.
 
 **Esito 8b (§7).** Le 12 chiamate passano il criterio su +X (3 fallimenti contro un quantile
 di 6) e sull'obliqua (7 contro 8). Su +Z **scatta** (10 contro 9): quattro voci sono a bassa

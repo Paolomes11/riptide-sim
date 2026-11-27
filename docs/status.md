@@ -1,21 +1,18 @@
 # Stato
 
-**v0.9.0 — 2026-11-27 — Fase 7 (Caso B) completata: motore C++ contro il toy (7a, 70/76,
-fallimenti spiegati), Geant4 su tre direzioni fisse (7b, 184/186) e diagnosi dell'obliqua con
-un altro split (7c, 62/62): l'unico fallimento della 7b è una fluttuazione (c)
-(`validation/7_results.md`). Fase 8 (Caso C) in corso: 8a fatta sul branch
-`feat/case-c-model`, checklist 64/68 dopo la correzione D49; diagnosi 8c su μ_E a N = 150 con
-altri semi non conclusiva per il criterio scritto (pull di μ_E 1.070 → 0.913, coverage
-nominali), nessun difetto del modello (`validation/8_results.md`). 8b (Geant4, D48) fatta:
-passa su +X (3 fallimenti contro un quantile di 6) e sull'obliqua (7 contro 8), scatta su +Z
-(10 contro 9). Diagnosi 8c di +Z con semi nuovi (D50): non conclusiva (13 contro 9, nessuna
-condizione di difetto); restano ripetuti (d) un rms di log σ_E sopra il gemello e un bias
-negativo di μ_E su +Z.**
+**v0.10.0 — 2026-11-27 — Fase 8 (Caso C) completata: motore C++ contro il toy (8a, 64/68
+dopo la correzione D49, robustezza al prior 5/5, bordo 23/24), diagnosi 8c su μ_E a N = 150
+senza difetto del modello, Geant4 per ricampionamento sulle tre direzioni della 7b (8b, D48:
++X 3 fallimenti contro un quantile di 6, obliqua 7 contro 8, +Z 10 contro 9) e diagnosi 8c di
++Z con semi nuovi (D50): non conclusiva (13 contro 9, nessuna condizione di difetto). I due
+andamenti ripetuti (d) su +Z, un rms di log σ_E sopra il gemello e un bias negativo di μ_E,
+sono fra i punti aperti, da quantificare nella fase 9 (`validation/8_results.md`).**
+
+La fase 8 (D46–D50, 8a, 8b, 8c, report v0.10.0) è sul branch `feat/case-c-model`, non ancora
+pushato né unito in `master`.
 
 La chiusura della fase 7 (diagnosi 7c, v0.9.0, report) è unita in `master` con la PR #12
-(merge `b0fd4cf`, tag `v0.9.0`) dal branch `fix/case-b-oblique-split`, poi cancellato. Il
-design della fase 8 (D46–D48, `validation/8_predictions.md`) e la 8a sono sul branch
-`feat/case-c-model`, non ancora pushato.
+(merge `b0fd4cf`, tag `v0.9.0`) dal branch `fix/case-b-oblique-split`, poi cancellato.
 
 La fase 7 fino alla 7b (motore del Caso B, `riptide_case_b_calibrate`,
 `riptide_case_b_geant4`, run +Z e obliqua, `validation/7_results.md`) e il report riscritto
@@ -41,36 +38,18 @@ l'accettanza in θ_p, che la likelihood non conteneva. Con q(θ_p | E_n, sel) di
 
 ## Ripartenza
 
-Fase 8, Caso C (spettro del neutrone ignoto), sul branch `feat/case-c-model`:
+Fase 8 chiusa (v0.10.0) sul branch `feat/case-c-model`; prossimi passi:
 
-1. decisioni D46 (modello a due stadi su `CaseBModel`, griglia 2D su μ_E, σ_E con gaussiana
-   troncata, mai una griglia 4D), D47 (pseudo-esperienze, checklist, righe di troncatura), D48
-   (ricampionamento dei pool della 7b sullo spettro rivelato, dominio [10, 19.5] MeV) e D49
-   (pesi trapezoidali nello stadio 2);
-2. 8a fatta: `CaseCModel`, stadio 1′, generatore, calibrazione, `riptide_case_c_calibrate`,
-   bench `--case c` (8.4 s per esperienza a N = 1000, sopra i 5 s di obiettivo);
-3. checklist 8a (`stats/8a_w`): 64/68, robustezza al prior 5/5, bordo 23/24, sborda come
-   previsto. Il primo run (`stats/8a`) ha trovato il difetto del bordo corretto da D49;
-4. diagnosi 8c (`stats/8c_n150`, previsioni v2 §2.1, `--row-events 150 --seed 20260908`):
-   1/17, non conclusiva per il criterio; il difetto previsto non c'è, le 400 esperienze insieme
-   sono calibrate;
-5. 8b preparata: ricampionamento di D48 (`resample_c`), app `riptide_case_c_geant4`, previsioni
-   v3 (§4.1–4.3). Dry run del pool: ripetizione piena su +X, M = 62 su +Z e 73 sull'obliqua;
-   pilota della catena su +Z;
-6. 8b fatta (`stats/8b_*`, `8_results.md` §7): passa su +X e sull'obliqua, scatta su +Z
-   (10 contro 9); sei fallimenti sono rapporti rms con un gemello ideale di rms bassa, quattro
-   sono a bassa potenza. In Geant4 il bias di μ_E a N = 1000 è negativo su +Z e sull'obliqua
-   (−0.05 / −0.04 MeV), entro soglia;
-7. diagnosi 8c di +Z fatta (D50, `stats/8c_*_z*`, `8_results.md` §8): non conclusiva. Il
-   rapporto rms di μ_E a N = 300 e il bias di Ω_n della 8b erano fluttuazioni (c); restano (d)
-   l'rms di log σ_E in Geant4 15–30% sopra il gemello e il bias di μ_E −0.056 ± 0.010 MeV a
-   N = 1000 su +Z;
-8. **prossimo passo:** da decidere con l'utente se diagnosticare questi due andamenti (decisione
-   a parte, candidata la selezione che dipende dalla direzione, D45) o registrarli nei punti
-   aperti e chiudere la fase 8 (v0.10.0 + report).
+1. PR `feat/case-c-model` → `master` con merge commit e tag `v0.10.0`, come per la fase 7,
+   solo su richiesta;
+2. fase 9 (realismo, `roadmap.md`): prima le decisioni e le previsioni, poi il codice. Fra le
+   sistematiche entra anche la selezione che dipende dalla direzione (D45), sul bias di Ω_n
+   dell'obliqua (7c) e sui due andamenti di +Z del Caso C (8c);
+3. resta aperto il costo del Caso C (8.37 s contro 5 s a N = 1000): da profilare prima di
+   ottimizzare.
 
-Fonti: il `posterior_C.py` e la checklist del Caso C nel toy; record `stats/7b_*` e `7c_*`
-sotto la radice dei dati; prima di ogni run `scripts/data_root.sh check`.
+Fonti: decisioni D46–D50, `validation/8_predictions.md` v1–v4, `validation/8_results.md`;
+record `stats/8*` sotto la radice dei dati; prima di ogni run `scripts/data_root.sh check`.
 
 ## Fatto
 
@@ -490,7 +469,7 @@ Caso B, Ω_n condivisa ed E_n nuisance per evento, vedi `roadmap.md`. Design D41
 - **Report:** `docs/riptide_report.pdf` v0.9.0, con la 7c.
 - **Test:** `debug` 468/468, `ci` 443/443, clang-format pulito.
 
-### Fase 8 (in corso, branch `feat/case-c-model`, `calibration_version` 1 del Caso C)
+### Fase 8 (v0.10.0, branch `feat/case-c-model`, `calibration_version` 1 del Caso C)
 
 Caso C, spettro del neutrone ignoto con iperparametri (μ_E, σ_E), vedi `roadmap.md`. Design
 D46–D48 (75b6f0a) e previsioni `validation/8_predictions.md` v1 (58bb185) prima del codice.
@@ -530,9 +509,23 @@ D46–D48 (75b6f0a) e previsioni `validation/8_predictions.md` v1 (58bb185) prim
   contro 9, nessuna condizione di difetto: non conclusiva (`8_results.md` §8).
 - **Prestazioni:** `riptide_stats_bench --case c`, un'esperienza a N = 1000: 8.37 s, sopra
   l'obiettivo di 5 s (`8_results.md` §6).
+- **Versione:** `CMakeLists.txt` a 0.10.0 alla chiusura; i record della fase 8 riportano
+  `project_version` "0.9.0", li identifica `git_describe`.
+- **Report:** `docs/riptide_report.pdf` v0.10.0, con il capitolo del Caso C e la validazione
+  8a, 8b, 8c.
 - **Test:** `debug` 512/512, `ci` 487/487, clang-format pulito.
 
 ## Punti aperti
+
+- **Fase 8 (d):** su +Z due andamenti si ripetono in tutti e due gli split (8b e 8c, D50),
+  entro le soglie dei singoli confronti ma non spiegati:
+  - l'rms di log σ_E in Geant4 è 15–30% sopra il gemello, mentre le larghezze del pull restano
+    nominali;
+  - il bias di μ_E a N = 1000 vale −0.056 ± 0.010 MeV; l'accettanza ne toglie circa 0.02, e
+    dipende dalla direzione: +Z > obliqua (−0.04) > +X (≈ 0).
+
+  La candidata è la parte della selezione che dipende dalla direzione (D45), la stessa del
+  punto 7c sull'obliqua. Da quantificare nella fase 9 con le sistematiche della selezione.
 
 - **Fase 8 (a):** un'esperienza del Caso C a N = 1000 costa 8.37 s contro l'obiettivo di 5 s;
   i 6.9 s fuori dallo stadio 2 sono codice del Caso B (`energyLogPosterior`). Da profilare
