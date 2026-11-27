@@ -41,6 +41,11 @@ target_link_libraries(riptide_case_b_calibrate PRIVATE
     riptide::case_a_geant4_core riptide::stats riptide::io_core riptide::common riptide::ext_json riptide::ext_lyra
     riptide::options riptide::warnings)
 
+add_executable(riptide_case_c_calibrate src/riptide_case_c_calibrate.cpp)
+target_link_libraries(riptide_case_c_calibrate PRIVATE
+    riptide::case_a_geant4_core riptide::stats riptide::io_core riptide::common riptide::ext_json riptide::ext_lyra
+    riptide::options riptide::warnings)
+
 if(RIPTIDE_BUILD_ROOT_IO)
     add_executable(riptide_analysis_prepare src/riptide_analysis_prepare.cpp)
     target_link_libraries(riptide_analysis_prepare PRIVATE
@@ -52,6 +57,11 @@ if(RIPTIDE_BUILD_ROOT_IO)
         riptide::common riptide::ext_json riptide::ext_lyra riptide::options riptide::warnings)
     add_executable(riptide_case_b_geant4 src/riptide_case_b_geant4.cpp)
     target_link_libraries(riptide_case_b_geant4 PRIVATE
+        riptide::case_b_geant4_core riptide::case_a_geant4_core riptide::io_core riptide::io_root
+        riptide::stats riptide::common riptide::ext_json riptide::ext_lyra riptide::options
+        riptide::warnings)
+    add_executable(riptide_case_c_geant4 src/riptide_case_c_geant4.cpp)
+    target_link_libraries(riptide_case_c_geant4 PRIVATE
         riptide::case_b_geant4_core riptide::case_a_geant4_core riptide::io_core riptide::io_root
         riptide::stats riptide::common riptide::ext_json riptide::ext_lyra riptide::options
         riptide::warnings)

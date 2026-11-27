@@ -92,6 +92,11 @@ public:
     [[nodiscard]] bool hasAcceptance() const noexcept {
         return !log_acceptance_.empty();
     }
+    // The acceptance table as given to the constructor, empty for the ideal
+    // detector: a model built from this one on the same grids reuses it.
+    [[nodiscard]] const std::vector<double>& logAcceptance() const noexcept {
+        return log_acceptance_;
+    }
 
     // h_k of one event on the theta_obs grid. Ep_hat must be finite (it may
     // be negative), else std::invalid_argument.

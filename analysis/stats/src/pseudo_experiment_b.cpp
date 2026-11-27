@@ -80,19 +80,24 @@ geometry::Direction isotropicDirection(random::Engine& engine) {
     return {sin_theta * std::cos(phi), sin_theta * std::sin(phi), cos_theta};
 }
 
-CaseBPseudoEvent drawCaseBPseudoEvent(const EnergyDomain& domain,
-                                      const geometry::Direction& omega_n,
-                                      const CaseBResolution& resolution, random::Engine& engine) {
-    CaseBPseudoEvent event = drawTruthAtEnergy(drawEnergy(domain, engine), omega_n, engine);
+CaseBPseudoEvent drawPseudoEventAtEnergy(double En, const geometry::Direction& omega_n,
+                                         const CaseBResolution& resolution,
+                                         random::Engine& engine) {
+    CaseBPseudoEvent event = drawTruthAtEnergy(En, omega_n, engine);
     addNoise(event, resolution, engine);
     return event;
 }
 
 CaseBPseudoEvent drawCaseBPseudoEvent(const EnergyDomain& domain,
                                       const geometry::Direction& omega_n,
-                                      const CaseBResolution& resolution,
-                                      const AcceptanceRatio& acceptance, random::Engine& engine) {
-    const double En = drawEnergy(domain, engine);
+                                      const CaseBResolution& resolution, random::Engine& engine) {
+    return drawPseudoEventAtEnergy(drawEnergy(domain, engine), omega_n, resolution, engine);
+}
+
+CaseBPseudoEvent drawPseudoEventAtEnergy(double En, const geometry::Direction& omega_n,
+                                         const CaseBResolution& resolution,
+                                         const AcceptanceRatio& acceptance,
+                                         random::Engine& engine) {
     const double r_max = acceptance.maximum();
     while (true) {
         CaseBPseudoEvent event = drawTruthAtEnergy(En, omega_n, engine);
@@ -103,6 +108,16 @@ CaseBPseudoEvent drawCaseBPseudoEvent(const EnergyDomain& domain,
             return event;
         }
     }
+}
+
+CaseBPseudoEvent drawCaseBPseudoEvent(const EnergyDomain& domain,
+                                      const geometry::Direction& omega_n,
+                                      const CaseBResolution& resolution,
+                                      const AcceptanceRatio& acceptance, random::Engine& engine) {
+    // E_n first, then the event on the same engine: the order of the draws
+    // is the one the Case B records were made with.
+    const double En = drawEnergy(domain, engine);
+    return drawPseudoEventAtEnergy(En, omega_n, resolution, acceptance, engine);
 }
 
 CaseBPseudoSample caseBPseudoSample(const EnergyDomain& domain, const geometry::Direction& omega_n,
