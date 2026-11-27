@@ -4,8 +4,8 @@ Data: 2026-11-26. Previsioni e soglie: `docs/validation/8_predictions.md`, versi
 `58bb185`, committata **prima** del codice del Caso C e dei run; versione 2 (§2.1, diagnosi
 8c) in `daa2491`, committata prima del run della 8c. Dopo i run le soglie non sono
 state toccate. Versione 3 (§4.1–4.3, 8b) in `3818815`, committata prima dei run della 8b.
-Questo documento copre la 8a (port contro toy), la diagnosi 8c e la 8b (Geant4, §7, del
-2026-11-27).
+Questo documento copre la 8a (port contro toy), la diagnosi 8c, la 8b (Geant4, §7, del
+2026-11-27) e la diagnosi 8c di +Z (§8, D50, versione 4 delle previsioni in `6e539f4`).
 
 **Esito 8b (§7).** Le 12 chiamate passano il criterio su +X (3 fallimenti contro un quantile
 di 6) e sull'obliqua (7 contro 8). Su +Z **scatta** (10 contro 9): quattro voci sono a bassa
@@ -13,6 +13,12 @@ potenza, e sei sono rapporti rms con un gemello ideale di rms bassa, che col gem
 accettanza passano. Si apre la 8c su +Z con una decisione a parte. In Geant4 il bias di μ_E a
 N = 1000 è negativo su +Z e sull'obliqua (−0.05 / −0.04 MeV, −0.03 / −0.02 con l'accettanza),
 entro soglia.
+
+**Esito 8c di +Z (§8, D50).** Con semi nuovi: 13 fallimenti contro 9, ma nessuna delle
+condizioni di difetto: **non conclusiva**. Il rapporto rms di μ_E a N = 300 e il bias di Ω_n
+della 8b erano fluttuazioni (c). Restano ripetuti (d) un rms di log σ_E in Geant4 su +Z del
+15–30% sopra il gemello e il bias negativo di μ_E a N = 1000 (−0.056 ± 0.010 MeV sulle due
+repliche di +Z ideale), che l'accettanza riduce di ≈ 0.02 MeV.
 
 **Esito 8a.**
 - Il primo run (`8a`) ha trovato un difetto di quadratura nello stadio 2: la riga **bordo**
@@ -410,3 +416,88 @@ scritte prima dei run. Che cosa si sa già (a):
   pull alla ripetizione a bassa potenza, 2 bias di Ω_n che sono un solo fatto.
 
 Il bias negativo di μ_E su +Z e sull'obliqua (§7.2) passa le soglie, ma va guardato nella 8c.
+
+## 8. Diagnosi 8c di +Z (D50, §4.4 delle previsioni, versione 4)
+
+**Run.** Build `release` a `6e539f4` (`git describe` v0.9.0-25-g6e539f4, D50 e previsioni v4
+committate prima), le 5 chiamate della §4.4 in sequenza, `--seed 20260908 --split-seed
+20260908`, ognuna sotto `scripts/run_capped.sh -m 5G`, il 2026-11-27 dalle 12:36 alle 13:09 (a).
+- Record `stats/8c_pool_z`, `8c_z_toy`, `8c_z_acc_toy`, `8c_z`, `8c_z_acc`.
+- Tempi: pool 9 s, gemelli 7 min 41 s e 8 min 7 s, Geant4 8 min 11 s e 8 min 14 s (stima ~37
+  min in tutto, reali 32). RSS massimo 1.40 GB.
+- M: 200 / 200 / 100 / 40, ripetizione **59** (prevista 50–75).
+
+**Conteggio (a).** 8 / 61 nella chiamata ideale, 5 / 61 con l'accettanza: **13**, contro il
+quantile 99% di Poisson di 9. La larghezza del pull di μ_E a N = 50 qui **passa** (0.935 /
+0.929, gemelli 0.855 / 0.930).
+
+| Chiamata | Voce | Valore | Soglia | Bassa potenza |
+|---|---|---|---|---|
+| ideale | N = 150, coverage μ_E a 0.95 | 0.895 | 3σ binomiali | |
+| ideale | N = 150, rapporto rms μ_E | 1.194 | ≤ 1.15 | |
+| ideale | N = 150, rapporto rms log σ_E | 1.291 | ≤ 1.15 | |
+| ideale | N = 300, rapporto rms log σ_E | 1.180 | ≤ 1.15 | |
+| ideale | ripetizione, larghezza pull log σ_E | 1.184 | 1 ± 0.1 | sì |
+| ideale | ripetizione, rapporto rms μ_E | 1.504 | ≤ 1.15 | sì |
+| ideale | ripetizione, rapporto rms log σ_E | 1.563 | ≤ 1.15 | sì |
+| ideale | ripetizione, bias μ_E | −0.062 ± 0.013 MeV | 0.5 std (0.045) | |
+| accettanza | N = 150, rapporto rms log σ_E | 1.244 | ≤ 1.15 | |
+| accettanza | N = 300, rapporto rms log σ_E | 1.157 | ≤ 1.15 | |
+| accettanza | ripetizione, larghezza pull log σ_E | 1.190 | 1 ± 0.1 | sì |
+| accettanza | ripetizione, rapporto rms μ_E | 1.358 | ≤ 1.15 | sì |
+| accettanza | ripetizione, rapporto rms log σ_E | 1.335 | ≤ 1.15 | sì |
+
+**Le condizioni del criterio (a).**
+- Fluttuazione: no, il conteggio è 13 > 9 e il rapporto rms di log σ_E a N = 300 fallisce in
+  tutte e due le chiamate.
+- Difetto possibile: no. Il rapporto rms di μ_E a N = 300 vale 1.062 / 1.045. La componente 2
+  del bias di Ω_n alla ripetizione vale +3.3·10⁻⁴ ± 6.2·10⁻⁴ rad (+0.5 errori, 8b: +2.4), la
+  componente 1 −0.1 errori.
+- **Esito: non conclusiva**, riportata così, senza cambiare seme.
+
+**Che cosa spiega della 8b (c).**
+- Il fallimento del rapporto rms di μ_E a N = 300 nella 8b (1.490) era il gemello ideale: con
+  gemelli nuovi il rapporto torna a 1.06 / 1.05.
+- Il bias della componente 2 di Ω_n era una fluttuazione: con verità, smearing e split nuovi è
+  a 0.5 errori.
+
+**Che cosa resta (d).** Due andamenti che si ripetono con semi indipendenti e che non erano
+voci del criterio di esito:
+- **Rapporto rms di log σ_E su +Z.** Per le righe N = 150, 300, 1000 (M = 40), ripetizione:
+
+  | Record | N = 150 | N = 300 | N = 1000, M = 40 | ripetizione |
+  |---|---|---|---|---|
+  | `8b_z` | 1.18 | 1.31 | 1.21 | 1.27 |
+  | `8b_z_acc` | 1.12 | 1.02 | 1.10 | 0.96 |
+  | `8c_z` | 1.29 | 1.18 | 1.31 | 1.56 |
+  | `8c_z_acc` | 1.24 | 1.16 | 1.15 | 1.33 |
+  | `8b_x` / `8b_x_acc` | 1.20 / 0.98 | 1.04 / 0.96 | 1.09 / 0.93 | 0.99 / 0.95 |
+  | `8b_obl` / `8b_obl_acc` | 1.27 / 1.10 | 1.01 / 0.97 | 0.93 / 0.80 | 1.08 / 1.06 |
+
+  Su +Z 13 rapporti su 16 sono sopra 1.1, contro una sd(ln r) ≈ 0.07 a M = 200 e ≈ 0.1 a
+  M = 100 (b). Il pull di log σ_E della 8c resta largo 0.96–1.05 fuori dalla ripetizione: la std a
+  posteriori segue la dispersione, quindi Geant4 su +Z dà **meno informazione su σ_E** del
+  gemello, senza sovracopertura né sottocopertura.
+- **Bias di μ_E alla ripetizione, negativo (previsione di riferimento della §4.4, confermata).**
+
+  | | ideale | accettanza | gemello ideale |
+  |---|---|---|---|
+  | `8b_z` | −0.050 ± 0.014 | −0.032 ± 0.014 | −0.003 ± 0.012 |
+  | `8c_z` | −0.062 ± 0.013 | −0.044 ± 0.013 | +0.011 ± 0.010 |
+  | `8b_obl` | −0.042 ± 0.011 | −0.023 ± 0.011 | +0.002 ± 0.012 |
+  | `8b_x` | −0.013 ± 0.007 | +0.007 ± 0.008 | −0.001 ± 0.006 |
+
+  Le due repliche di +Z ideale insieme danno −0.056 ± 0.010 MeV (b, esperienze quasi
+  indipendenti), circa 0.6 volte la std a posteriori (0.09–0.10 MeV). L'accettanza toglie
+  ≈ 0.02 MeV ovunque, il residuo dipende dalla direzione (+Z > obliqua > +X ≈ 0).
+- Le due cose stanno sulla stessa direzione, la più corta in containment, e l'accettanza le
+  riduce senza toglierle. La candidata resta la parte della selezione che dipende dalla
+  direzione (D45); non è verificata.
+
+### 8.1 Esito
+
+La 8c su +Z **non è conclusiva** per il criterio scritto. Spiega due dei fallimenti della 8b
+(rapporto μ_E a N = 300 e bias di Ω_n, fluttuazioni (c)), e ne lascia due andamenti ripetuti
+(d): l'rms di log σ_E in Geant4 su +Z è 15–30% sopra il gemello, e μ_E ha un bias negativo di
+≈ 0.6 std a N = 1000 su +Z (−0.042 ± 0.011 MeV sull'obliqua). Nessuno dei due si accompagna a coverage
+sbagliate. Come proseguire è una decisione a parte.

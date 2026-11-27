@@ -8,7 +8,9 @@ un altro split (7c, 62/62): l'unico fallimento della 7b è una fluttuazione (c)
 altri semi non conclusiva per il criterio scritto (pull di μ_E 1.070 → 0.913, coverage
 nominali), nessun difetto del modello (`validation/8_results.md`). 8b (Geant4, D48) fatta:
 passa su +X (3 fallimenti contro un quantile di 6) e sull'obliqua (7 contro 8), scatta su +Z
-(10 contro 9); diagnosi su +Z da decidere.**
+(10 contro 9). Diagnosi 8c di +Z con semi nuovi (D50): non conclusiva (13 contro 9, nessuna
+condizione di difetto); restano ripetuti (d) un rms di log σ_E sopra il gemello e un bias
+negativo di μ_E su +Z.**
 
 La chiusura della fase 7 (diagnosi 7c, v0.9.0, report) è unita in `master` con la PR #12
 (merge `b0fd4cf`, tag `v0.9.0`) dal branch `fix/case-b-oblique-split`, poi cancellato. Il
@@ -59,8 +61,13 @@ Fase 8, Caso C (spettro del neutrone ignoto), sul branch `feat/case-c-model`:
    (10 contro 9); sei fallimenti sono rapporti rms con un gemello ideale di rms bassa, quattro
    sono a bassa potenza. In Geant4 il bias di μ_E a N = 1000 è negativo su +Z e sull'obliqua
    (−0.05 / −0.04 MeV), entro soglia;
-7. **prossimo passo:** decisione (D50) e previsioni della diagnosi su +Z, poi i run solo col
-   via. La fase 8 si chiude dopo.
+7. diagnosi 8c di +Z fatta (D50, `stats/8c_*_z*`, `8_results.md` §8): non conclusiva. Il
+   rapporto rms di μ_E a N = 300 e il bias di Ω_n della 8b erano fluttuazioni (c); restano (d)
+   l'rms di log σ_E in Geant4 15–30% sopra il gemello e il bias di μ_E −0.056 ± 0.010 MeV a
+   N = 1000 su +Z;
+8. **prossimo passo:** da decidere con l'utente se diagnosticare questi due andamenti (decisione
+   a parte, candidata la selezione che dipende dalla direzione, D45) o registrarli nei punti
+   aperti e chiudere la fase 8 (v0.10.0 + report).
 
 Fonti: il `posterior_C.py` e la checklist del Caso C nel toy; record `stats/7b_*` e `7c_*`
 sotto la radice dei dati; prima di ogni run `scripts/data_root.sh check`.
@@ -518,6 +525,9 @@ D46–D48 (75b6f0a) e previsioni `validation/8_predictions.md` v1 (58bb185) prim
   fallimenti contati 3 / 10 / 7 su +X / +Z / obliqua contro i quantili 6 / 9 / 8; il criterio
   scatta su +Z. Larghezza del pull di μ_E a N = 50 fuori soglia ovunque, come previsto
   (`8_results.md` §7).
+- **Diagnosi 8c di +Z (D50, previsioni v4 §4.4, 6e539f4; record `8c_pool_z`, `8c_z{,_acc}{,_toy}`,
+  `--seed 20260908 --split-seed 20260908`, 32 min, RSS ≤ 1.40 GB):** 8 + 5 = 13 fallimenti
+  contro 9, nessuna condizione di difetto: non conclusiva (`8_results.md` §8).
 - **Prestazioni:** `riptide_stats_bench --case c`, un'esperienza a N = 1000: 8.37 s, sopra
   l'obiettivo di 5 s (`8_results.md` §6).
 - **Test:** `debug` 512/512, `ci` 487/487, clang-format pulito.
