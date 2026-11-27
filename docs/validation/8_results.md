@@ -3,8 +3,16 @@
 Data: 2026-11-26. Previsioni e soglie: `docs/validation/8_predictions.md`, versione 1 in
 `58bb185`, committata **prima** del codice del Caso C e dei run; versione 2 (§2.1, diagnosi
 8c) in `daa2491`, committata prima del run della 8c. Dopo i run le soglie non sono
-state toccate. Questo documento copre la 8a (port contro toy); la 8b (Geant4) avrà la sua
-sezione.
+state toccate. Versione 3 (§4.1–4.3, 8b) in `3818815`, committata prima dei run della 8b.
+Questo documento copre la 8a (port contro toy), la diagnosi 8c e la 8b (Geant4, §7, del
+2026-11-27).
+
+**Esito 8b (§7).** Le 12 chiamate passano il criterio su +X (3 fallimenti contro un quantile
+di 6) e sull'obliqua (7 contro 8). Su +Z **scatta** (10 contro 9): quattro voci sono a bassa
+potenza, e sei sono rapporti rms con un gemello ideale di rms bassa, che col gemello con
+accettanza passano. Si apre la 8c su +Z con una decisione a parte. In Geant4 il bias di μ_E a
+N = 1000 è negativo su +Z e sull'obliqua (−0.05 / −0.04 MeV, −0.03 / −0.02 con l'accettanza),
+entro soglia.
 
 **Esito 8a.**
 - Il primo run (`8a`) ha trovato un difetto di quadratura nello stadio 2: la riga **bordo**
@@ -265,3 +273,140 @@ versione 3.
   Il resto è codice del Caso B (`energyLogPosterior`), che la 8a non tocca. I pesi di D49 non
   cambiano i tempi.
 - La checklist completa costa 23 min con 4 thread, contro ~8 min del toy con 3 processi.
+
+## 7. 8b, Geant4 (§4 delle previsioni, versione 3)
+
+**Run.** Build `release` a `3818815` (`git describe` v0.9.0-21-g3818815), le 12 chiamate della
+§4.2 delle previsioni in sequenza, 4 thread, semi di default, ognuna sotto
+`scripts/run_capped.sh -m 5G -- /usr/bin/time -v`, il 2026-11-27 dalle 10:07 alle 12:23 (a).
+- Output: `stats/8b_{x,z,obl}{,_acc}{,_toy}/case_c.json`.
+- Tempi a parete per chiamata: 8 min 23 s – 8 min 57 s su +Z e sull'obliqua, 16 min 29 s –
+  16 min 46 s su +X, per gemello e Geant4 (stima: ~8 e ~15 min). RSS massimo 1.41 GB per
+  Geant4, 0.13 GB per il toy.
+- Le M eseguite sono quelle del dry run: 200 / 200 / 100 / 40 sulle righe, ripetizione 240 su
+  +X, 62 su +Z, 73 sull'obliqua (a).
+
+**Conteggio per il criterio della §4.3 (a).** Voci contate fallite, senza la larghezza del pull
+di μ_E a N = 50 (fallimento atteso dal toy, fuori conteggio):
+
+| | +X | +Z | obliqua |
+|---|---|---|---|
+| ideale (`8b_d`) | 2 / 61 | 8 / 61 | 4 / 60 |
+| accettanza (`8b_d_acc`) | 1 / 61 | 2 / 61 | 3 / 60 |
+| totale | **3** | **10** | **7** |
+| quantile 99% di Poisson | 6 | 9 | 8 |
+| attesi (b) | 2.2 | 4.0 | 3.5 |
+| esito | passa | **scatta** | passa |
+
+- **Larghezza del pull di μ_E a N = 50 (c):** fallisce in tutte e sei le chiamate Geant4, come
+  previsto: 0.880 / 0.873 (+X), 0.870 / 0.871 (+Z), 0.894 / 0.892 (obliqua). I gemelli danno
+  0.81–0.94.
+- **Per la regola scritta, su +Z si apre la 8c**, con una decisione a parte. +X e l'obliqua si
+  leggono voce per voce.
+
+### 7.1 Le voci fallite
+
+| Direzione | Chiamata | Voce | Valore | Soglia | Bassa potenza |
+|---|---|---|---|---|---|
+| +X | ideale | N = 150, rapporto rms log σ_E | 1.203 | ≤ 1.15 | |
+| +X | ideale | N = 300, larghezza pull μ_E | 0.834 | 1 ± 0.1 | sì |
+| +X | accettanza | N = 300, larghezza pull μ_E | 0.834 | 1 ± 0.1 | sì |
+| +Z | ideale | N = 50, rapporto rms log σ_E | 1.246 | ≤ 1.15 | |
+| +Z | ideale | N = 150, rapporto rms log σ_E | 1.180 | ≤ 1.15 | |
+| +Z | ideale | N = 300, rapporto rms μ_E | 1.490 | ≤ 1.15 | |
+| +Z | ideale | N = 300, rapporto rms log σ_E | 1.309 | ≤ 1.15 | |
+| +Z | ideale | ripetizione, larghezza pull μ_E | 0.882 | 1 ± 0.1 | sì |
+| +Z | ideale | ripetizione, rapporto rms μ_E | 1.281 | ≤ 1.15 | sì |
+| +Z | ideale | ripetizione, rapporto rms log σ_E | 1.265 | ≤ 1.15 | sì |
+| +Z | ideale | ripetizione, bias Ω_n componente 2 | 1.25·10⁻³ rad | ≤ 2 errori (1.02·10⁻³) | |
+| +Z | accettanza | ripetizione, larghezza pull μ_E | 0.868 | 1 ± 0.1 | sì |
+| +Z | accettanza | ripetizione, bias Ω_n componente 2 | 1.22·10⁻³ rad | ≤ 2 errori (1.03·10⁻³) | |
+| obliqua | ideale | N = 150, larghezza pull log σ_E | 0.857 | 1 ± 0.1 | |
+| obliqua | ideale | N = 150, rapporto rms log σ_E | 1.274 | ≤ 1.15 | |
+| obliqua | ideale | ripetizione, larghezza pull μ_E | 0.866 | 1 ± 0.1 | sì |
+| obliqua | ideale | ripetizione, pull rms Ω_n | 0.890 | 1 ± 0.1 | |
+| obliqua | accettanza | N = 150, larghezza pull log σ_E | 0.857 | 1 ± 0.1 | |
+| obliqua | accettanza | ripetizione, larghezza pull μ_E | 0.857 | 1 ± 0.1 | sì |
+| obliqua | accettanza | ripetizione, pull rms Ω_n | 0.872 | 1 ± 0.1 | |
+
+La componente 2 del bias di Ω_n è il secondo vettore tangente (indice 1, «component 1» nel
+`tally` del record; errore 5.1·10⁻⁴ rad). Le voci obbligatorie non ci sono: la 8b ha solo voci
+contate e di riferimento.
+
+### 7.2 Lettura nell'ordine della checklist
+
+**Bias.** Tutte le voci passano: μ_E e log σ_E entro 0.5 std, Ω_n sull'obliqua entro
+0.5 σ_c, tranne la componente di Ω_n su +Z (sopra).
+- **μ_E, negativo in Geant4 (a):** alla ripetizione a N = 1000
+
+  | | +X | +Z | obliqua |
+  |---|---|---|---|
+  | ideale | −0.013 ± 0.007 | −0.050 ± 0.014 | −0.042 ± 0.011 |
+  | accettanza | +0.007 ± 0.008 | −0.032 ± 0.014 | −0.023 ± 0.011 |
+  | gemello ideale | −0.001 ± 0.006 | −0.003 ± 0.012 | +0.002 ± 0.012 |
+
+  Il segno è negativo anche a N = 150 e 300 su +Z e sull'obliqua (−0.03…−0.08 MeV), mentre i
+  gemelli sono positivi o nulli. Su +Z ideale il bias è −0.0504 contro una soglia di 0.0505:
+  passa per 10⁻⁴ MeV.
+- **Lettura (d):** con l'accettanza il bias scende di circa 0.02 MeV su tutte e tre le
+  direzioni, come nella fase 6 senza q (−0.023 MeV a 14 MeV). Resta un residuo di −0.02…−0.03
+  MeV su +Z e sull'obliqua, non su +X. La candidata è la stessa parte della selezione che
+  dipende dalla direzione (D45, punto aperto della 7c); non è verificata.
+- **Ω_n su +Z:** la componente 2 è a +2.4σ in tutte e due le chiamate, sulle stesse
+  esperienze: un solo fatto. Norma ≈ 1.2·10⁻³ rad contro σ_c ≈ 6·10⁻³ rad (b), circa 0.2 σ_c.
+
+**Risoluzione: i rapporti rms.**
+- Su +Z il rapporto è rms Geant4 / rms del gemello. L'rms Geant4 è lo stesso nelle due
+  chiamate (stesse esperienze; l'accettanza nel modello lo cambia alla terza cifra), ma il
+  gemello ideale e quello con accettanza hanno eventi diversi (a):
+
+  | +Z, rms μ_E (MeV) | N = 150 | N = 300 | N = 1000, M = 40 | ripetizione |
+  |---|---|---|---|---|
+  | Geant4 ideale | 0.380 | 0.292 | 0.145 | 0.117 |
+  | Geant4 accettanza | 0.385 | 0.293 | 0.146 | 0.118 |
+  | gemello ideale | 0.356 | **0.196** | **0.078** | **0.091** |
+  | gemello accettanza | 0.353 | 0.306 | 0.103 | 0.103 |
+
+  I sei rapporti rms falliti su +Z vengono da un gemello ideale con rms bassa: con il gemello
+  con accettanza gli stessi rapporti passano. μ_E: 0.957 a N = 300, 1.138 alla ripetizione.
+  log σ_E: 0.997 a N = 50, 1.118 a N = 150, 1.023 a N = 300, 0.957 alla ripetizione. Per
+  log σ_E l'rms del gemello ideale è 0.810 / 0.264 / 0.130 / 0.058, contro 1.016 / 0.281 /
+  0.168 / 0.079 per il gemello con accettanza.
+- **Lettura (d):** i due gemelli hanno le stesse verità, ma con l'accettanza il toy ha un altro
+  campione e un'altra verosimiglianza, quindi rms diverse non sono un difetto di per sé. A
+  N = 300 la differenza fra i due gemelli è grande rispetto alla dispersione attesa
+  (sd(ln r) ≈ 0.1 a M = 100); la causa non è verificata.
+- Fuori dalla ripetizione e dalle righe di riferimento, su +X e sull'obliqua i rapporti
+  rms di μ_E stanno fra 0.80 e 1.10.
+- Il rapporto delle std a posteriori di Ω_n (G4 / gemello) è 0.975–1.004 ovunque (a).
+
+**Pull.**
+- La larghezza del pull di μ_E alla ripetizione è bassa su +Z e sull'obliqua (0.857–0.882,
+  bassa potenza) e alta su +X (1.055–1.059, entro soglia).
+- Sull'obliqua, N = 150, la larghezza del pull di log σ_E è 0.857 in tutte e due le chiamate.
+- Il pull rms di Ω_n alla ripetizione sull'obliqua è 0.89 / 0.87, contro 1.03–1.11 dei
+  gemelli; su +X e +Z è 0.96–1.03.
+
+**Coverage.** Tutte le voci contate passano in tutte e sei le chiamate.
+
+**Contrazione 1/√N.** Non è una voce della 8b. L'rms Geant4 di μ_E scende da 0.53 a 0.11–0.12
+MeV fra N = 50 e la ripetizione, come i gemelli (a).
+
+**Robustezza al prior.** Misurata nella 8a (§3), non ripetuta.
+
+### 7.3 Esito
+
+**+X e obliqua: passano** il criterio (3 contro 6, 7 contro 8), con le voci della §7.1
+registrate come sono.
+
+**+Z: il criterio scatta** (10 contro 9), quindi si apre la 8c con una decisione e previsioni
+scritte prima dei run. Che cosa si sa già (a):
+- quattro dei dieci fallimenti sono voci a bassa potenza;
+- i due bias di Ω_n sono un solo fatto;
+- sei fallimenti dell'ideale sono rapporti rms con un gemello di rms bassa, che con il gemello
+  con accettanza passano. Due di questi (alla ripetizione) sono anche fra le quattro voci a
+  bassa potenza.
+- In sintesi: 4 rapporti rms a N ≤ 300 legati al gemello, 2 rapporti rms e 2 larghezze del
+  pull alla ripetizione a bassa potenza, 2 bias di Ω_n che sono un solo fatto.
+
+Il bias negativo di μ_E su +Z e sull'obliqua (§7.2) passa le soglie, ma va guardato nella 8c.

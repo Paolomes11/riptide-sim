@@ -6,8 +6,9 @@ un altro split (7c, 62/62): l'unico fallimento della 7b è una fluttuazione (c)
 (`validation/7_results.md`). Fase 8 (Caso C) in corso: 8a fatta sul branch
 `feat/case-c-model`, checklist 64/68 dopo la correzione D49; diagnosi 8c su μ_E a N = 150 con
 altri semi non conclusiva per il criterio scritto (pull di μ_E 1.070 → 0.913, coverage
-nominali), nessun difetto del modello (`validation/8_results.md`). 8b (Geant4, D48)
-preparata: previsioni v3 scritte, run da lanciare.**
+nominali), nessun difetto del modello (`validation/8_results.md`). 8b (Geant4, D48) fatta:
+passa su +X (3 fallimenti contro un quantile di 6) e sull'obliqua (7 contro 8), scatta su +Z
+(10 contro 9); diagnosi su +Z da decidere.**
 
 La chiusura della fase 7 (diagnosi 7c, v0.9.0, report) è unita in `master` con la PR #12
 (merge `b0fd4cf`, tag `v0.9.0`) dal branch `fix/case-b-oblique-split`, poi cancellato. Il
@@ -54,7 +55,12 @@ Fase 8, Caso C (spettro del neutrone ignoto), sul branch `feat/case-c-model`:
 5. 8b preparata: ricampionamento di D48 (`resample_c`), app `riptide_case_c_geant4`, previsioni
    v3 (§4.1–4.3). Dry run del pool: ripetizione piena su +X, M = 62 su +Z e 73 sull'obliqua;
    pilota della catena su +Z;
-6. **prossimo passo:** le 12 chiamate della 8b (v3 §4.2, ~2 h), solo col via.
+6. 8b fatta (`stats/8b_*`, `8_results.md` §7): passa su +X e sull'obliqua, scatta su +Z
+   (10 contro 9); sei fallimenti sono rapporti rms con un gemello ideale di rms bassa, quattro
+   sono a bassa potenza. In Geant4 il bias di μ_E a N = 1000 è negativo su +Z e sull'obliqua
+   (−0.05 / −0.04 MeV), entro soglia;
+7. **prossimo passo:** decisione (D50) e previsioni della diagnosi su +Z, poi i run solo col
+   via. La fase 8 si chiude dopo.
 
 Fonti: il `posterior_C.py` e la checklist del Caso C nel toy; record `stats/7b_*` e `7c_*`
 sotto la radice dei dati; prima di ogni run `scripts/data_root.sh check`.
@@ -508,6 +514,10 @@ D46–D48 (75b6f0a) e previsioni `validation/8_predictions.md` v1 (58bb185) prim
   (75468e5), `case_c.json` in `architecture/data_layout.md`; previsioni v3 §4.1–4.3
   (3818815). Pool (`8b_pool_{x,z,obl}`): ripetizione piena su +X, M = 62 su +Z e 73
   sull'obliqua; pilota della catena su +Z (`8b_pilot_*`).
+- **8b (record `8b_{x,z,obl}{,_acc}{,_toy}`, 2026-11-27, ~2 h 15 min, RSS ≤ 1.41 GB):**
+  fallimenti contati 3 / 10 / 7 su +X / +Z / obliqua contro i quantili 6 / 9 / 8; il criterio
+  scatta su +Z. Larghezza del pull di μ_E a N = 50 fuori soglia ovunque, come previsto
+  (`8_results.md` §7).
 - **Prestazioni:** `riptide_stats_bench --case c`, un'esperienza a N = 1000: 8.37 s, sopra
   l'obiettivo di 5 s (`8_results.md` §6).
 - **Test:** `debug` 512/512, `ci` 487/487, clang-format pulito.
